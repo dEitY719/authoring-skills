@@ -22,6 +22,28 @@ The colon is intentional. Audits must report it as PASS, not WARN.
 14+ skills already follow this form. Mixing kebab and colon fragments the
 mental model.
 
+## Exception: marketplace repos use the bare form
+
+The colon convention above is the rule for a **personal skills tree**
+(`~/dotfiles/claude/skills/`), where nothing supplies a prefix and the
+`name:` field has to carry the grouping itself.
+
+A **marketplace repo** — every `dEitY719/*-skills` repo, this one included —
+inverts that. There the plugin supplies the namespace at invocation time, so
+`name:` must be the **bare** directory name and a colon in it is a hard CI
+failure (`harness-skills/.github/workflows/skill-check.yml`, "Skill
+frontmatter name matches its directory").
+
+| context | frontmatter `name:` | invoked as |
+|---|---|---|
+| `~/dotfiles/claude/skills/skill-check/` | `skill:check` | `/skill:check` |
+| `authoring-skills/skills/skill-check/` | `skill-check` | `/authoring:skill-check` |
+
+Decide which world the audited skill lives in before judging its `name:`:
+a repo root holding `.claude-plugin/plugin.json` is a marketplace repo, and
+there bare is correct and colon is wrong. Everywhere else the rule below
+applies unchanged.
+
 ## Why colon
 
 - **Memorable grouping**: `gh:*` = GitHub actions, `skill:*` = skill
