@@ -17,6 +17,15 @@ Three of them audit and never write; three of them rewrite and say so first.
 | `ux-guidelines` | `/authoring:ux-guidelines [target]` | Replaces raw `echo`/`printf`/ANSI in shell functions and help text with semantic `ux_lib` calls (`ux_header`, `ux_section`, `ux_bullet`). Single-function or bulk-sweep mode. |
 | `command-rename` | `/authoring:command-rename <command-family> <convention> [remote]` | Designs a command-naming refactor — mapping table, behaviour preservation, risk and rollback — and files the tracking issue(s). Renames nothing; the rename runs later via `/gh:issue-flow`. |
 
+### Visual guides and worked examples (GitHub Pages)
+
+- `skill-create` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-create.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-create-usage.html) (한 문장짜리 아이디어 → 검증·패키징된 스킬)
+- `skill-check` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-check.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-check-usage.html) (SKILL.md → 16개 항목 감사 리포트)
+- `skill-refactor` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-refactor.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-refactor-usage.html) (100줄 초과 SKILL.md → 100줄 이하 + references/)
+- `sh-check` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/sh-check.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/sh-check-usage.html) (셸 스크립트 → 10개 기준 감사 리포트)
+- `ux-guidelines` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/ux-guidelines.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/ux-guidelines-usage.html) (raw echo 스크립트 → ux_lib 스크립트)
+- `command-rename` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/command-rename.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/command-rename-usage.html) (명령 패밀리 → 리네임 설계 + 추적 이슈)
+
 ### Picking between them
 
 The discriminator is **what you are pointing at**:

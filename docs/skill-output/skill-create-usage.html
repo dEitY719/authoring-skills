@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>skill-create 사용 결과</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ===== THEMES (class-based only) ===== */
+    html.theme-light {
+      --bg: #fbfbfd; --surface: #ffffff; --surface-hover: #f4f6fa;
+      --text: #16181d; --muted: #5c6370; --accent: #2f6feb;
+      --border: #e3e6ec;
+      --ok: #1a7f4b; --warn: #b0740a; --fail: #b3261e;
+      --text-secondary: var(--muted);
+      --accent-secondary: #5b46c9;
+      --positive: var(--ok); --negative: var(--fail); --warning: var(--warn);
+      --code-bg: #f5f7fa;
+    }
+    html.theme-dark {
+      --bg: #101216; --surface: #171a20; --surface-hover: #1e222a;
+      --text: #e9ebf0; --muted: #a0a7b4; --accent: #6f9dfb;
+      --border: #2a2f39;
+      --ok: #4cc38a; --warn: #e0a44a; --fail: #f2857c;
+      --text-secondary: var(--muted);
+      --accent-secondary: #a48bff;
+      --positive: var(--ok); --negative: var(--fail); --warning: var(--warn);
+      --code-bg: #12151a;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.72; -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em; font-size: 1rem;
+      transition: background 0.3s, color 0.3s;
+      scrollbar-gutter: stable;
+    }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    h1, h2, h3 { color: var(--text); letter-spacing: -0.025em; line-height: 1.2; text-wrap: balance; }
+    h1 { font-size: 3rem; font-weight: 700; }
+    h2 { font-size: 2rem; font-weight: 600; }
+    h3 { font-size: 1.5rem; font-weight: 600; }
+    p, li, td, th, span, label { color: var(--text); }
+    .muted, .text-secondary { color: var(--muted); }
+
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+    /* ===== HEADER ===== */
+    .page-header { padding: 88px 0 48px; border-bottom: 1px solid var(--border); }
+    .page-header .lede { margin-top: 18px; font-size: 1.125rem; color: var(--muted); max-width: 62ch; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+      color: var(--accent); font-size: 0.8125rem; font-weight: 600;
+      letter-spacing: 0.02em; margin-bottom: 20px;
+    }
+    .badge svg { display: block; }
+
+    section { padding: 56px 0 0; }
+    section > h2 { margin-bottom: 8px; }
+    .section-note { color: var(--muted); margin-bottom: 24px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+      transition: box-shadow 0.2s ease;
+    }
+    .card:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px rgba(16,18,24,0.07); }
+    .card + .card { margin-top: 16px; }
+    .card h3 { font-size: 1.125rem; margin-bottom: 12px; }
+
+    /* ===== PIPELINE ===== */
+    .pipeline {
+      display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+    }
+    .pipe-node {
+      flex: 1 1 200px; min-width: 0;
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; background: var(--bg);
+    }
+    .pipe-node.mid { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+    .pipe-label { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+    .pipe-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875rem; font-weight: 600; word-break: break-word; }
+    .pipe-arrow { display: flex; align-items: center; color: var(--muted); font-size: 1.25rem; flex: 0 0 auto; }
+    @media (max-width: 720px) { .pipe-arrow { transform: rotate(90deg); margin: 0 auto; } }
+
+    /* ===== CODE ===== */
+    .codewrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); background: var(--code-bg); }
+    pre { padding: 18px 20px; font-size: 0.875rem; line-height: 1.85; white-space: pre; }
+    pre .cm { color: var(--muted); }
+    p code, li code, td code, dd code, .card code {
+      font-size: 0.875em; padding: 2px 6px; border-radius: 5px;
+      background: var(--code-bg); border: 1px solid var(--border);
+    }
+
+    ul.plain { list-style: none; }
+    ul.plain li { position: relative; padding-left: 22px; margin-bottom: 12px; }
+    ul.plain li:last-child { margin-bottom: 0; }
+    ul.plain li::before { content: '·'; position: absolute; left: 6px; top: -1px; color: var(--muted); font-weight: 700; }
+
+    /* ===== STATS ===== */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 720px) { .stats { grid-template-columns: 1fr; } }
+    .stat { text-align: left; }
+    .stat .num { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.1; }
+    .stat .name { display: block; margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; word-break: break-all; }
+    .stat .cap { display: block; margin-top: 4px; font-size: 0.8125rem; color: var(--muted); }
+
+    /* ===== VERDICT TABLE ===== */
+    .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 0.9375rem; }
+    th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    thead th { font-weight: 600; font-size: 0.8125rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--surface-hover); }
+    tbody tr:last-child td { border-bottom: none; }
+    td.v { width: 84px; }
+    td.mono, .mono-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; }
+    .verdict { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; letter-spacing: 0.03em; }
+    .v-ok { color: var(--ok); } .v-warn { color: var(--warn); } .v-fail { color: var(--fail); }
+    .ok-mark { color: var(--ok); font-weight: 700; }
+
+    .kv { display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; }
+    @media (max-width: 560px) { .kv { grid-template-columns: 1fr; gap: 4px 0; } }
+    .kv dt { color: var(--muted); font-size: 0.875rem; }
+    .kv dd { color: var(--text); }
+
+    /* ===== FOOTER NAV ===== */
+    footer { margin-top: 72px; border-top: 1px solid var(--border); padding: 32px 0 72px; }
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 20px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--accent); text-decoration: none; font-weight: 600;
+      transition: background 0.15s, box-shadow 0.2s;
+    }
+    .nav-link:hover { background: var(--surface-hover); box-shadow: 0 4px 12px rgba(16,18,24,0.06); }
+    .foot-meta { margin-top: 18px; font-size: 0.875rem; color: var(--muted); }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate { animation: fadeInUp 0.5s ease-out both; }
+    .animate.delay-1 { animation-delay: 0.08s; }
+    .animate.delay-2 { animation-delay: 0.16s; }
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    /* ===== MENU ===== */
+    .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .viz-menu-toggle {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: background 0.2s;
+    }
+    .viz-menu-toggle:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown {
+      position: absolute; top: 52px; right: 0; min-width: 210px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px; box-shadow: 0 12px 28px rgba(16,18,24,0.10);
+      opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s;
+    }
+    .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .viz-menu-dropdown button {
+      width: 100%; padding: 10px 14px; border: none; border-radius: 8px;
+      background: transparent; color: var(--text); font-size: 0.875rem;
+      font-family: inherit; cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+    }
+    .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown button svg { flex: 0 0 16px; color: var(--muted); }
+
+    .skip-to-content {
+      position: absolute; top: -60px; left: 6px; background: var(--accent);
+      color: #fff; padding: 8px 12px; text-decoration: none; border-radius: 6px; z-index: 10000;
+    }
+    .skip-to-content:focus { top: 6px; }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .viz-menu, .skip-to-content { display: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .card { break-inside: avoid; box-shadow: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    @page { margin: 1in; }
+
+    @media (max-width: 560px) {
+      h1 { font-size: 2.25rem; }
+      h2 { font-size: 1.625rem; }
+      .page-header { padding-top: 64px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-to-content">본문으로 건너뛰기</a>
+
+  <div class="viz-menu">
+    <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+      </svg>
+    </button>
+    <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+      <button onclick="cycleTheme()" aria-label="테마 전환">
+        <svg id="themeIcon" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 11.5A6.5 6.5 0 0 1 8.5 4a6.5 6.5 0 1 0 7.5 7.5Z"/>
+        </svg>
+        <span id="themeLabel">다크 테마</span>
+      </button>
+      <button onclick="window.print()" aria-label="인쇄 또는 PDF">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 8V3h8v5"/><rect x="3.5" y="8" width="13" height="6" rx="1.5"/><path d="M6 12h8v5H6z"/>
+        </svg>
+        <span>인쇄 / PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <main id="main-content" role="main">
+
+    <header class="page-header">
+      <div class="wrap">
+        <span class="badge animate">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z"/>
+          </svg>
+          쓰기
+        </span>
+        <h1 class="animate delay-1">skill-create 사용 결과</h1>
+        <p class="lede animate delay-2">
+          한 문장짜리 스킬 아이디어를 받아 검증을 통과한 <code>SKILL.md</code> + <code>lib/</code> 헬퍼 +
+          배포용 <code>.skill</code> 아카이브를 생성합니다.
+        </p>
+      </div>
+    </header>
+
+    <div class="wrap">
+
+      <!-- 파이프라인 -->
+      <section id="pipeline" data-reveal>
+        <h2>흐름</h2>
+        <p class="section-note">입력 한 문장에서 배포 가능한 아카이브까지.</p>
+        <div class="pipeline">
+          <div class="pipe-node">
+            <span class="pipe-label">입력</span>
+            <span class="pipe-val">스킬 아이디어 (문장)</span>
+          </div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node mid">
+            <span class="pipe-label">스킬</span>
+            <span class="pipe-val">/authoring:skill-create</span>
+          </div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node">
+            <span class="pipe-label">출력</span>
+            <span class="pipe-val">SKILL.md + lib/ + 검증 결과 + .skill</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. 실행한 명령 -->
+      <section id="commands" data-reveal>
+        <h2>1. 실행한 명령</h2>
+        <p class="section-note">헬퍼는 <code>cwd = skills/skill-create</code>에서 실행했다.</p>
+        <div class="codewrap">
+<pre>/authoring:skill-create "&lt;idea&gt;"                                   <span class="cm"># 일반형</span>
+/authoring:skill-create "repo의 .gitignore를 감사하는 스킬"          <span class="cm"># 실제 실행 (비대화형, 인터뷰는 브리프로 대체)</span>
+
+<span class="cm"># 스킬이 부르는 헬퍼 (cwd = skills/skill-create)</span>
+python3 scripts/quick_validate.py <span class="cm">&lt;scratchpad&gt;</span>/create-demo/gitignore-audit
+python3 -m scripts.package_skill  <span class="cm">&lt;scratchpad&gt;</span>/create-demo/gitignore-audit <span class="cm">&lt;scratchpad&gt;</span>/dist</pre>
+        </div>
+      </section>
+
+      <!-- 2. 입력 -->
+      <section id="input" data-reveal>
+        <h2>2. 입력</h2>
+        <p class="section-note">저장소 <code>skills/</code>는 건드리지 않았다.</p>
+        <article class="card">
+          <dl class="kv">
+            <dt>아이디어</dt>
+            <dd>"repo의 <code>.gitignore</code>를 감사한다 — 중복 패턴, 도달 불가능한 negation, 누락된 공통 엔트리, 이미 tracked인 ignore 대상 파일을 읽기 전용으로 보고한다"</dd>
+            <dt>작업 디렉터리</dt>
+            <dd><code>&lt;scratchpad&gt;/create-demo/</code> (저장소 <code>skills/</code>는 미변경)</dd>
+            <dt>픽스처</dt>
+            <dd><code>&lt;scratchpad&gt;/fixture-repo</code> — 결함을 일부러 심은 일회용 git 저장소</dd>
+          </dl>
+        </article>
+      </section>
+
+      <!-- 3. 결과 -->
+      <section id="result" data-reveal>
+        <h2>3. 결과</h2>
+        <p class="section-note">생성물 3개 (<code>wc -l</code>).</p>
+
+        <article class="card">
+          <div class="stats">
+            <div class="stat">
+              <div class="num"><span data-count="71">71</span>줄</div>
+              <span class="name">SKILL.md</span>
+              <span class="cap">frontmatter <code>name: gitignore-audit</code></span>
+            </div>
+            <div class="stat">
+              <div class="num"><span data-count="103">103</span>줄</div>
+              <span class="name">lib/scan_gitignore.py</span>
+              <span class="cap">헬퍼 실물</span>
+            </div>
+            <div class="stat">
+              <div class="num"><span data-count="26">26</span>줄</div>
+              <span class="name">evals/evals.json</span>
+              <span class="cap">description 242자</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>헬퍼 실물 동작 (픽스처)</h3>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr><th scope="col">판정</th><th scope="col">항목</th><th scope="col">출력</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="v"><span class="verdict v-warn">WARN</span></td>
+                  <td class="mono-cell">duplicates</td>
+                  <td class="mono-cell">'*.log' repeated at lines 2 and 3</td>
+                </tr>
+                <tr>
+                  <td class="v"><span class="verdict v-fail">FAIL</span></td>
+                  <td class="mono-cell">negation-order</td>
+                  <td class="mono-cell">'!assets/keep.png' (line 5) is unreachable</td>
+                </tr>
+                <tr>
+                  <td class="v"><span class="verdict v-fail">FAIL</span></td>
+                  <td class="mono-cell">tracked-ignored</td>
+                  <td class="mono-cell">2 tracked file(s): .env, assets/keep.png</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:16px;">
+            이 저장소 대상으로는 6개 전부 <span class="verdict v-ok">PASS</span>.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3>검증기 출력 <span class="ok-mark" aria-label="통과">✓</span></h3>
+          <ul class="plain">
+            <li><code>quick_validate.py</code>: <code>Skill is valid!</code> (exit 0)</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>패키징 <span class="ok-mark" aria-label="통과">✓</span></h3>
+          <ul class="plain">
+            <li><code>Successfully packaged skill to: &lt;scratchpad&gt;/dist/gitignore-audit.skill</code></li>
+            <li><strong><span data-count="3161">3,161</span> 바이트</strong></li>
+            <li>아카이브에는 <code>SKILL.md</code> 와 <code>lib/scan_gitignore.py</code> 2개만 들어감 (<code>evals/</code> 제외)</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <p class="muted">전체 실행 기록: <code>&lt;scratchpad&gt;/run-skill-create.txt</code></p>
+        </article>
+      </section>
+
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <a class="nav-link" href="../skill-guides/skill-create.html">
+          스킬 설명서 보기
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 10h12"/><path d="m11 5 5 5-5 5"/>
+          </svg>
+        </a>
+        <p class="foot-meta">authoring — skill-create 실행 기록 · 저작(쓰기) 스킬</p>
+      </div>
+    </footer>
+
+  </main>
+
+  <script>
+    // === Menu ===
+    function toggleMenu() {
+      var dropdown = document.getElementById('vizMenuDropdown');
+      if (dropdown) dropdown.classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.viz-menu')) {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+
+    // === Theme (light default; class-based) ===
+    var MOON = '<path d="M16 11.5A6.5 6.5 0 0 1 8.5 4a6.5 6.5 0 1 0 7.5 7.5Z"/>';
+    var SUN = '<circle cx="10" cy="10" r="3.4"/><path d="M10 2.2v1.6M10 16.2v1.6M2.2 10h1.6M16.2 10h1.6M4.5 4.5l1.1 1.1M14.4 14.4l1.1 1.1M15.5 4.5l-1.1 1.1M5.6 14.4l-1.1 1.1"/>';
+    var savedTheme = localStorage.getItem('authoring-doc-theme');
+    var currentTheme = savedTheme || 'light';
+    function applyTheme(t) {
+      document.documentElement.className = 'theme-' + t;
+      document.getElementById('themeIcon').innerHTML = (t === 'dark') ? SUN : MOON;
+      document.getElementById('themeLabel').textContent = (t === 'dark') ? '라이트 테마' : '다크 테마';
+      localStorage.setItem('authoring-doc-theme', t);
+      currentTheme = t;
+    }
+    function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+    applyTheme(currentTheme);
+
+    // === Scroll reveal ===
+    document.querySelectorAll('[data-reveal]').forEach(function(el) { el.classList.add('reveal'); });
+    var revealObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.reveal').forEach(function(el) { revealObserver.observe(el); });
+
+    // === Number counters (exact source values preserved) ===
+    function animateCounters(root) {
+      root.querySelectorAll('[data-count]').forEach(function(el) {
+        if (el.dataset.counted) return;
+        el.dataset.counted = '1';
+        var target = parseFloat(el.dataset.count);
+        var start = performance.now(), duration = 900;
+        (function tick(now) {
+          var p = Math.min((now - start) / duration, 1);
+          var eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(target * eased).toLocaleString('en-US');
+          if (p < 1) { requestAnimationFrame(tick); } else { el.textContent = target.toLocaleString('en-US'); }
+        })(start);
+      });
+    }
+    var counterObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) { if (e.isIntersecting) { animateCounters(e.target); counterObs.unobserve(e.target); } });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('.card').forEach(function(el) {
+      if (el.querySelector('[data-count]')) counterObs.observe(el);
+    });
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>skill-refactor 사용 결과</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ===== THEMES (class-based only) ===== */
+  html.theme-light {
+    --bg: #fbfbfd; --surface: #ffffff; --surface-hover: #f4f6fa;
+    --text: #16181d; --muted: #5c6370; --accent: #2f6feb; --border: #e3e6ec;
+    --ok: #1a7f4b; --warn: #b0740a; --fail: #b3261e;
+    --accent-soft: #eaf1fe; --ok-soft: #e8f5ee; --warn-soft: #fdf3e2; --fail-soft: #fdecea;
+    --track: #eef0f5;
+    --code-bg: #f5f7fa; --shadow: 0 1px 2px rgba(22,24,29,.04), 0 8px 24px rgba(22,24,29,.05);
+    --text-secondary: var(--muted); --accent-secondary: #7048c9;
+    --positive: var(--ok); --negative: var(--fail); --warning: var(--warn);
+  }
+  html.theme-dark {
+    --bg: #101216; --surface: #171a20; --surface-hover: #1e222a;
+    --text: #e9ebf0; --muted: #a0a7b4; --accent: #6a9dff; --border: #2a2f39;
+    --ok: #4cc38a; --warn: #e0a63a; --fail: #f2837a;
+    --accent-soft: #1b2740; --ok-soft: #14291f; --warn-soft: #2c2415; --fail-soft: #301c1a;
+    --track: #22262e;
+    --code-bg: #12151a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    --text-secondary: var(--muted); --accent-secondary: #a68cf0;
+    --positive: var(--ok); --negative: var(--fail); --warning: var(--warn);
+  }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 1rem; line-height: 1.75; letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    transition: background .3s, color .3s;
+    scrollbar-gutter: stable;
+    word-break: keep-all; overflow-wrap: anywhere;
+  }
+  h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.03em; line-height: 1.2; text-wrap: balance; }
+  h1 { font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; }
+  h2 { font-size: 2rem; font-weight: 700; }
+  h3 { font-size: 1.5rem; font-weight: 650; }
+  h4 { font-size: 1.0625rem; font-weight: 650; }
+  p, li, td, th { color: var(--text); }
+  a { color: var(--accent); }
+  strong { font-weight: 650; }
+  code, pre, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .9em; font-feature-settings: 'liga' 0;
+  }
+  code.inline {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: .08em .36em; color: var(--text);
+  }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+  /* ===== HEADER ===== */
+  .page-head { padding: 72px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .8125rem; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  .lead { font-size: 1.1875rem; color: var(--muted); margin-top: 18px; max-width: 62ch; }
+  .badge-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: .8125rem; font-weight: 600; line-height: 1;
+    padding: 8px 13px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted);
+  }
+  .pill svg { width: 14px; height: 14px; flex: none; }
+  .pill.write { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 34%, transparent); color: var(--warn); }
+  .pill.okpill { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 34%, transparent); color: var(--ok); }
+
+  /* ===== TOC ===== */
+  .toc {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .toc-inner { display: flex; gap: 4px; overflow-x: auto; padding: 10px 24px; scrollbar-width: thin; }
+  .toc a {
+    white-space: nowrap; font-size: .8125rem; font-weight: 550;
+    color: var(--muted); text-decoration: none;
+    padding: 7px 12px; border-radius: 8px; transition: background .15s, color .15s;
+  }
+  .toc a:hover { background: var(--surface-hover); color: var(--text); }
+  .toc a.active { background: var(--accent-soft); color: var(--accent); }
+
+  /* ===== SECTIONS ===== */
+  section { padding: 56px 0 8px; }
+  section > h2 { margin-bottom: 8px; }
+  .sec-note { color: var(--muted); margin-bottom: 26px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; transition: box-shadow .2s ease;
+  }
+  .card:hover { box-shadow: var(--shadow); }
+  .stack { display: grid; gap: 16px; }
+  .card ul { margin: 0; padding-left: 0; list-style: none; }
+  .card ul li { position: relative; padding-left: 22px; margin-top: 10px; }
+  .card ul li:first-child { margin-top: 0; }
+  .card ul li::before { content: '·'; position: absolute; left: 6px; top: -1px; color: var(--muted); font-weight: 700; }
+
+  .tone-ok { border-color: color-mix(in srgb, var(--ok) 30%, var(--border)); }
+  .tone-accent { border-color: color-mix(in srgb, var(--accent) 34%, var(--border)); }
+
+  /* ===== PIPELINE ===== */
+  .pipe {
+    display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 12px; align-items: stretch;
+  }
+  .pipe-node {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 16px; text-align: center;
+  }
+  .pipe-node .n { font-size: 1.5rem; font-weight: 750; letter-spacing: -.03em; display: block; }
+  .pipe-node .l { font-size: .8125rem; color: var(--muted); display: block; margin-top: 4px; line-height: 1.45; }
+  .pipe-node.before .n { color: var(--fail); }
+  .pipe-node.after .n { color: var(--ok); }
+  .pipe-node.mid { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 26%, transparent); display: flex; flex-direction: column; justify-content: center; }
+  .pipe-node.mid .m { font-size: .8125rem; font-weight: 650; color: var(--accent); word-break: break-all; }
+  .pipe .arrow { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.25rem; }
+
+  /* ===== STAT ROW ===== */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+  .stat .k { font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font-size: 2.25rem; font-weight: 780; letter-spacing: -.04em; line-height: 1.15; margin-top: 8px; }
+  .stat .sub { font-size: .8125rem; color: var(--muted); margin-top: 2px; }
+  .stat.ok .v { color: var(--ok); }
+  .stat.accent .v { color: var(--accent); }
+
+  /* ===== BAR COMPARISON ===== */
+  .bars { display: grid; gap: 22px; }
+  .bar-row .bar-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; margin-bottom: 8px;
+  }
+  .bar-row .bar-label { font-weight: 650; font-size: .9375rem; }
+  .bar-row .bar-label .tag { font-weight: 500; color: var(--muted); font-size: .8125rem; margin-left: 8px; }
+  .bar-row .bar-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1rem; font-weight: 700; white-space: nowrap; }
+  .bar-track { background: var(--track); border-radius: 8px; height: 34px; overflow: hidden; }
+  .bar-fill {
+    height: 100%; border-radius: 8px; width: 0;
+    transition: width 1.1s cubic-bezier(.22,.9,.28,1);
+  }
+  .bar-fill.before { background: color-mix(in srgb, var(--fail) 78%, var(--surface)); }
+  .bar-fill.after  { background: color-mix(in srgb, var(--ok) 82%, var(--surface)); }
+  .bar-row.before .bar-value { color: var(--fail); }
+  .bar-row.after .bar-value { color: var(--ok); }
+  .delta {
+    margin-top: 4px; display: inline-flex; align-items: center; gap: 8px;
+    font-size: .9375rem; font-weight: 650; color: var(--ok);
+    background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+    border-radius: 999px; padding: 7px 14px;
+  }
+  .delta svg { width: 15px; height: 15px; }
+
+  /* ===== REF FILE BARS ===== */
+  .reffiles { display: grid; gap: 12px; }
+  .ref {
+    display: grid; grid-template-columns: minmax(0,1fr) 56px; gap: 14px; align-items: center;
+  }
+  .ref .name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8125rem; }
+  .ref .name .new { font-family: 'Inter', sans-serif; font-size: .75rem; color: var(--warn); margin-left: 8px; font-weight: 600; }
+  .ref .rtrack { background: var(--track); border-radius: 6px; height: 12px; margin-top: 6px; overflow: hidden; }
+  .ref .rfill { height: 100%; border-radius: 6px; width: 0; background: color-mix(in srgb, var(--accent) 72%, var(--surface)); transition: width .9s cubic-bezier(.22,.9,.28,1); }
+  .ref .num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: .9375rem; color: var(--muted); }
+  .cap-note { font-size: .8125rem; color: var(--muted); margin-top: 16px; }
+
+  /* ===== CODE ===== */
+  .codeblock { position: relative; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; overflow-x: auto; line-height: 1.7; color: var(--text);
+  }
+  pre .cm { color: var(--muted); }
+  .copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font: inherit; font-size: .75rem; font-weight: 600;
+    background: var(--surface); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 10px; cursor: pointer; transition: all .15s;
+  }
+  .copy-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .copy-btn.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); }
+  .copy-btn svg { width: 13px; height: 13px; }
+
+  /* ===== TABLE ===== */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 420px; }
+  th, td { text-align: left; padding: 12px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th { font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); background: var(--surface-hover); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 650; white-space: nowrap; }
+
+  /* ===== VERIFY ===== */
+  .verify { display: grid; gap: 10px; }
+  .vrow { display: grid; grid-template-columns: 20px 1fr; gap: 12px; align-items: start; }
+  .vrow .chk { color: var(--ok); font-weight: 800; line-height: 1.7; }
+  .verdict {
+    margin-top: 18px; padding: 16px 18px; border-radius: 10px;
+    background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok) 32%, transparent);
+  }
+  .verdict .line1 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; color: var(--ok); font-size: 1rem; }
+  .verdict .line2 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: .875rem; margin-top: 6px; word-break: break-all; }
+
+  /* ===== FOOTER ===== */
+  footer { margin-top: 72px; border-top: 1px solid var(--border); padding: 32px 0 64px; }
+  .footnav { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+  .footnav .meta { color: var(--muted); font-size: .875rem; }
+  .navlink {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: .9375rem; font-weight: 600; text-decoration: none;
+    color: var(--accent); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px;
+    transition: background .15s, box-shadow .2s;
+  }
+  .navlink:hover { background: var(--surface-hover); box-shadow: var(--shadow); }
+  .navlink svg { width: 15px; height: 15px; }
+
+  /* ===== MENU ===== */
+  .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+  .viz-menu-toggle {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; box-shadow: var(--shadow);
+    transition: background .2s;
+  }
+  .viz-menu-toggle:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown {
+    position: absolute; top: 52px; right: 0; min-width: 196px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 8px; box-shadow: var(--shadow);
+    opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all .2s;
+  }
+  .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+  .viz-menu-dropdown button {
+    width: 100%; padding: 10px 12px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text); font: inherit; font-size: .875rem;
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+    transition: background .15s;
+  }
+  .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+
+  /* ===== ANIMATION ===== */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  .animate { animation: fadeInUp .55s ease-out both; }
+  .animate.delay-1 { animation-delay: .07s; }
+  .animate.delay-2 { animation-delay: .14s; }
+  .animate.delay-3 { animation-delay: .21s; }
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 720px) {
+    h1 { font-size: 2.25rem; }
+    h2 { font-size: 1.5rem; }
+    .page-head { padding: 52px 0 32px; }
+    .pipe { grid-template-columns: 1fr; }
+    .pipe .arrow { transform: rotate(90deg); }
+    .stats { grid-template-columns: 1fr; }
+    .stat .v { font-size: 2rem; }
+    .wrap { padding: 0 18px; }
+    .toc-inner { padding: 10px 18px; }
+  }
+
+  /* ===== PRINT ===== */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    .viz-menu, .toc, .copy-btn { display: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .card, .stat, .pipe-node { break-inside: avoid; box-shadow: none; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+  @page { margin: 1in; }
+
+  .skip-to-content {
+    position: absolute; top: -60px; left: 6px; background: var(--accent);
+    color: #fff; padding: 9px 14px; text-decoration: none; border-radius: 6px;
+    z-index: 10000; transition: top .2s;
+  }
+  .skip-to-content:focus { top: 8px; }
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-to-content">본문으로 건너뛰기</a>
+
+<div class="viz-menu">
+  <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true" aria-expanded="false" id="vizMenuBtn">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+    </svg>
+  </button>
+  <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+    <button onclick="cycleTheme()" role="menuitem">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"></svg>
+      <span id="themeLabel">다크 모드</span>
+    </button>
+    <button onclick="window.print()" role="menuitem">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/>
+      </svg>
+      <span>인쇄 / PDF</span>
+    </button>
+  </div>
+</div>
+
+<header class="page-head">
+  <div class="wrap">
+    <div class="eyebrow animate">authoring — 사용 결과</div>
+    <h1 class="animate delay-1">skill-refactor</h1>
+    <p class="lead animate delay-2">
+      100줄을 넘긴 <code class="inline">SKILL.md</code> 한 개를 받아 100줄 이하로 다시 쓴
+      <code class="inline">SKILL.md</code>와 상세 내용을 옮겨 담은 <code class="inline">references/</code> 트리를 생성합니다.
+    </p>
+    <div class="badge-row animate delay-3">
+      <span class="pill write">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        쓰기 — 확인 후 실행
+      </span>
+      <span class="pill okpill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        [OK] refactor complete
+      </span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="문서 목차">
+  <div class="toc-inner">
+    <a href="#pipeline">개요</a>
+    <a href="#command">실행한 명령</a>
+    <a href="#input">입력</a>
+    <a href="#result">결과</a>
+    <a href="#files">참조 파일</a>
+    <a href="#verify">검증</a>
+  </div>
+</nav>
+
+<main id="main-content" role="main">
+  <div class="wrap">
+
+    <!-- 개요 -->
+    <section id="pipeline" data-reveal>
+      <h2>한눈에</h2>
+      <p class="sec-note">한 번의 실행이 만들어낸 변화.</p>
+      <div class="pipe">
+        <div class="pipe-node before">
+          <span class="n">884줄</span>
+          <span class="l">SKILL.md</span>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="pipe-node mid">
+          <span class="m mono">/authoring:<wbr>skill-refactor</span>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="pipe-node after">
+          <span class="n">92줄</span>
+          <span class="l">SKILL.md + references/ 8개</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. 실행한 명령 -->
+    <section id="command" data-reveal>
+      <h2>1. 실행한 명령</h2>
+      <p class="sec-note">일반형과 이번 실행에 쓴 실제 경로.</p>
+      <div class="codeblock">
+        <pre id="code-run">/authoring:skill-refactor [path/to/SKILL.md]        <span class="cm"># 일반형</span>
+/authoring:skill-refactor &lt;scratchpad&gt;/refactor-demo/SKILL.md   <span class="cm"># 실제 실행</span></pre>
+        <button class="copy-btn" type="button" data-target="code-run" aria-label="명령 복사">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <span>복사</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 입력 -->
+    <section id="input" data-reveal>
+      <h2>2. 입력</h2>
+      <p class="sec-note">원본은 건드리지 않았다.</p>
+      <div class="card">
+        <ul>
+          <li><strong>경로</strong> — <code class="inline">&lt;scratchpad&gt;/refactor-demo/SKILL.md</code> (원본 미변경, 일회용 사본)</li>
+          <li><strong>내용</strong> — <code class="inline">plugin-dev</code> 플러그인의 <code class="inline">command-development</code> SKILL.md</li>
+          <li><strong>원본 라인 수</strong> — <strong>884줄</strong>, 100줄 한도의 8.8배. 기존 <code class="inline">references/</code> 없음</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3. 결과 -->
+    <section id="result" data-reveal>
+      <h2>3. 결과</h2>
+      <p class="sec-note"><code class="inline">SKILL.md</code> 884줄 → 92줄, <code class="inline">references/</code> 0개 → 8개.</p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="k">Before</div>
+          <div class="v" data-count="884" data-suffix="줄">884줄</div>
+          <div class="sub">100줄 한도의 8.8배</div>
+        </div>
+        <div class="stat ok">
+          <div class="k">After</div>
+          <div class="v" data-count="92" data-suffix="줄">92줄</div>
+          <div class="sub">100줄 한도 이하</div>
+        </div>
+        <div class="stat accent">
+          <div class="k">references/</div>
+          <div class="v" data-count="8" data-suffix="개">8개</div>
+          <div class="sub">0개 → 8개 (help.md 포함)</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h4 style="margin-bottom:20px">SKILL.md 라인 수 비교</h4>
+        <div class="bars">
+          <div class="bar-row before">
+            <div class="bar-head">
+              <span class="bar-label">Before<span class="tag">리팩터링 전</span></span>
+              <span class="bar-value">884줄</span>
+            </div>
+            <div class="bar-track" role="img" aria-label="리팩터링 전 884줄">
+              <div class="bar-fill before" data-w="100"></div>
+            </div>
+          </div>
+          <div class="bar-row after">
+            <div class="bar-head">
+              <span class="bar-label">After<span class="tag">리팩터링 후</span></span>
+              <span class="bar-value">92줄</span>
+            </div>
+            <div class="bar-track" role="img" aria-label="리팩터링 후 92줄">
+              <div class="bar-fill after" data-w="10.41"></div>
+            </div>
+          </div>
+        </div>
+        <div class="delta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
+          </svg>
+          89.6% 감소
+        </div>
+      </div>
+    </section>
+
+    <!-- 참조 파일 -->
+    <section id="files" data-reveal>
+      <h2>생성된 참조 파일</h2>
+      <p class="sec-note">8개 파일, 최대 241줄 — 모두 300줄 한도 이하.</p>
+
+      <div class="card">
+        <div class="reffiles">
+          <div class="ref">
+            <div>
+              <div class="name">references/plugin-commands.md</div>
+              <div class="rtrack"><div class="rfill" data-w="100"></div></div>
+            </div>
+            <div class="num">241</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/arguments-and-references.md</div>
+              <div class="rtrack"><div class="rfill" data-w="60.58"></div></div>
+            </div>
+            <div class="num">146</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/organization-and-best-practices.md</div>
+              <div class="rtrack"><div class="rfill" data-w="45.23"></div></div>
+            </div>
+            <div class="num">109</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/command-basics.md</div>
+              <div class="rtrack"><div class="rfill" data-w="42.74"></div></div>
+            </div>
+            <div class="num">103</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/common-patterns.md</div>
+              <div class="rtrack"><div class="rfill" data-w="41.91"></div></div>
+            </div>
+            <div class="num">101</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/frontmatter-fields.md</div>
+              <div class="rtrack"><div class="rfill" data-w="36.51"></div></div>
+            </div>
+            <div class="num">88</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/validation-patterns.md</div>
+              <div class="rtrack"><div class="rfill" data-w="34.02"></div></div>
+            </div>
+            <div class="num">82</div>
+          </div>
+          <div class="ref">
+            <div>
+              <div class="name">references/help.md<span class="new">신규 — 원본에 도움말 없음</span></div>
+              <div class="rtrack"><div class="rfill" data-w="9.13"></div></div>
+            </div>
+            <div class="num">22</div>
+          </div>
+        </div>
+        <p class="cap-note">막대 길이는 최대값 241줄 기준 비례.</p>
+      </div>
+
+      <div class="table-scroll" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr><th>생성된 참조 파일</th><th style="text-align:right">줄 수</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">references/plugin-commands.md</code></td><td class="num">241</td></tr>
+            <tr><td><code class="inline">references/arguments-and-references.md</code></td><td class="num">146</td></tr>
+            <tr><td><code class="inline">references/organization-and-best-practices.md</code></td><td class="num">109</td></tr>
+            <tr><td><code class="inline">references/command-basics.md</code></td><td class="num">103</td></tr>
+            <tr><td><code class="inline">references/common-patterns.md</code></td><td class="num">101</td></tr>
+            <tr><td><code class="inline">references/frontmatter-fields.md</code></td><td class="num">88</td></tr>
+            <tr><td><code class="inline">references/validation-patterns.md</code></td><td class="num">82</td></tr>
+            <tr><td><code class="inline">references/help.md</code> — 신규(원본에 도움말 없음)</td><td class="num">22</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 검증 -->
+    <section id="verify" data-reveal>
+      <h2>검증</h2>
+      <p class="sec-note">네 항목 모두 통과.</p>
+      <div class="card tone-ok">
+        <div class="verify">
+          <div class="vrow"><span class="chk">✓</span><span>92줄</span></div>
+          <div class="vrow"><span class="chk">✓</span><span>frontmatter 무변경</span></div>
+          <div class="vrow"><span class="chk">✓</span><span>참조 8개 모두 <code class="inline">SKILL.md</code>에서 트리거</span></div>
+          <div class="vrow"><span class="chk">✓</span><span>각 참조 300줄 이하(최대 241)</span></div>
+        </div>
+        <div class="verdict">
+          <div class="line1">[OK] refactor complete</div>
+          <div class="line2">lines_before=884 lines_after=92 files_created=8</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="footnav">
+        <span class="meta">authoring · skill-refactor 사용 결과</span>
+        <a class="navlink" href="../skill-guides/skill-refactor.html">
+          스킬 설명서 보기
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+    </footer>
+
+  </div>
+</main>
+
+<script>
+  var ICON_MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>';
+  var ICON_SUN  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+
+  function menuEl() { return document.getElementById('vizMenuDropdown'); }
+  function toggleMenu() {
+    var d = menuEl(); if (!d) return;
+    var open = d.classList.toggle('open');
+    document.getElementById('vizMenuBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.viz-menu')) {
+      var d = menuEl(); if (d) d.classList.remove('open');
+      var b = document.getElementById('vizMenuBtn'); if (b) b.setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { var d = menuEl(); if (d) d.classList.remove('open'); }
+  });
+
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('viz-theme'); } catch (err) { savedTheme = null; }
+  var currentTheme = savedTheme || 'light';
+  function applyTheme(t) {
+    document.documentElement.className = 'theme-' + t;
+    document.getElementById('themeIcon').innerHTML = (t === 'dark') ? ICON_SUN : ICON_MOON;
+    document.getElementById('themeLabel').textContent = (t === 'dark') ? '라이트 모드' : '다크 모드';
+    try { localStorage.setItem('viz-theme', t); } catch (err) {}
+    currentTheme = t;
+  }
+  function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+  applyTheme(currentTheme);
+
+  document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('reveal'); });
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+
+  // === Bars grow into place when scrolled into view ===
+  function growBars(root) {
+    root.querySelectorAll('[data-w]').forEach(function (el) {
+      if (el.dataset.grown) return;
+      el.dataset.grown = '1';
+      requestAnimationFrame(function () { el.style.width = el.dataset.w + '%'; });
+    });
+  }
+  var barObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { growBars(e.target); barObserver.unobserve(e.target); }
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.bars, .reffiles').forEach(function (el) { barObserver.observe(el); });
+
+  // === Number counters ===
+  function animateCounters(scope) {
+    scope.querySelectorAll('[data-count]').forEach(function (el) {
+      if (el.dataset.counted) return;
+      el.dataset.counted = '1';
+      var target = parseFloat(el.dataset.count), suffix = el.dataset.suffix || '';
+      var start = performance.now(), duration = 1100;
+      (function tick(now) {
+        var p = Math.min((now - start) / duration, 1), eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased).toLocaleString() + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      })(start);
+    });
+  }
+  var statsEl = document.querySelector('.stats');
+  if (statsEl) {
+    var cObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { animateCounters(statsEl); cObs.disconnect(); } });
+    }, { threshold: 0.3 });
+    cObs.observe(statsEl);
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var src = document.getElementById(btn.dataset.target);
+      if (!src) return;
+      var text = src.innerText;
+      var done = function () {
+        btn.classList.add('done');
+        var label = btn.querySelector('span');
+        label.textContent = '복사됨 ✓';
+        setTimeout(function () { btn.classList.remove('done'); label.textContent = '복사'; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (err) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var spy = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      tocLinks.forEach(function (a) {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id);
+      });
+    });
+  }, { rootMargin: '-88px 0px -62% 0px', threshold: 0 });
+  document.querySelectorAll('main section[id]').forEach(function (s) { spy.observe(s); });
+</script>
+</body>
+</html>

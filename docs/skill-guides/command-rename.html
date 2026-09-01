@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>command-rename — 스킬 설명서</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ===== THEMES (class-based only) ===== */
+    html.theme-light {
+      --bg: #fbfbfd; --surface: #ffffff; --surface-hover: #f4f5f8;
+      --text: #16181d; --muted: #5c6370; --text-secondary: #5c6370;
+      --accent: #2f6feb; --accent-secondary: #6b4fd8; --border: #e3e6ec;
+      --ok: #1a7f4b; --warn: #b0740a; --fail: #b3261e;
+      --positive: #1a7f4b; --warning: #b0740a; --negative: #b3261e;
+      --code-bg: #f5f6f9; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.05);
+    }
+    html.theme-dark {
+      --bg: #101216; --surface: #171a20; --surface-hover: #1e222a;
+      --text: #e8eaee; --muted: #9aa2b1; --text-secondary: #9aa2b1;
+      --accent: #6fa0ff; --accent-secondary: #a48cf5; --border: #262b34;
+      --ok: #4bbd83; --warn: #d8a441; --fail: #e0776d;
+      --positive: #4bbd83; --warning: #d8a441; --negative: #e0776d;
+      --code-bg: #1c2027; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.72; -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em; word-break: keep-all;
+      transition: background .3s, color .3s;
+      scrollbar-gutter: stable;
+    }
+    h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.025em; line-height: 1.24; text-wrap: balance; }
+    h1 { font-size: clamp(2.1rem, 6vw, 3rem); font-weight: 700; letter-spacing: -0.04em; }
+    h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); font-weight: 650; }
+    h3 { font-size: 1.5rem; font-weight: 600; }
+    h4 { font-size: 1.02rem; font-weight: 650; }
+    p, li, td, th, span, label { font-weight: 400; font-size: 1rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    code {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 5px; padding: .08em .38em; font-size: .87em;
+      white-space: nowrap;
+    }
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+      font-size: .88rem; line-height: 1.75; color: var(--text);
+    }
+    pre code { background: none; border: none; padding: 0; white-space: pre; font-size: 1em; }
+
+    /* ===== LAYOUT ===== */
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+    header.page { padding: 72px 0 40px; }
+    section { padding: 26px 0; }
+    section + section { border-top: 1px solid var(--border); }
+    .lead { color: var(--muted); font-size: 1.06rem; margin-top: 16px; max-width: 62ch; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 24px; padding: 7px 15px; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); font-size: .84rem; font-weight: 500;
+      letter-spacing: -0.01em; box-shadow: var(--shadow);
+    }
+    .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+    .eyebrow {
+      display: block; font-size: .76rem; font-weight: 650; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px 24px;
+      transition: box-shadow .2s ease, border-color .2s ease;
+    }
+    .card:hover { box-shadow: var(--shadow); }
+    .grid { display: grid; gap: 14px; }
+    @media (min-width: 700px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+
+    ul.clean { list-style: none; display: grid; gap: 11px; }
+    ul.clean li { position: relative; padding-left: 22px; color: var(--text); }
+    ul.clean li::before {
+      content: "—"; position: absolute; left: 0; top: 0;
+      color: var(--accent); font-weight: 600;
+    }
+    ul.clean.check li::before { content: "\2713"; color: var(--ok); }
+
+    /* ===== TABLE ===== */
+    .table-scroll {
+      overflow-x: auto; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface); -webkit-overflow-scrolling: touch;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 540px; font-size: .94rem; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    thead th {
+      background: var(--surface-hover); color: var(--muted);
+      font-weight: 600; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase;
+      white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-hover); }
+    td.nowrap, th.nowrap { white-space: nowrap; }
+
+    /* ===== STEPS ===== */
+    ol.steps { list-style: none; counter-reset: s; display: grid; gap: 12px; }
+    ol.steps > li {
+      counter-increment: s; position: relative;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 22px 18px 62px;
+      transition: box-shadow .2s ease;
+    }
+    ol.steps > li:hover { box-shadow: var(--shadow); }
+    ol.steps > li::before {
+      content: counter(s); position: absolute; left: 20px; top: 18px;
+      width: 26px; height: 26px; border-radius: 8px;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .82rem; font-weight: 650; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    ol.steps h4 { margin-bottom: 5px; }
+    ol.steps p { color: var(--muted); font-size: .95rem; }
+    .ref { color: var(--muted); font-size: .85rem; }
+
+    .callout {
+      border-left: 3px solid var(--warn); background: var(--surface);
+      border-radius: 0 10px 10px 0; padding: 16px 20px;
+      border-top: 1px solid var(--border); border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .callout.stop { border-left-color: var(--fail); }
+    .callout strong { font-weight: 650; }
+
+    /* ===== FLOW ===== */
+    .flow {
+      display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .flow .node { flex: 1 1 180px; min-width: 0; }
+    .flow .node .k { font-size: .78rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+    .flow .node .v { font-size: .95rem; font-weight: 600; margin-top: 4px; word-break: break-word; }
+    .flow .node .s { font-size: .84rem; color: var(--muted); margin-top: 2px; }
+    .flow .arrow { display: flex; align-items: center; color: var(--accent); font-size: 1.2rem; flex: none; }
+
+    /* ===== EXIT CODES ===== */
+    .codes { display: grid; gap: 10px; }
+    @media (min-width: 700px) { .codes { grid-template-columns: repeat(3, 1fr); } }
+    .codes .c { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .codes .c .n {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 1.6rem; font-weight: 700; line-height: 1;
+    }
+    .codes .c.ok .n { color: var(--ok); }
+    .codes .c.warn .n { color: var(--warn); }
+    .codes .c.fail .n { color: var(--fail); }
+    .codes .c .d { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+
+    /* ===== FOOTER ===== */
+    footer.page { padding: 34px 0 72px; border-top: 1px solid var(--border); margin-top: 26px; }
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 20px; font-weight: 600;
+      transition: box-shadow .2s ease;
+    }
+    .nav-link:hover { box-shadow: var(--shadow); text-decoration: none; }
+    .nav-link .sub { display: block; font-weight: 400; font-size: .82rem; color: var(--muted); }
+    .foot-note { color: var(--muted); font-size: .85rem; margin-top: 18px; }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate { animation: fadeInUp .55s ease-out both; }
+    .animate.delay-1 { animation-delay: .08s; }
+    .animate.delay-2 { animation-delay: .16s; }
+    .animate.delay-3 { animation-delay: .24s; }
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity .55s ease, transform .55s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    /* ===== MENU ===== */
+    .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .viz-menu-toggle {
+      width: 42px; height: 42px; border-radius: 11px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: background .2s;
+      box-shadow: var(--shadow);
+    }
+    .viz-menu-toggle:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown {
+      position: absolute; top: 50px; right: 0; min-width: 190px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 7px; box-shadow: var(--shadow);
+      opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all .2s;
+    }
+    .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .viz-menu-dropdown button {
+      width: 100%; padding: 9px 13px; border: none; border-radius: 8px;
+      background: transparent; color: var(--text); font-size: .9rem;
+      font-family: inherit; cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 10px; transition: background .15s;
+    }
+    .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown button svg { flex: none; }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .viz-menu { display: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .card, ol.steps > li, .table-scroll { break-inside: avoid; box-shadow: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    @page { margin: 1in; }
+
+    @media (max-width: 560px) {
+      header.page { padding: 56px 0 30px; }
+      .wrap { padding: 0 18px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-to-content" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">본문으로 건너뛰기</a>
+
+  <!-- MENU -->
+  <div class="viz-menu">
+    <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+      </svg>
+    </button>
+    <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+      <button onclick="cycleTheme()" role="menuitem" aria-label="테마 전환">
+        <svg id="themeIcon" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10" cy="10" r="3.6"/><path d="M10 1.4v2M10 16.6v2M1.4 10h2M16.6 10h2M4 4l1.4 1.4M14.6 14.6L16 16M16 4l-1.4 1.4M5.4 14.6L4 16"/>
+        </svg>
+        <span id="themeLabel">다크 모드</span>
+      </button>
+      <button onclick="window.print()" role="menuitem" aria-label="인쇄 또는 PDF 저장">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 7.5V2.5h8v5M6 15H4.2A1.2 1.2 0 0 1 3 13.8V8.7A1.2 1.2 0 0 1 4.2 7.5h11.6A1.2 1.2 0 0 1 17 8.7v5.1A1.2 1.2 0 0 1 15.8 15H14M6 12.5h8v5H6z"/>
+        </svg>
+        <span>인쇄 / PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <main id="main-content" role="main">
+    <div class="wrap">
+
+      <header class="page">
+        <h1 class="animate">command-rename</h1>
+        <p class="lead animate delay-1">
+          명령 패밀리 하나와 목표 네이밍 컨벤션을 받아, old→new 매핑 표 · 동작 보존 근거 ·
+          리스크/롤백 계획으로 이뤄진 <strong>리네임 설계</strong>를 만들고 그것을 담은
+          <strong>GitHub 추적 이슈</strong>를 등록합니다. 코드는 한 줄도 바꾸지 않습니다 —
+          실제 리네임은 나중에 <code>/gh:issue-flow &lt;refactor-issue-number&gt;</code> 가 수행합니다.
+        </p>
+        <span class="badge animate delay-2"><span class="dot" aria-hidden="true"></span>설계 + 이슈 등록 — 코드 미변경</span>
+      </header>
+
+      <section data-reveal>
+        <span class="eyebrow">경계</span>
+        <h2>어디까지가 이 스킬인가</h2>
+        <p class="lead">설계와 등록까지가 이 스킬의 경계입니다. 그 앞뒤는 다른 스킬의 몫입니다.</p>
+        <div class="flow" style="margin-top:20px;">
+          <div class="node">
+            <div class="k">입력</div>
+            <div class="v">명령 패밀리 + 목표 컨벤션</div>
+            <div class="s">예: <code>agy</code> · <code>dash-form</code></div>
+          </div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node">
+            <div class="k">command-rename</div>
+            <div class="v">매핑 설계 + 추적 이슈</div>
+            <div class="s">코드 수정 0건</div>
+          </div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node">
+            <div class="k">이후 (별도 실행)</div>
+            <div class="v"><code>/gh:issue-flow &lt;N&gt;</code></div>
+            <div class="s">실제 리네임 · 커밋 · PR</div>
+          </div>
+        </div>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">적용 범위</span>
+        <h2>언제 쓰고 언제 안 쓰는가</h2>
+
+        <div class="card" style="margin-top:18px;">
+          <h3 style="font-size:1.05rem;margin-bottom:12px;">쓸 때</h3>
+          <ul class="clean check">
+            <li>alias/함수/스크립트 이름이 컨벤션 없이 갈려 있고, 그걸 한 번에 정리하고 싶을 때</li>
+            <li>리네임의 <strong>blast radius</strong>(정의 지점 + 모든 참조 지점)를 먼저 파악하고 싶을 때</li>
+            <li>정리 작업을 지금 하지는 않되 추적 이슈로 남겨 순번에 넣고 싶을 때</li>
+          </ul>
+        </div>
+
+        <h3 style="font-size:1.05rem;margin:24px 0 12px;">쓰지 않을 때</h3>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>하고 싶은 일</th><th class="nowrap">담당</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>실제로 파일/심볼을 리네임하고 커밋·PR 까지</td>
+                <td class="nowrap"><code>/gh:issue-flow &lt;N&gt;</code></td>
+                <td>command-rename 이 만든 refactor 이슈 번호를 넘긴다</td>
+              </tr>
+              <tr>
+                <td><code>*.sh</code> 품질 감사</td>
+                <td class="nowrap"><code>/authoring:sh-check</code></td>
+                <td>읽기 전용 감사. 리네임 설계와 무관</td>
+              </tr>
+              <tr>
+                <td><code>SKILL.md</code> 감사</td>
+                <td class="nowrap"><code>/authoring:skill-check</code></td>
+                <td>마찬가지로 감사 전용</td>
+              </tr>
+              <tr>
+                <td>help 텍스트를 <code>ux_lib</code> 호출로 치환</td>
+                <td class="nowrap"><code>/authoring:ux-guidelines</code></td>
+                <td>실제 코드를 고치는 쪽</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="margin-top:18px;color:var(--muted);">
+          즉 command-rename 은 <strong>코드 리팩터러가 아니고</strong>,
+          <code>sh-check</code>/<code>skill-check</code> 같은 <strong>감사기도 아닙니다</strong>.
+          설계 → 이슈 등록에서 멈추고, 그 이슈를 실행하는 것은 별도의
+          <code>/gh:issue-flow</code> 실행입니다. SKILL.md 의 Role 절과
+          <code>references/constraints.md</code> 첫 항목이 이 계약을 명시합니다.
+        </p>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">인터페이스</span>
+        <h2>호출 형식과 인자/옵션</h2>
+        <pre style="margin-top:18px;"><code>/authoring:command-rename &lt;command-family&gt; &lt;desired-convention&gt; [remote]
+/authoring:command-rename -h</code></pre>
+        <p class="ref" style="margin-top:12px;"><code>references/help.md</code> 가 인자 표면의 SSOT 입니다.</p>
+
+        <div class="table-scroll" style="margin-top:18px;">
+          <table>
+            <thead>
+              <tr><th class="nowrap">#</th><th class="nowrap">인자</th><th class="nowrap">기본값</th><th>의미</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">1</td>
+                <td class="nowrap"><code>&lt;command-family&gt;</code></td>
+                <td class="nowrap">—</td>
+                <td>리네임 대상 명령/alias 패밀리(예: <code>agy</code>). <strong>필수</strong>. 모호하면 후보를 보여주고 되묻습니다 — 추측하지 않습니다</td>
+              </tr>
+              <tr>
+                <td class="nowrap">2</td>
+                <td class="nowrap"><code>&lt;desired-convention&gt;</code></td>
+                <td class="nowrap">—</td>
+                <td>목표 컨벤션(예: <code>dash-form</code>, <code>snake_case</code>, <code>&lt;tool&gt;-&lt;noun&gt;</code>). <strong>필수</strong></td>
+              </tr>
+              <tr>
+                <td class="nowrap">3</td>
+                <td class="nowrap"><code>[remote]</code></td>
+                <td class="nowrap"><code>origin</code></td>
+                <td>새 이슈를 소유할 git remote <strong>이름</strong>. 없는 remote 면 <code>git remote -v</code> 를 출력하고 즉시 실패</td>
+              </tr>
+              <tr>
+                <td class="nowrap">—</td>
+                <td class="nowrap"><code>-h</code>, <code>--help</code>, <code>help</code></td>
+                <td class="nowrap">—</td>
+                <td><code>references/help.md</code> 를 그대로 출력하고 <strong>중단</strong>. API 호출 없음</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="font-size:1.05rem;margin:26px 0 12px;">종료 코드</h3>
+        <div class="codes">
+          <div class="c ok"><div class="n">0</div><div class="d">이슈 생성 완료</div></div>
+          <div class="c warn"><div class="n">1</div><div class="d">사전조건 실패 — git repo 아님 / remote 없음 / <code>gh auth</code> 실패 / <code>gh:issue-create</code> 실패</div></div>
+          <div class="c fail"><div class="n">2</div><div class="d">필수 인자 누락</div></div>
+        </div>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">실행 절차</span>
+        <h2>동작 단계 요약</h2>
+        <ol class="steps" style="margin-top:18px;">
+          <li>
+            <h4>입력 파싱 + 저장소 해석 <span class="ref">(<code>references/repo-resolution.md</code>)</span></h4>
+            <p><code>git rev-parse --show-toplevel</code> 로 repo 확인, remote URL 에서 <code>owner/repo</code> 를 뽑아
+            <code>TARGET_REPO</code> 로 보관. 지정한 remote 가 없으면 <strong>`origin` 으로 조용히 폴백하지 않고</strong>
+            그 자리에서 멈춥니다(오타를 감춰 엉뚱한 repo 에 이슈를 올리는 사고 방지).</p>
+          </li>
+          <li>
+            <h4>발견(discovery) <span class="ref">(<code>references/discovery.md</code>)</span></h4>
+            <p>정의 지점(<code>shell-common/tools/integrations/*.sh</code>, <code>shell-common/functions/*.sh</code>)과
+            참조 지점 <strong>전 카테고리</strong>를 훑습니다: inline help/DOC 블록, <code>install_*.sh</code>,
+            <code>my_help.sh</code> 의 <code>HELP_DESCRIPTIONS</code> 등록, <code>zz_help_standard_adapter.sh</code>,
+            <code>tests/integration/test_help_*.py</code>, <code>tests/bats/**</code>. 한 카테고리를 빠뜨리면
+            리네임 후 dangling reference 가 남습니다. 여기서 모은 file:line 목록이 이슈의 "범위(Scope)" 가 됩니다.</p>
+          </li>
+          <li>
+            <h4>SSOT 대조 + 규칙 공백 탐지 <span class="ref">(<code>references/ssot-check.md</code>)</span></h4>
+            <p><code>docs/.ssot/command-design-pattern.md</code>(§1 명명 규칙표, §8 deprecated shim),
+            <code>command-guidelines.md</code>(help UX), <code>command-delivery-model.md</code>(함수 vs PATH 실행파일)
+            세 문서를 전부 읽고 경로로 인용합니다. 요청한 컨벤션이 기존 SSOT 섹션에 <strong>문자 그대로</strong> 없으면
+            그것이 <strong>rule gap</strong> 입니다.</p>
+          </li>
+          <li>
+            <h4>git 계열 축약 제외</h4>
+            <p><code>gb</code>, <code>gwt</code> 같은 고빈도 git 관용 축약은 요청한 컨벤션과 무관하게 항상 후보에서 뺍니다.
+            근육 기억을 깨는 대가가 네이밍 일관성 이득보다 큽니다. 제외 사실은 이슈 본문에 명시합니다.</p>
+          </li>
+          <li>
+            <h4>매핑 설계(대화형) <span class="ref">(<code>references/mapping-design.md</code>)</span></h4>
+            <p>old→new 표를 만든 뒤 <strong>두 가지는 반드시 사용자에게 묻습니다</strong>: 이름별 하위 호환 정책
+            (§8 deprecated shim vs hard removal)과 이름 충돌 해소 방법. 자동 결정 금지. 의도적으로 삭제되는 이름은
+            "Removed / dropped" 절에 따로 나열합니다.</p>
+          </li>
+          <li>
+            <h4>이슈 생성 <span class="ref">(<code>references/issue-creation.md</code>)</span></h4>
+            <p><code>Skill(gh:issue-create, ...)</code> 에 "refactor" 의도를 명시해 refactor 템플릿
+            (TL;DR / 동기 / 범위 / Before-After / 동작보존 / 리스크·롤백 / 검증 / References)이 잡히게 합니다.
+            3단계에서 rule gap 을 찾았을 <strong>때만</strong> <code>docs</code> 이슈를 하나 더 만들고
+            <code>gh issue comment</code> 로 양방향 cross-link 합니다. <code>gh issue create</code> 직접 호출은 금지입니다.</p>
+          </li>
+          <li>
+            <h4>리포트 <span class="ref">(<code>references/report-template.md</code>)</span></h4>
+            <p>생성된 이슈 번호 + URL, <code>[OK]</code>/<code>[FAIL]</code> 판정, 그리고
+            <code>Next: /gh:issue-flow &lt;refactor-issue-number&gt;</code> 힌트.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">계약</span>
+        <h2>주의사항 / 제약</h2>
+
+        <div class="callout" style="margin-top:18px;">
+          <strong>바깥으로 나가는 부작용이 있습니다.</strong>
+          이 스킬은 실제 GitHub 이슈를 만듭니다 — 6개 스킬 중 유일하게 저장소 밖에 흔적을 남깁니다.
+          <code>gh</code> 인증이 필요하고, 실행 전에 대상 remote 가 맞는지 확인하세요. 인증 실패는 종료 코드 1 입니다.
+        </div>
+
+        <div class="grid two" style="margin-top:14px;">
+          <div class="card">
+            <h4>소스는 절대 건드리지 않습니다</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              편집도 커밋도 없고, 모든 탐색은 <code>grep</code>/<code>Read</code> 읽기 전용입니다.
+              리네임은 <code>/gh:issue-flow</code> 의 몫입니다.
+            </p>
+          </div>
+          <div class="card">
+            <h4>SSOT 문구를 지어내지 않습니다</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              컨벤션이 SSOT 에 없으면 rule gap 으로 보고하고 <code>docs</code> 이슈를 만들 뿐,
+              SSOT 문서에 제안 규칙을 써넣지 않습니다. 실제 문구는 그 docs 이슈에서 나중에 설계합니다.
+            </p>
+          </div>
+          <div class="card">
+            <h4><code>docs</code> 이슈는 gap 이 있을 때만</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              공백이 없으면 refactor 이슈 하나로 끝이고 cross-link 도 없습니다.
+            </p>
+          </div>
+          <div class="card">
+            <h4>전달 방식 축을 넘지 않습니다</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              매핑이 명령을 셸 함수 ↔ PATH 실행파일 사이로 옮기면 안 됩니다
+              (<code>command-delivery-model.md</code>). 리네임은 이름 축에만 머물고,
+              이슈에는 "delivery model unchanged" 를 적습니다.
+            </p>
+          </div>
+          <div class="card">
+            <h4>동작 보존이 전제입니다</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              리네임은 무엇이라 불리는지만 바꾸고 무엇을 하는지는 바꾸지 않습니다.
+              이슈의 동작보존 절이 그 사실을 진술해야 합니다.
+            </p>
+          </div>
+          <div class="card">
+            <h4>하위 호환·충돌 결정은 자동화 대상이 아닙니다</h4>
+            <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
+              이 두 질문에 답을 받기 전에는 이슈를 만들지 않습니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="page">
+        <a class="nav-link" href="../skill-output/command-rename-usage.html">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 10h14M11.5 4.5 17 10l-5.5 5.5"/>
+          </svg>
+          <span>사용 결과 보기<span class="sub">command-rename 실행 기록 — 매핑 표와 판정</span></span>
+        </a>
+        <p class="foot-note">
+          이 문서는 <code>docs/skill-guides/command-rename.md</code> 를 그대로 옮긴 것입니다.
+          설계 + 이슈 등록까지가 범위이며, 실제 리네임은 <code>/gh:issue-flow</code> 가 수행합니다.
+        </p>
+      </footer>
+
+    </div>
+  </main>
+
+  <script>
+    // === Menu ===
+    function toggleMenu() {
+      var dropdown = document.getElementById('vizMenuDropdown');
+      if (dropdown) dropdown.classList.toggle('open');
+    }
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.viz-menu')) {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+
+    // === Theme (class-based; light is the default for this document set) ===
+    var savedTheme = localStorage.getItem('viz-theme');
+    var currentTheme = savedTheme || 'light';
+    function applyTheme(t) {
+      document.documentElement.className = 'theme-' + t;
+      var label = document.getElementById('themeLabel');
+      if (label) label.textContent = (t === 'dark') ? '라이트 모드' : '다크 모드';
+      try { localStorage.setItem('viz-theme', t); } catch (err) {}
+      currentTheme = t;
+    }
+    function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+    applyTheme(currentTheme);
+
+    // === Scroll Reveal ===
+    document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('reveal'); });
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>skill-check — 스킬 설명서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #fbfbfd;
+    --surface: #ffffff;
+    --text: #16181d;
+    --muted: #5c6370;
+    --accent: #2f6feb;
+    --border: #e3e6ec;
+    --ok: #1a7f4b;
+    --warn: #b0740a;
+    --fail: #b3261e;
+    --radius: 10px;
+    --maxw: 880px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+  }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ===== HEADER ===== */
+  .page-header { padding: 72px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  h1 {
+    font-size: clamp(34px, 6vw, 46px); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1;
+    font-family: var(--mono);
+  }
+  .summary {
+    margin-top: 14px; font-size: 17px; color: var(--muted);
+    max-width: 62ch;
+  }
+  .badge-row { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 13px 5px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; line-height: 1.5;
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+  }
+  .pill--audit { border-color: #cfe0fb; background: #eef4fe; color: var(--accent); }
+  .pill svg { display: block; }
+
+  /* ===== SECTIONS ===== */
+  section { padding: 44px 0 0; }
+  h2 {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--accent); display: block; margin-bottom: 6px;
+    letter-spacing: 0.05em;
+  }
+  .lede { color: var(--muted); font-size: 15px; margin-bottom: 20px; max-width: 66ch; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px 24px;
+  }
+  .card + .card { margin-top: 14px; }
+
+  p + p { margin-top: 12px; }
+
+  /* ===== CODE ===== */
+  code {
+    font-family: var(--mono); font-size: 0.9em;
+    background: #f2f3f7; border: 1px solid var(--border);
+    border-radius: 5px; padding: 1px 5px; white-space: nowrap;
+  }
+  pre {
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.75;
+    background: #f7f8fa; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+    overflow-x: auto;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+
+  /* ===== TABLES ===== */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 540px; }
+  th, td { text-align: left; padding: 12px 16px; vertical-align: top; border-bottom: 1px solid var(--border); }
+  thead th {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); background: #f7f8fa; white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { white-space: normal; }
+  .row-self td { background: #f6f9ff; }
+  .row-self td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+  /* ===== VERDICT CHIPS ===== */
+  .verdict {
+    display: inline-block; font-family: var(--mono); font-size: 12px;
+    font-weight: 600; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 5px; border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .v-pass { color: var(--ok);    background: #edf7f1; }
+  .v-warn { color: var(--warn);  background: #fdf5e7; }
+  .v-fail { color: var(--fail);  background: #fceeed; }
+  .v-na   { color: var(--muted); background: #f4f5f7; }
+
+  .verdict-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+
+  /* ===== STEP LIST ===== */
+  ol.steps { list-style: none; counter-reset: step; }
+  ol.steps > li {
+    counter-increment: step; position: relative;
+    padding: 14px 0 14px 46px; border-bottom: 1px solid var(--border);
+  }
+  ol.steps > li:last-child { border-bottom: none; padding-bottom: 2px; }
+  ol.steps > li::before {
+    content: counter(step); position: absolute; left: 0; top: 15px;
+    width: 28px; height: 28px; border-radius: 999px;
+    background: #eef4fe; color: var(--accent); border: 1px solid #cfe0fb;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  ol.steps .step-title { font-weight: 600; }
+
+  /* ===== BULLET LISTS ===== */
+  ul.marks { list-style: none; }
+  ul.marks > li {
+    position: relative; padding-left: 20px; margin-bottom: 12px;
+  }
+  ul.marks > li:last-child { margin-bottom: 0; }
+  ul.marks > li::before {
+    content: "—"; position: absolute; left: 0; top: 0;
+    color: var(--accent); font-weight: 600;
+  }
+
+  ul.notes { list-style: none; }
+  ul.notes > li {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px 16px 20px;
+    margin-bottom: 12px; position: relative; overflow: hidden;
+  }
+  ul.notes > li:last-child { margin-bottom: 0; }
+  ul.notes > li::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--border);
+  }
+  ul.notes > li.n-accent::before { background: var(--accent); }
+  ul.notes > li.n-warn::before { background: var(--warn); }
+  .note-title { font-weight: 600; display: block; margin-bottom: 4px; }
+
+  strong { font-weight: 600; }
+
+  /* ===== CALLOUT ===== */
+  .callout {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: #eef4fe; border: 1px solid #cfe0fb;
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .callout svg { flex: none; margin-top: 3px; color: var(--accent); }
+  .callout .t { font-weight: 600; margin-bottom: 3px; }
+  .callout p { font-size: 14.5px; color: #35404f; }
+
+  /* ===== FOOTER ===== */
+  footer { margin-top: 64px; border-top: 1px solid var(--border); padding: 28px 0 64px; }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .navlink {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 11px 18px; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--accent); text-decoration: none;
+    font-size: 14.5px; font-weight: 600;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .navlink:hover { border-color: var(--accent); background: #f5f8ff; }
+  .foot-meta { font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .page-header { padding-top: 48px; }
+    .card { padding: 18px 16px; }
+    .footer-inner { flex-direction: column; align-items: stretch; }
+    .navlink { justify-content: center; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .card, .table-scroll, ul.notes > li { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="wrap">
+    <div class="eyebrow">authoring · skill guide</div>
+    <h1>skill-check</h1>
+    <p class="summary">
+      <code>SKILL.md</code> 파일 하나를 16개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
+    </p>
+    <div class="badge-row">
+      <span class="pill pill--audit">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.6"/><line x1="10.4" y1="10.4" x2="14" y2="14"/>
+        </svg>
+        감사 전용
+      </span>
+      <span class="pill">read-only · 파일을 쓰지 않는다</span>
+      <span class="pill">16 checks</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2><span class="num">01</span>한 줄 요약</h2>
+    <div class="card">
+      <p>
+        <code>SKILL.md</code> 파일 하나를 16개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
+      </p>
+      <p>
+        대상 파일을 고치지 않는다 — 산출물은 수정된 스킬이 아니라
+        <span class="verdict v-pass">PASS</span>
+        <span class="verdict v-warn">WARN</span>
+        <span class="verdict v-fail">FAIL</span>
+        <span class="verdict v-na">N/A</span>
+        판정표와 Score, Verdict, Next Actions 로 이루어진 리포트 한 벌이다.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span>언제 쓰고 언제 안 쓰는가</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>상황</th><th>쓸 스킬</th><th>이유</th></tr>
+        </thead>
+        <tbody>
+          <tr class="row-self">
+            <td><code>SKILL.md</code> 품질을 점검만 하고 싶다</td>
+            <td><strong><code>skill-check</code></strong></td>
+            <td>read-only 감사, 리포트만 생성</td>
+          </tr>
+          <tr>
+            <td>점검 결과 100줄 초과 · 구조 문제를 실제로 고쳐야 한다</td>
+            <td><code>skill-refactor</code></td>
+            <td>이쪽이 <code>references/</code> 로 내용을 빼내며 파일을 <strong>쓴다</strong></td>
+          </tr>
+          <tr>
+            <td>대상이 <code>*.sh</code> 셸 스크립트다</td>
+            <td><code>sh-check</code></td>
+            <td>10개 기준의 셸 전용 감사</td>
+          </tr>
+          <tr>
+            <td>대상이 <code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>GEMINI.md</code> 다</td>
+            <td><code>devx:ai-context</code></td>
+            <td>frontmatter 의 negative trigger 가 명시</td>
+          </tr>
+          <tr>
+            <td>새 스킬을 처음부터 만든다</td>
+            <td><code>skill-create</code></td>
+            <td>그 절차의 10번째 단계에서 <code>skill-check</code> 를 품질 게이트로 호출한다</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <p class="note-title">경계 요약</p>
+      <ul class="marks">
+        <li>
+          <code>skill-check</code> 는 <strong>감사만</strong>, <code>skill-refactor</code> 는 같은 문제를
+          <strong>다시 쓴다</strong>. <code>skill-refactor</code> 는 작업을 마치면
+          <code>Next: /authoring:skill-check &lt;path&gt;</code> 로 되돌려 보낸다.
+        </li>
+        <li>
+          <code>skill-create</code> 는 새 스킬을 저술하고, 마지막에 <code>/authoring:skill-check</code> 를 돌려
+          <span class="verdict v-fail">FAIL</span> / <span class="verdict v-warn">WARN</span> 이 나오면
+          곧바로 <code>/authoring:skill-refactor</code> 를 부른다.
+        </li>
+        <li>
+          <code>sh-check</code> 는 이 스킬의 셸 스크립트판 거울(mirror)이다. 대상 확장자로 갈린다.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span>호출 형식과 인자/옵션</h2>
+    <pre><code>/authoring:skill-check [path/to/SKILL.md] [--recursive]</code></pre>
+    <p class="lede" style="margin-top:14px">
+      <code>references/help.md</code> 가 인자/옵션의 SSOT 다.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>인자/옵션</th><th>설명</th><th>기본값</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>[path]</code></td>
+            <td>감사할 <code>SKILL.md</code> 경로</td>
+            <td>생략 시 현재 디렉터리부터 <code>SKILL.md</code> 탐색</td>
+          </tr>
+          <tr>
+            <td><code>--recursive</code></td>
+            <td>합성 스킬(composite)의 Sub-skill Model Plan 을 기본 1-depth 보다 깊게 순회</td>
+            <td>off</td>
+          </tr>
+          <tr>
+            <td><code>help</code></td>
+            <td>이 도움말을 그대로 출력하고 중단. 검사 미실행</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="lede" style="margin:20px 0 10px">예시</p>
+    <pre><code>/authoring:skill-check
+/authoring:skill-check claude/skills/my-skill/SKILL.md
+/authoring:skill-check claude/skills/gh-issue-flow/SKILL.md --recursive
+/authoring:skill-check help</code></pre>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span>동작 단계 요약</h2>
+    <p class="lede">SKILL.md 가 정의한 실제 흐름은 Help 분기 + 3단계다.</p>
+
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <span class="step-title">Help</span> —
+          인자가 <code>help</code> 이면 <code>references/help.md</code> 를 그대로 출력하고 종료.
+        </li>
+        <li>
+          <span class="step-title">Step 1: Locate the File</span> —
+          경로가 주어지면 그 파일, 아니면 현재 디렉터리에서 탐색.
+        </li>
+        <li>
+          <span class="step-title">Step 2: Run Sixteen Checks</span> —
+          <code>references/checks.md</code> 의 16개 정의를 읽고 검사마다
+          <span class="verdict v-pass">PASS</span>
+          <span class="verdict v-warn">WARN</span>
+          <span class="verdict v-fail">FAIL</span>
+          <span class="verdict v-na">N/A</span>
+          를 하나씩 배정한다.
+        </li>
+        <li>
+          <span class="step-title">Step 3: Output the Report</span> —
+          <code>references/report-template.md</code> 의 형식 그대로 출력.
+        </li>
+      </ol>
+    </div>
+
+    <p class="lede" style="margin:26px 0 10px">16개 검사 그룹</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>그룹</th><th>번호</th><th>항목</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Structure</strong></td>
+            <td><code>1–5</code></td>
+            <td>Line Count · Progressive Disclosure · Frontmatter Validity · References Directory · Output Report</td>
+          </tr>
+          <tr>
+            <td><strong>UX Quality</strong></td>
+            <td><code>6–12</code></td>
+            <td>Help Flag Pattern · Step Structure · Options Documentation · Verdict Output · Next-action Hint · No Emojis · Executable Procedure Extraction</td>
+          </tr>
+          <tr>
+            <td><strong>Model</strong></td>
+            <td><code>13</code></td>
+            <td>Model Recommendation Metadata (<code>metadata.model_recommendation</code> tier/reason/compatibility)</td>
+          </tr>
+          <tr>
+            <td><strong>Security &amp; Policy</strong></td>
+            <td><code>14–15</code></td>
+            <td>License Declaration · Capability Declaration Consistency</td>
+          </tr>
+          <tr>
+            <td><strong>Context Budget</strong></td>
+            <td><code>16</code></td>
+            <td>Description Length</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="margin-top:18px">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.4"/><line x1="8" y1="7.4" x2="8" y2="11.4"/><line x1="8" y1="4.8" x2="8" y2="5"/>
+      </svg>
+      <div>
+        <div class="t">보조 참조 파일</div>
+        <p>
+          티어 판정 기준은 <code>references/model-recommendation.md</code>(rubric SSOT),
+          공급자별 모델 ID 는 <code>references/model-tier-map.md</code>,
+          <code>name:</code> 표기 판정은 <code>references/naming-convention.md</code>,
+          Check 11 의 예외 목록은 <code>references/allowed-emoji-skills.txt</code> 가 각각 SSOT 다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span>주의사항 / 제약</h2>
+
+    <div class="verdict-legend">
+      <span class="verdict v-pass">PASS</span>
+      <span class="verdict v-warn">WARN</span>
+      <span class="verdict v-fail">FAIL</span>
+      <span class="verdict v-na">N/A</span>
+    </div>
+
+    <ul class="notes">
+      <li class="n-accent">
+        <span class="note-title">read-only 계약</span>
+        티어를 추천만 하고 모델을 전환하지 않으며, 파일을 쓰지 않는다. Check 13 · 14 · 15 모두
+        정책 격차를 지적할 뿐 파일을 고치지 않는다. 실제 기입은 <code>skill-refactor</code> 의 몫이다.
+      </li>
+      <li class="n-accent">
+        <span class="note-title">첫 실패에서 멈추지 않는다</span>
+        16개 전부를 판정해 전체 리포트를 낸다.
+      </li>
+      <li>
+        <span class="note-title">Score 분모에서 N/A 는 제외한다 (16 − N/A 개수)</span>
+        Verdict 는 전원 <span class="verdict v-pass">PASS</span> → <strong>EXCELLENT</strong>,
+        80% 이상이며 <span class="verdict v-fail">FAIL</span> 없음 → <strong>GOOD</strong>,
+        60% 이상이거나 <span class="verdict v-fail">FAIL</span> 존재 → <strong>NEEDS WORK</strong>,
+        60% 미만 → <strong>POOR</strong>.
+      </li>
+      <li>
+        <span class="note-title">Issues &amp; Improvements 에는 WARN 과 FAIL 만 싣는다</span>
+        문제를 설명할 때는 대상 파일의 실제 줄을 인용한다.
+      </li>
+      <li class="n-warn">
+        <span class="note-title">Check 16 은 바이트가 아니라 문자 수로 센다</span>
+        한글 1글자 = 3바이트라 바이트로 세면 약 3배 과대 보고.
+        <span class="verdict v-pass">PASS</span> ≤ 250 ·
+        <span class="verdict v-warn">WARN</span> 251–400 (정당화 주석 필요) ·
+        <span class="verdict v-fail">FAIL</span> &gt; 400.
+        description 은 매 세션 <code>available_skills</code> 목록에 적재되고 Codex/Kimi 는 설치된 전체
+        스킬 합계를 약 5,440자로 제한하므로, 이 예산이 검사 근거다.
+      </li>
+      <li>
+        <span class="note-title">Check 16 은 길이만 잰다</span>
+        트리거 정확도는 read-only 감사 범위 밖이며
+        <code>references/trigger-eval-procedure.md</code> 의 수동 하네스가 담당한다.
+      </li>
+      <li>
+        <span class="note-title">Sub-skill Model Plan 섹션은 합성 스킬에만 나온다</span>
+        본문이 다른 스킬을 호출하지 않는 leaf 스킬이면 통째로 생략한다.
+      </li>
+      <li class="n-warn">
+        <span class="note-title">마켓플레이스 레포에서는 <code>name:</code> 이 bare 형(<code>skill-check</code>)이어야 한다</span>
+        콜론은 CI 실패다. 개인 스킬 트리(<code>~/dotfiles/claude/skills/</code>)에서만
+        <code>category:action</code> 콜론 형태가 <span class="verdict v-pass">PASS</span> 다 —
+        판정 전에 대상이 어느 세계에 있는지 먼저 가린다.
+      </li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap footer-inner">
+    <span class="foot-meta">authoring · skill-check · 감사 전용 (read-only)</span>
+    <a class="navlink" href="../skill-output/skill-check-usage.html">
+      사용 결과 보기
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="2.5" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/>
+      </svg>
+    </a>
+  </div>
+</footer>
+
+</body>
+</html>

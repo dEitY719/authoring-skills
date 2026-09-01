@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sh-check 사용 결과 — check_port_registry.sh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ===== THEMES (class-based only) ===== */
+  html.theme-light {
+    --bg: #fbfbfd;
+    --surface: #ffffff;
+    --surface-hover: #f4f6fa;
+    --text: #16181d;
+    --muted: #5c6370;
+    --accent: #2f6feb;
+    --accent-secondary: #6b4fd8;
+    --border: #e3e6ec;
+    --ok: #1a7f4b;
+    --warn: #b0740a;
+    --fail: #b3261e;
+    --code-bg: #f5f7fa;
+    --shadow: rgba(22, 24, 29, 0.08);
+    --text-secondary: #5c6370;
+    --positive: #1a7f4b;
+    --negative: #b3261e;
+    --warning: #b0740a;
+  }
+  html.theme-dark {
+    --bg: #101216;
+    --surface: #181b21;
+    --surface-hover: #20242c;
+    --text: #e8eaee;
+    --muted: #99a0ad;
+    --accent: #6f9cf5;
+    --accent-secondary: #a98bf0;
+    --border: #2a2f38;
+    --ok: #4cc38a;
+    --warn: #e0a33a;
+    --fail: #ef7a72;
+    --code-bg: #14171c;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --text-secondary: #99a0ad;
+    --positive: #4cc38a;
+    --negative: #ef7a72;
+    --warning: #e0a33a;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 1rem;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
+    transition: background 0.3s, color 0.3s;
+    scrollbar-gutter: stable;
+    word-break: keep-all;
+  }
+  h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.03em; line-height: 1.2; text-wrap: balance; }
+  h1 { font-weight: 700; font-size: 3rem; }
+  h2 { font-weight: 650; font-size: 2rem; }
+  h3 { font-weight: 600; font-size: 1.5rem; }
+  h4 { font-weight: 600; font-size: 1.0625rem; }
+  p, li, td, th, span, label { color: var(--text); font-weight: 400; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: 0.1em 0.38em; font-size: 0.86em;
+    word-break: break-all;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.875rem; line-height: 1.65; color: var(--text);
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; word-break: normal; }
+  .text-secondary, .muted { color: var(--muted); }
+
+  /* ===== LAYOUT ===== */
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  main > section { padding: 56px 0 8px; }
+  main > section:first-of-type { padding-top: 32px; }
+
+  header.page-header {
+    border-bottom: 1px solid var(--border);
+    padding: 88px 0 48px;
+    background: var(--surface);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 999px;
+    padding: 5px 14px 5px 11px; font-size: 0.8125rem; font-weight: 600;
+    letter-spacing: 0; margin-bottom: 22px;
+  }
+  .badge svg { flex: none; color: var(--accent); }
+  .lede { color: var(--muted); font-size: 1.1875rem; line-height: 1.65; margin-top: 18px; max-width: 66ch; }
+  .kicker {
+    display: block; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+  .sub { color: var(--muted); font-size: 0.9375rem; margin-top: 8px; }
+
+  /* ===== CARD ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    transition: box-shadow 0.2s ease;
+  }
+  .card:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  .card.accent-accent { border-left: 3px solid var(--accent); }
+  .card.accent-fail { border-left: 3px solid var(--fail); }
+  .card.accent-ok { border-left: 3px solid var(--ok); }
+  .card h4 { margin-bottom: 10px; }
+
+  /* ===== TABLE ===== */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.9375rem; }
+  th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th {
+    font-size: 0.78125rem; font-weight: 650; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted); background: var(--code-bg);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface-hover); }
+
+  /* ===== VERDICT COLORS ===== */
+  .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 650; letter-spacing: 0.02em; }
+  .v-pass { color: var(--ok); }
+  .v-warn { color: var(--warn); }
+  .v-fail { color: var(--fail); }
+  .v-na   { color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+  /* ===== SCORE BLOCK ===== */
+  .score-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 26px; border-left: 3px solid var(--fail);
+  }
+  .score-line {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 20px;
+  }
+  .score-big {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 2.75rem; font-weight: 700; line-height: 1; letter-spacing: -0.04em;
+  }
+  .score-unit { color: var(--muted); font-size: 0.9375rem; }
+  .verdict-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700; font-size: 0.9375rem; letter-spacing: 0.04em;
+    border: 1px solid currentColor; border-radius: 999px; padding: 6px 16px;
+    color: var(--fail);
+  }
+
+  /* stacked bar */
+  .bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; margin-top: 22px; background: var(--code-bg); border: 1px solid var(--border); }
+  .bar span { display: block; height: 100%; }
+  .bar-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 12px; font-size: 0.8125rem; color: var(--muted); }
+  .bar-legend b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ===== STATS ===== */
+  .stats { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 20px; }
+  @media (min-width: 700px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; border-top: 3px solid currentColor; transition: box-shadow 0.2s ease;
+  }
+  .stat:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  .stat .n { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 2rem; font-weight: 700; line-height: 1.1; }
+  .stat .k { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; font-weight: 650; letter-spacing: 0.06em; margin-top: 6px; }
+  .stat .d { color: var(--muted); font-size: 0.8125rem; margin-top: 2px; }
+
+  /* ===== FLOW ===== */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; }
+  .flow .node {
+    flex: 1 1 200px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .flow .node .t { font-weight: 650; font-size: 0.9375rem; word-break: break-all; }
+  .flow .node .s { color: var(--muted); font-size: 0.8125rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .flow .arrow { display: flex; align-items: center; color: var(--muted); font-size: 1.25rem; flex: none; }
+
+  /* ===== CHECK LIST (filterable) ===== */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
+  .tabs button {
+    font-family: inherit; font-size: 0.875rem; font-weight: 600;
+    padding: 8px 15px; border-radius: 999px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    transition: all 0.15s; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .tabs button:hover { background: var(--surface-hover); color: var(--text); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tabs button[aria-pressed="true"] .dot { background: #fff; }
+
+  .checks { display: grid; gap: 10px; }
+  .check {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid currentColor; border-radius: 10px;
+    padding: 13px 18px; transition: box-shadow 0.2s ease, opacity 0.2s;
+  }
+  .check:hover { box-shadow: 0 0 0 1px var(--border), 0 6px 16px var(--shadow); }
+  .check .id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125rem; font-weight: 650; color: var(--muted);
+    min-width: 30px;
+  }
+  .check .nm { flex: 1 1 200px; color: var(--text); font-weight: 500; }
+  .check .vd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.05em;
+    min-width: 52px; text-align: right;
+  }
+  .check[hidden] { display: none; }
+
+  /* ===== EVIDENCE ===== */
+  .ev { display: grid; gap: 12px; margin-top: 16px; }
+  @media (min-width: 700px) { .ev { grid-template-columns: 1fr 1fr; } }
+  .ev .card .g {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125rem; color: var(--muted); word-break: break-all;
+  }
+  .ev .card .r { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin-top: 4px; }
+
+  /* ===== FOOTER ===== */
+  footer.page-footer {
+    margin-top: 72px; border-top: 1px solid var(--border);
+    background: var(--surface); padding: 36px 0 56px;
+  }
+  .footer-nav { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .navlink {
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 18px; font-weight: 600; font-size: 0.9375rem;
+    background: var(--bg); transition: background 0.15s, box-shadow 0.2s;
+  }
+  .navlink:hover { background: var(--surface-hover); text-decoration: none; box-shadow: 0 4px 14px var(--shadow); }
+  .footer-meta { color: var(--muted); font-size: 0.8125rem; }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .animate { animation: fadeInUp 0.55s ease-out both; }
+  .animate.delay-1 { animation-delay: 0.08s; }
+  .animate.delay-2 { animation-delay: 0.16s; }
+  .animate.delay-3 { animation-delay: 0.24s; }
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ===== MENU ===== */
+  .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+  .viz-menu-toggle {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: background 0.2s;
+  }
+  .viz-menu-toggle:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown {
+    position: absolute; top: 52px; right: 0; min-width: 208px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 8px; box-shadow: 0 12px 32px var(--shadow);
+    opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s;
+  }
+  .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+  .viz-menu-dropdown button {
+    width: 100%; padding: 10px 12px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text); font-size: 0.875rem;
+    font-family: inherit; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+  }
+  .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown button svg { flex: none; color: var(--muted); }
+
+  /* ===== PRINT ===== */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    .viz-menu, .tabs { display: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .check[hidden] { display: flex !important; }
+    .card, .stat, .check, .score-wrap { break-inside: avoid; box-shadow: none !important; }
+    .table-scroll { overflow: visible; }
+    table { min-width: 0; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+  @page { margin: 1in; }
+
+  @media (max-width: 520px) {
+    h1 { font-size: 2.125rem; }
+    h2 { font-size: 1.625rem; }
+    header.page-header { padding: 72px 0 36px; }
+    .score-big { font-size: 2.25rem; }
+  }
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">본문으로 건너뛰기</a>
+
+<div class="viz-menu">
+  <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+    </svg>
+  </button>
+  <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+    <button onclick="cycleTheme()" role="menuitem" aria-label="테마 전환">
+      <span id="themeIcon" aria-hidden="true"></span><span id="themeLabel">다크 모드</span>
+    </button>
+    <button onclick="window.print()" role="menuitem" aria-label="인쇄 또는 PDF 저장">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      <span>인쇄 / PDF</span>
+    </button>
+  </div>
+</div>
+
+<main id="main-content">
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="badge animate">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+      감사 전용
+    </span>
+    <h1 class="animate delay-1">sh-check 사용 결과</h1>
+    <p class="lede animate delay-2">
+      <strong>한 줄 요약</strong> — 셸 스크립트 파일 1개를 받아 10개 기준 PASS/WARN/FAIL/N-A 감사 리포트를 생성합니다.
+    </p>
+  </div>
+</header>
+
+<section aria-labelledby="h-flow">
+  <div class="wrap">
+    <span class="kicker" id="h-flow">실행 흐름</span>
+    <div class="flow" data-reveal>
+      <div class="node">
+        <div class="t">check_port_registry.sh</div>
+        <div class="s">118 lines</div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node">
+        <div class="t">/authoring:sh-check</div>
+        <div class="s">read-only</div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node">
+        <div class="t">10개 기준 감사 리포트</div>
+        <div class="s">표 2개 + Score + Verdict + Next Actions</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-cmd">
+  <div class="wrap">
+    <span class="kicker">1</span>
+    <h2 id="h-cmd">실행한 명령</h2>
+    <pre style="margin-top:20px;" data-reveal><code>/authoring:sh-check [path/to/script.sh]
+/authoring:sh-check /home/bwyoon/dotfiles/scripts/check_port_registry.sh</code></pre>
+  </div>
+</section>
+
+<section aria-labelledby="h-input">
+  <div class="wrap">
+    <span class="kicker">2</span>
+    <h2 id="h-input">입력</h2>
+
+    <div class="card accent-accent" style="margin-top:20px;" data-reveal>
+      <h4 class="mono" style="word-break:break-all;font-size:0.9375rem;">/home/bwyoon/dotfiles/scripts/check_port_registry.sh</h4>
+      <p class="muted" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.875rem;">
+        118 lines · mode 0755 · executable script
+      </p>
+      <p style="margin-top:14px;">
+        <code>PORTS.md</code> 포트 레지스트리 검증기(dotfiles #1154). 표 행을 <code>|</code> 로 분해해
+        <code>index</code> 중복을 잡고, 각 행이 decade-block 공식과 맞는지 대조한다.
+      </p>
+      <pre style="margin-top:14px;"><code>backend  = 9200 + index*10
+frontend = backend + 1
+db       = backend + 2</code></pre>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-result">
+  <div class="wrap">
+    <span class="kicker">3</span>
+    <h2 id="h-result">결과</h2>
+
+    <div class="score-wrap" style="margin-top:20px;" data-reveal>
+      <div class="score-line">
+        <div>
+          <span class="score-big"><span data-count="1">1</span>/8</span>
+          <span class="score-unit">checks passed (5 warnings, 2 N/A)</span>
+        </div>
+        <span class="verdict-pill"><span class="dot"></span>Verdict: POOR</span>
+      </div>
+
+      <div class="bar" role="img" aria-label="판정 분포: PASS 1개, WARN 5개, FAIL 2개, N-A 2개">
+        <span style="flex:1;background:var(--ok);"></span>
+        <span style="flex:5;background:var(--warn);"></span>
+        <span style="flex:2;background:var(--fail);"></span>
+        <span style="flex:2;background:var(--muted);"></span>
+      </div>
+      <div class="bar-legend">
+        <span><span class="dot v-pass" style="background:var(--ok);"></span> PASS <b>1</b></span>
+        <span><span class="dot" style="background:var(--warn);"></span> WARN <b>5</b></span>
+        <span><span class="dot" style="background:var(--fail);"></span> FAIL <b>2</b></span>
+        <span><span class="dot" style="background:var(--muted);"></span> N-A <b>2</b></span>
+      </div>
+    </div>
+
+    <div class="stats" data-reveal>
+      <div class="stat" style="color:var(--ok);">
+        <div class="n" data-count="1">1</div>
+        <div class="k v-pass">PASS</div>
+        <div class="d">#1 Shebang + POSIX</div>
+      </div>
+      <div class="stat" style="color:var(--warn);">
+        <div class="n" data-count="5">5</div>
+        <div class="k v-warn">WARN</div>
+        <div class="d">#3 · #4 · #8 · #9 · #10</div>
+      </div>
+      <div class="stat" style="color:var(--fail);">
+        <div class="n" data-count="2">2</div>
+        <div class="k v-fail">FAIL</div>
+        <div class="d">#6 · #7</div>
+      </div>
+      <div class="stat" style="color:var(--muted);">
+        <div class="n" data-count="2">2</div>
+        <div class="k v-na">N-A</div>
+        <div class="d">#2 · #5</div>
+      </div>
+    </div>
+
+    <div class="table-scroll" style="margin-top:20px;" data-reveal>
+      <table>
+        <thead><tr><th>판정</th><th>개수</th><th>해당 검사</th></tr></thead>
+        <tbody>
+          <tr><td class="v v-pass">PASS</td><td>1</td><td>#1 Shebang + POSIX</td></tr>
+          <tr><td class="v v-warn">WARN</td><td>5</td><td>#3 Section Anatomy, #4 Naming, #8 Input Validation, #9 Verdict Output, #10 Next-action Hint</td></tr>
+          <tr><td class="v v-fail">FAIL</td><td>2</td><td>#6 Help Flag, #7 UX Lib Usage</td></tr>
+          <tr><td class="v v-na">N-A</td><td>2</td><td>#2 Interactive Guard, #5 ZSH Compat Guard</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:1.125rem;margin:36px 0 0;">검사별 판정</h3>
+    <p class="sub">위 표를 검사 번호 순으로 편 것입니다. 필터로 한 판정만 볼 수 있습니다.</p>
+
+    <div class="tabs" role="group" aria-label="판정 필터">
+      <button aria-pressed="true" onclick="filterChecks('all', this)">전체 10</button>
+      <button aria-pressed="false" onclick="filterChecks('pass', this)"><span class="dot" style="background:var(--ok);"></span>PASS 1</button>
+      <button aria-pressed="false" onclick="filterChecks('warn', this)"><span class="dot" style="background:var(--warn);"></span>WARN 5</button>
+      <button aria-pressed="false" onclick="filterChecks('fail', this)"><span class="dot" style="background:var(--fail);"></span>FAIL 2</button>
+      <button aria-pressed="false" onclick="filterChecks('na', this)"><span class="dot" style="background:var(--muted);"></span>N-A 2</button>
+    </div>
+
+    <div class="checks" id="checkList" data-reveal>
+      <div class="check" data-v="pass" style="color:var(--ok);"><span class="id">#1</span><span class="nm">Shebang + POSIX</span><span class="vd v-pass">PASS</span></div>
+      <div class="check" data-v="na" style="color:var(--muted);"><span class="id">#2</span><span class="nm">Interactive Guard</span><span class="vd v-na">N-A</span></div>
+      <div class="check" data-v="warn" style="color:var(--warn);"><span class="id">#3</span><span class="nm">Section Anatomy</span><span class="vd v-warn">WARN</span></div>
+      <div class="check" data-v="warn" style="color:var(--warn);"><span class="id">#4</span><span class="nm">Naming</span><span class="vd v-warn">WARN</span></div>
+      <div class="check" data-v="na" style="color:var(--muted);"><span class="id">#5</span><span class="nm">ZSH Compat Guard</span><span class="vd v-na">N-A</span></div>
+      <div class="check" data-v="fail" style="color:var(--fail);"><span class="id">#6</span><span class="nm">Help Flag</span><span class="vd v-fail">FAIL</span></div>
+      <div class="check" data-v="fail" style="color:var(--fail);"><span class="id">#7</span><span class="nm">UX Lib Usage</span><span class="vd v-fail">FAIL</span></div>
+      <div class="check" data-v="warn" style="color:var(--warn);"><span class="id">#8</span><span class="nm">Input Validation</span><span class="vd v-warn">WARN</span></div>
+      <div class="check" data-v="warn" style="color:var(--warn);"><span class="id">#9</span><span class="nm">Verdict Output</span><span class="vd v-warn">WARN</span></div>
+      <div class="check" data-v="warn" style="color:var(--warn);"><span class="id">#10</span><span class="nm">Next-action Hint</span><span class="vd v-warn">WARN</span></div>
+    </div>
+
+    <h3 style="font-size:1.125rem;margin:36px 0 12px;">리포트 발췌</h3>
+    <pre data-reveal><code>| 6 | Help Flag              | FAIL   | no -h/--help arm; usage in source|
+Verdict: POOR — UX layer absent: no help flag and no ux_lib, so every message is raw echo</code></pre>
+
+    <h3 style="font-size:1.125rem;margin:36px 0 0;">근거</h3>
+    <div class="ev" data-reveal>
+      <div class="card accent-fail">
+        <div class="g">grep -cE 'ux_'</div>
+        <div class="r v-fail">→ 0</div>
+      </div>
+      <div class="card accent-fail">
+        <div class="g">grep -cE '(echo|printf|tput) '</div>
+        <div class="r v-fail">→ 8</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px;" data-reveal>
+      <p>
+        L50 <code>printf</code> 는 <code>$()</code> 로 잡히는 반환값이라 허용 예외,
+        나머지 7개가 사용자 대면 raw echo.
+      </p>
+    </div>
+
+    <div class="card accent-ok" style="margin-top:12px;" data-reveal>
+      <p>
+        <span class="v v-pass" aria-hidden="true">✓</span>
+        감사 후 대상 파일은 무수정 — <code>git status</code> 빈 출력.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="wrap">
+    <nav class="footer-nav" aria-label="문서 이동">
+      <a class="navlink" href="../skill-guides/sh-check.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        스킬 설명서 보기
+      </a>
+      <span class="footer-meta">sh-check · 읽기 전용 감사 스킬 · 대상 파일을 수정하지 않습니다</span>
+    </nav>
+  </div>
+</footer>
+
+</main>
+
+<script>
+  // === Menu ===
+  function toggleMenu() {
+    var dropdown = document.getElementById('vizMenuDropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.viz-menu')) {
+      var d = document.getElementById('vizMenuDropdown');
+      if (d) d.classList.remove('open');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var d = document.getElementById('vizMenuDropdown');
+      if (d) d.classList.remove('open');
+    }
+  });
+
+  // === Theme (class-based; light is this document's default) ===
+  var SUN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="7" y2="7"/><line x1="17" y1="17" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="7" y2="17"/><line x1="17" y1="7" x2="19.1" y2="4.9"/></svg>';
+  var MOON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('sh-check-theme'); } catch (e) { savedTheme = null; }
+  var currentTheme = savedTheme || 'light';
+  function applyTheme(t) {
+    document.documentElement.className = 'theme-' + t;
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.innerHTML = (t === 'dark' ? SUN : MOON);
+    if (label) label.textContent = (t === 'dark' ? '라이트 모드' : '다크 모드');
+    try { localStorage.setItem('sh-check-theme', t); } catch (e) {}
+    currentTheme = t;
+  }
+  function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+  applyTheme(currentTheme);
+
+  // === Verdict filter (meaningful interaction) ===
+  function filterChecks(which, btn) {
+    var tabs = document.querySelectorAll('.tabs button');
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-pressed', String(tabs[i] === btn));
+    var rows = document.querySelectorAll('#checkList .check');
+    for (var j = 0; j < rows.length; j++) {
+      rows[j].hidden = !(which === 'all' || rows[j].getAttribute('data-v') === which);
+    }
+  }
+
+  // === Scroll reveal ===
+  var els = document.querySelectorAll('[data-reveal]');
+  for (var i = 0; i < els.length; i++) els[i].classList.add('reveal');
+  if ('IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  // === Number counters ===
+  function animateCounters() {
+    document.querySelectorAll('[data-count]').forEach(function (el) {
+      if (el.dataset.counted) return;
+      el.dataset.counted = '1';
+      var target = parseFloat(el.dataset.count);
+      var start = performance.now(), duration = 900;
+      (function tick(now) {
+        var p = Math.min((now - start) / duration, 1), eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = String(Math.round(target * eased));
+        if (p < 1) requestAnimationFrame(tick);
+      })(start);
+    });
+  }
+  var counterEl = document.querySelector('[data-count]');
+  if (counterEl && 'IntersectionObserver' in window) {
+    var cObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { animateCounters(); cObs.disconnect(); } });
+    }, { threshold: 0.3 });
+    cObs.observe(counterEl);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>command-rename 사용 결과</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ===== THEMES (class-based only) ===== */
+    html.theme-light {
+      --bg: #fbfbfd; --surface: #ffffff; --surface-hover: #f4f5f8;
+      --text: #16181d; --muted: #5c6370; --text-secondary: #5c6370;
+      --accent: #2f6feb; --accent-secondary: #6b4fd8; --border: #e3e6ec;
+      --ok: #1a7f4b; --warn: #b0740a; --fail: #b3261e;
+      --positive: #1a7f4b; --warning: #b0740a; --negative: #b3261e;
+      --code-bg: #f5f6f9; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.05);
+    }
+    html.theme-dark {
+      --bg: #101216; --surface: #171a20; --surface-hover: #1e222a;
+      --text: #e8eaee; --muted: #9aa2b1; --text-secondary: #9aa2b1;
+      --accent: #6fa0ff; --accent-secondary: #a48cf5; --border: #262b34;
+      --ok: #4bbd83; --warn: #d8a441; --fail: #e0776d;
+      --positive: #4bbd83; --warning: #d8a441; --negative: #e0776d;
+      --code-bg: #1c2027; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.72; -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em; word-break: keep-all;
+      transition: background .3s, color .3s;
+      scrollbar-gutter: stable;
+    }
+    h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.025em; line-height: 1.24; text-wrap: balance; }
+    h1 { font-size: clamp(2.1rem, 6vw, 3rem); font-weight: 700; letter-spacing: -0.04em; }
+    h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); font-weight: 650; }
+    h3 { font-size: 1.5rem; font-weight: 600; }
+    h4 { font-size: 1.02rem; font-weight: 650; }
+    p, li, td, th, span, label { font-weight: 400; font-size: 1rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    code {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 5px; padding: .08em .38em; font-size: .87em; white-space: nowrap;
+    }
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+      font-size: .88rem; line-height: 1.75; color: var(--text);
+    }
+    pre code { background: none; border: none; padding: 0; white-space: pre; font-size: 1em; }
+
+    /* ===== LAYOUT ===== */
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+    header.page { padding: 72px 0 40px; }
+    section { padding: 26px 0; }
+    section + section { border-top: 1px solid var(--border); }
+    .lead { color: var(--muted); font-size: 1.06rem; margin-top: 16px; max-width: 62ch; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 24px; padding: 7px 15px; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); font-size: .84rem; font-weight: 500;
+      letter-spacing: -0.01em; box-shadow: var(--shadow);
+    }
+    .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+    .eyebrow {
+      display: block; font-size: .76rem; font-weight: 650; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px 24px;
+      transition: box-shadow .2s ease;
+    }
+    .card:hover { box-shadow: var(--shadow); }
+    .grid { display: grid; gap: 14px; }
+    @media (min-width: 700px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+
+    ul.clean { list-style: none; display: grid; gap: 9px; }
+    ul.clean li { position: relative; padding-left: 22px; }
+    ul.clean li::before { content: "\2022"; position: absolute; left: 4px; top: 0; color: var(--muted); }
+    ul.clean.check li::before { content: "\2713"; left: 0; color: var(--ok); font-weight: 600; }
+    ul.clean.cross li::before { content: "\2717"; left: 0; color: var(--fail); font-weight: 600; }
+    ul.clean li code { white-space: nowrap; }
+
+    /* ===== FLOW ===== */
+    .flow {
+      display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .flow .node { flex: 1 1 190px; min-width: 0; }
+    .flow .node .k { font-size: .78rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+    .flow .node .v { font-size: .95rem; font-weight: 600; margin-top: 4px; word-break: break-word; }
+    .flow .node .s { font-size: .84rem; color: var(--muted); margin-top: 2px; }
+    .flow .arrow { display: flex; align-items: center; color: var(--accent); font-size: 1.2rem; flex: none; }
+
+    /* ===== STATS ===== */
+    .stats { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+    @media (min-width: 700px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .stat .n {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 1.9rem; font-weight: 700; line-height: 1; color: var(--text);
+    }
+    .stat.ok .n { color: var(--ok); }
+    .stat.warn .n { color: var(--warn); }
+    .stat.accent .n { color: var(--accent); }
+    .stat .d { color: var(--muted); font-size: .86rem; margin-top: 8px; line-height: 1.5; }
+
+    /* ===== SPLIT BAR ===== */
+    .split { margin-top: 16px; }
+    .split-bar {
+      display: flex; height: 12px; border-radius: 999px; overflow: hidden;
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .split-bar .a { flex: 1; background: var(--warn); }
+    .split-bar .b { flex: 1; background: var(--ok); }
+    .split-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; font-size: .88rem; color: var(--muted); }
+    .split-legend .key { display: inline-flex; align-items: center; gap: 7px; }
+    .split-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+    .split-legend .sw.a { background: var(--warn); }
+    .split-legend .sw.b { background: var(--ok); }
+
+    /* ===== TABLE ===== */
+    .table-scroll {
+      overflow-x: auto; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface); -webkit-overflow-scrolling: touch;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: .94rem; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    thead th {
+      background: var(--surface-hover); color: var(--muted);
+      font-weight: 600; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-hover); }
+    td.nowrap, th.nowrap { white-space: nowrap; }
+    td.old code { color: var(--warn); }
+    td.new code { color: var(--ok); }
+    .arrow-cell { color: var(--accent); text-align: center; width: 34px; font-size: 1rem; }
+    .refs { font-size: .86rem; color: var(--muted); }
+    .refs code { font-size: .86em; white-space: normal; }
+
+    /* ===== CALLOUT ===== */
+    .callout {
+      border: 1px solid var(--border); border-left: 3px solid var(--warn);
+      background: var(--surface); border-radius: 0 10px 10px 0; padding: 18px 22px;
+    }
+    .callout.stop { border-left-color: var(--fail); }
+    .callout h4 { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+    .callout h4 svg { flex: none; }
+    .callout p { color: var(--muted); font-size: .96rem; }
+    .callout p + p { margin-top: 10px; }
+    .callout strong { color: var(--text); font-weight: 650; }
+
+    /* ===== FOOTER ===== */
+    footer.page { padding: 34px 0 72px; border-top: 1px solid var(--border); margin-top: 26px; }
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 20px; font-weight: 600;
+      transition: box-shadow .2s ease;
+    }
+    .nav-link:hover { box-shadow: var(--shadow); text-decoration: none; }
+    .nav-link .sub { display: block; font-weight: 400; font-size: .82rem; color: var(--muted); }
+    .foot-note { color: var(--muted); font-size: .85rem; margin-top: 18px; }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate { animation: fadeInUp .55s ease-out both; }
+    .animate.delay-1 { animation-delay: .08s; }
+    .animate.delay-2 { animation-delay: .16s; }
+    .animate.delay-3 { animation-delay: .24s; }
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity .55s ease, transform .55s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    /* ===== MENU ===== */
+    .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .viz-menu-toggle {
+      width: 42px; height: 42px; border-radius: 11px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: background .2s;
+      box-shadow: var(--shadow);
+    }
+    .viz-menu-toggle:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown {
+      position: absolute; top: 50px; right: 0; min-width: 190px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 7px; box-shadow: var(--shadow);
+      opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all .2s;
+    }
+    .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .viz-menu-dropdown button {
+      width: 100%; padding: 9px 13px; border: none; border-radius: 8px;
+      background: transparent; color: var(--text); font-size: .9rem;
+      font-family: inherit; cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 10px; transition: background .15s;
+    }
+    .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+    .viz-menu-dropdown button svg { flex: none; }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .viz-menu { display: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .card, .stat, .table-scroll, .callout { break-inside: avoid; box-shadow: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    @page { margin: 1in; }
+
+    @media (max-width: 560px) {
+      header.page { padding: 56px 0 30px; }
+      .wrap { padding: 0 18px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-to-content" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">본문으로 건너뛰기</a>
+
+  <!-- MENU -->
+  <div class="viz-menu">
+    <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+      </svg>
+    </button>
+    <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+      <button onclick="cycleTheme()" role="menuitem" aria-label="테마 전환">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10" cy="10" r="3.6"/><path d="M10 1.4v2M10 16.6v2M1.4 10h2M16.6 10h2M4 4l1.4 1.4M14.6 14.6L16 16M16 4l-1.4 1.4M5.4 14.6L4 16"/>
+        </svg>
+        <span id="themeLabel">다크 모드</span>
+      </button>
+      <button onclick="window.print()" role="menuitem" aria-label="인쇄 또는 PDF 저장">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 7.5V2.5h8v5M6 15H4.2A1.2 1.2 0 0 1 3 13.8V8.7A1.2 1.2 0 0 1 4.2 7.5h11.6A1.2 1.2 0 0 1 17 8.7v5.1A1.2 1.2 0 0 1 15.8 15H14M6 12.5h8v5H6z"/>
+        </svg>
+        <span>인쇄 / PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <main id="main-content" role="main">
+    <div class="wrap">
+
+      <header class="page">
+        <span class="eyebrow animate">사용 결과</span>
+        <h1 class="animate">command-rename</h1>
+        <p class="lead animate delay-1">
+          명령 패밀리와 목표 컨벤션을 받아 old→new 매핑 설계와 추적 이슈를 생성합니다.
+        </p>
+        <span class="badge animate delay-2"><span class="dot" aria-hidden="true"></span>설계 + 이슈 등록 — 코드 미변경</span>
+
+        <div class="flow animate delay-3" style="margin-top:28px;">
+          <div class="node">
+            <div class="k">입력</div>
+            <div class="v"><code>scripts/*.sh</code> + kebab-case</div>
+            <div class="s">10개, 5:5 로 갈림</div>
+          </div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node">
+            <div class="k">실행</div>
+            <div class="v">/authoring:command-rename</div>
+            <div class="s">코드 수정 0건</div>
+          </div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node">
+            <div class="k">산출</div>
+            <div class="v">매핑 설계 + 추적 이슈</div>
+            <div class="s">리스크·롤백 + refactor/docs 이슈</div>
+          </div>
+        </div>
+      </header>
+
+      <section data-reveal>
+        <span class="eyebrow">1</span>
+        <h2>실행한 명령</h2>
+        <pre style="margin-top:18px;"><code>/authoring:command-rename &lt;command-family&gt; &lt;convention&gt; [remote]
+/authoring:command-rename scripts/*.sh kebab-case origin</code></pre>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">2</span>
+        <h2>입력</h2>
+        <p class="lead">
+          <code>/home/bwyoon/dotfiles/scripts/</code> — 최상위 <code>*.sh</code> <strong>10개</strong>,
+          네이밍이 정확히 <strong>snake_case 5 : kebab-case 5</strong> 로 갈려 있음.
+        </p>
+
+        <div class="split">
+          <div class="split-bar" role="img" aria-label="snake_case 5개, kebab-case 5개로 정확히 절반씩 갈림">
+            <div class="a"></div><div class="b"></div>
+          </div>
+          <div class="split-legend">
+            <span class="key"><span class="sw a" aria-hidden="true"></span>snake_case 5 — 리네임 대상</span>
+            <span class="key"><span class="sw b" aria-hidden="true"></span>kebab-case 5 — 이미 준수</span>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top:20px;">
+          <div class="card">
+            <h4 style="color:var(--warn);">snake_case 5</h4>
+            <ul class="clean" style="margin-top:10px;">
+              <li><code>check_port_registry.sh</code></li>
+              <li><code>debug_pip_config.sh</code></li>
+              <li><code>lint_changelog_fragments.sh</code></li>
+              <li><code>lint_docs_filenames.sh</code></li>
+              <li><code>lint_shell_common_fallback.sh</code></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4 style="color:var(--ok);">kebab-case 5</h4>
+            <ul class="clean" style="margin-top:10px;">
+              <li><code>disable-git-crypt-local.sh</code></li>
+              <li><code>flush-transfer.sh</code></li>
+              <li><code>measure-skill-descriptions.sh</code></li>
+              <li><code>setup-skills-ssot.sh</code></li>
+              <li><code>verify-config-files.sh</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <p style="color:var(--muted);font-size:.96rem;">
+            remote <code>origin</code> → <code>dEitY719/dotfiles</code>.
+            하위 <code>maintenance/</code> 의 <code>*.sh</code> 3개는 같은 디렉터리의 <code>*.py</code> 짝 이름이
+            깨지므로 이번 범위에서 제외.
+          </p>
+        </div>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">3</span>
+        <h2>결과</h2>
+        <p class="lead">
+          매핑 대상은 snake_case 5건, 나머지 5건은 이미 준수라 변경 없음. 새 이름 5개 모두 충돌 0건.
+        </p>
+
+        <div class="stats" style="margin-top:20px;">
+          <div class="stat accent"><div class="n">10</div><div class="d">최상위 <code>*.sh</code></div></div>
+          <div class="stat warn"><div class="n">5</div><div class="d">매핑 대상 (snake_case)</div></div>
+          <div class="stat ok"><div class="n">5</div><div class="d">변경 없음 (이미 준수)</div></div>
+          <div class="stat ok"><div class="n">0</div><div class="d">이름 충돌</div></div>
+        </div>
+
+        <div class="table-scroll" style="margin-top:20px;">
+          <table>
+            <caption class="refs" style="caption-side:bottom;padding:12px 16px;text-align:left;">
+              old → new 매핑 표 · 참조 지점은 리네임 시 함께 갱신되어야 하는 file:line 목록입니다.
+            </caption>
+            <thead>
+              <tr>
+                <th>Old name</th>
+                <th class="arrow-cell" aria-label="변경 방향"></th>
+                <th>New name</th>
+                <th>참조 지점</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="old nowrap"><code>check_port_registry.sh</code></td>
+                <td class="arrow-cell" aria-hidden="true">→</td>
+                <td class="new nowrap"><code>check-port-registry.sh</code></td>
+                <td class="refs"><code>PORTS.md:44,51</code></td>
+              </tr>
+              <tr>
+                <td class="old nowrap"><code>debug_pip_config.sh</code></td>
+                <td class="arrow-cell" aria-hidden="true">→</td>
+                <td class="new nowrap"><code>debug-pip-config.sh</code></td>
+                <td class="refs">외부 참조 0건</td>
+              </tr>
+              <tr>
+                <td class="old nowrap"><code>lint_changelog_fragments.sh</code></td>
+                <td class="arrow-cell" aria-hidden="true">→</td>
+                <td class="new nowrap"><code>lint-changelog-fragments.sh</code></td>
+                <td class="refs"><code>mise.toml:62</code>, <code>tests/bats/lint/changelog_fragments.bats:14</code>, <code>CLAUDE.md:109</code></td>
+              </tr>
+              <tr>
+                <td class="old nowrap"><code>lint_docs_filenames.sh</code></td>
+                <td class="arrow-cell" aria-hidden="true">→</td>
+                <td class="new nowrap"><code>lint-docs-filenames.sh</code></td>
+                <td class="refs"><code>mise.toml:61</code>, <code>docs/AGENTS.md:13,55</code></td>
+              </tr>
+              <tr>
+                <td class="old nowrap"><code>lint_shell_common_fallback.sh</code></td>
+                <td class="arrow-cell" aria-hidden="true">→</td>
+                <td class="new nowrap"><code>lint-shell-common-fallback.sh</code></td>
+                <td class="refs"><code>mise.toml:63</code>, <code>tests/bats/lint/shell_common_fallback.bats:14</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout" style="margin-top:20px;">
+          <h4>
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="var(--warn)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.6"/><path d="M10 6.2v4.6M10 13.6v.2"/>
+            </svg>
+            SSOT 대조 결과 — rule gap 있음
+          </h4>
+          <p>
+            <code>scripts/</code> 파일명 규칙은 <code>command-design-pattern.md</code>
+            (§1 은 함수/alias 식별자 규칙이고 적용 범위가 <code>shell-common/functions/*.sh</code>) ·
+            <code>command-guidelines.md</code> · <code>command-delivery-model.md</code> 어디에도 없습니다.
+          </p>
+          <p>
+            전달 방식은 불변(<code>symlinks.conf</code> 등록 0건, PATH 실행파일 아님).
+          </p>
+        </div>
+      </section>
+
+      <section data-reveal>
+        <span class="eyebrow">중단 지점</span>
+        <h2>이 실행에서 생성된 GitHub 이슈는 없습니다</h2>
+
+        <div class="callout stop" style="margin-top:18px;">
+          <h4>
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="var(--fail)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.6"/><path d="M7.4 7.4h5.2v5.2H7.4z"/>
+            </svg>
+            이 실행은 이슈 등록 단계(Step 6) 직전에 중단했습니다
+          </h4>
+          <p>
+            <code>gh issue create</code> 를 포함한 어떤 <code>gh</code> 쓰기 명령도,
+            <code>Skill(gh:issue-create, ...)</code> 호출도 실행하지 않았으므로
+            <strong>생성된 GitHub 이슈는 없고 이슈 번호도 URL 도 존재하지 않습니다</strong>.
+          </p>
+          <p>
+            정상 실행이었다면 여기서 refactor 이슈 1건 + rule gap 에 따른 docs 이슈 1건이 cross-link 되어
+            만들어지고, <code>Next: /gh:issue-flow &lt;refactor-issue-number&gt;</code> 가 출력됐을 지점입니다.
+          </p>
+          <p>
+            대상 저장소는 읽기만 했고 <code>git mv</code> · 편집 · 커밋 전부 0건입니다.
+          </p>
+        </div>
+
+        <div class="stats" style="margin-top:16px;">
+          <div class="stat"><div class="n">0</div><div class="d">생성된 GitHub 이슈</div></div>
+          <div class="stat"><div class="n">0</div><div class="d"><code>git mv</code></div></div>
+          <div class="stat"><div class="n">0</div><div class="d">파일 편집</div></div>
+          <div class="stat"><div class="n">0</div><div class="d">커밋</div></div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <p style="color:var(--muted);font-size:.96rem;">
+            command-rename 은 설계와 추적 이슈 등록에서 멈춥니다 — 실제 리네임은 이 스킬이 하지 않고,
+            나중에 <code>/gh:issue-flow &lt;refactor-issue-number&gt;</code> 실행이 수행합니다.
+          </p>
+        </div>
+      </section>
+
+      <footer class="page">
+        <a class="nav-link" href="../skill-guides/command-rename.html">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17 10H3M8.5 4.5 3 10l5.5 5.5"/>
+          </svg>
+          <span>스킬 설명서 보기<span class="sub">command-rename — 인자, 동작 단계, 제약</span></span>
+        </a>
+        <p class="foot-note">
+          이 문서는 <code>docs/skill-output/command-rename-usage.md</code> 의 실행 기록을 그대로 옮긴 것입니다.
+        </p>
+      </footer>
+
+    </div>
+  </main>
+
+  <script>
+    // === Menu ===
+    function toggleMenu() {
+      var dropdown = document.getElementById('vizMenuDropdown');
+      if (dropdown) dropdown.classList.toggle('open');
+    }
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.viz-menu')) {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        var dropdown = document.getElementById('vizMenuDropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+
+    // === Theme (class-based; light is the default for this document set) ===
+    var savedTheme = localStorage.getItem('viz-theme');
+    var currentTheme = savedTheme || 'light';
+    function applyTheme(t) {
+      document.documentElement.className = 'theme-' + t;
+      var label = document.getElementById('themeLabel');
+      if (label) label.textContent = (t === 'dark') ? '라이트 모드' : '다크 모드';
+      try { localStorage.setItem('viz-theme', t); } catch (err) {}
+      currentTheme = t;
+    }
+    function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+    applyTheme(currentTheme);
+
+    // === Scroll Reveal ===
+    document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('reveal'); });
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+  </script>
+</body>
+</html>

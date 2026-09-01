@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sh-check — 셸 스크립트 감사 스킬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ===== THEMES (class-based only) ===== */
+  html.theme-light {
+    --bg: #fbfbfd;
+    --surface: #ffffff;
+    --surface-hover: #f4f6fa;
+    --text: #16181d;
+    --muted: #5c6370;
+    --accent: #2f6feb;
+    --accent-secondary: #6b4fd8;
+    --border: #e3e6ec;
+    --ok: #1a7f4b;
+    --warn: #b0740a;
+    --fail: #b3261e;
+    --code-bg: #f5f7fa;
+    --shadow: rgba(22, 24, 29, 0.08);
+    /* aliases */
+    --text-secondary: #5c6370;
+    --positive: #1a7f4b;
+    --negative: #b3261e;
+    --warning: #b0740a;
+  }
+  html.theme-dark {
+    --bg: #101216;
+    --surface: #181b21;
+    --surface-hover: #20242c;
+    --text: #e8eaee;
+    --muted: #99a0ad;
+    --accent: #6f9cf5;
+    --accent-secondary: #a98bf0;
+    --border: #2a2f38;
+    --ok: #4cc38a;
+    --warn: #e0a33a;
+    --fail: #ef7a72;
+    --code-bg: #14171c;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --text-secondary: #99a0ad;
+    --positive: #4cc38a;
+    --negative: #ef7a72;
+    --warning: #e0a33a;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 1rem;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
+    transition: background 0.3s, color 0.3s;
+    scrollbar-gutter: stable;
+    word-break: keep-all;
+  }
+  h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.03em; line-height: 1.2; text-wrap: balance; }
+  h1 { font-weight: 700; font-size: 3rem; }
+  h2 { font-weight: 650; font-size: 2rem; }
+  h3 { font-weight: 600; font-size: 1.5rem; }
+  h4 { font-weight: 600; font-size: 1.0625rem; }
+  p, li, td, th, span, label { color: var(--text); font-weight: 400; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: 0.1em 0.38em; font-size: 0.86em;
+    word-break: break-all;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.875rem; line-height: 1.65; color: var(--text);
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; word-break: normal; }
+  .text-secondary, .muted { color: var(--muted); }
+
+  /* ===== LAYOUT ===== */
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  main > section { padding: 56px 0 8px; }
+  main > section:first-of-type { padding-top: 32px; }
+
+  header.page-header {
+    border-bottom: 1px solid var(--border);
+    padding: 88px 0 48px;
+    background: var(--surface);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 999px;
+    padding: 5px 14px 5px 11px; font-size: 0.8125rem; font-weight: 600;
+    letter-spacing: 0; margin-bottom: 22px;
+  }
+  .badge svg { flex: none; color: var(--accent); }
+  .lede { color: var(--muted); font-size: 1.1875rem; line-height: 1.65; margin-top: 18px; max-width: 66ch; }
+  .kicker {
+    display: block; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+
+  /* ===== CARD ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    transition: box-shadow 0.2s ease;
+  }
+  .card:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  .grid { display: grid; gap: 16px; }
+  @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+  .card h4 { margin-bottom: 10px; display: flex; align-items: center; gap: 9px; }
+  .card ul { margin: 0; padding-left: 1.15em; }
+  .card li { margin-bottom: 7px; }
+  .card li:last-child { margin-bottom: 0; }
+
+  .card.accent-ok { border-left: 3px solid var(--ok); }
+  .card.accent-fail { border-left: 3px solid var(--fail); }
+  .card.accent-accent { border-left: 3px solid var(--accent); }
+
+  /* ===== TABLE ===== */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.9375rem; }
+  th, td { text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th {
+    font-size: 0.78125rem; font-weight: 650; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted); background: var(--code-bg);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface-hover); }
+  td.num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); width: 46px; white-space: nowrap; }
+
+  /* ===== VERDICT COLORS ===== */
+  .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 650; font-size: 0.8125rem; letter-spacing: 0.02em; }
+  .v-pass { color: var(--ok); }
+  .v-warn { color: var(--warn); }
+  .v-fail { color: var(--fail); }
+  .v-na   { color: var(--muted); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 11px; font-size: 0.8125rem; font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--surface);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+
+  /* ===== STEPS ===== */
+  ol.steps { list-style: none; counter-reset: s; display: grid; gap: 14px; }
+  ol.steps > li {
+    counter-increment: s; position: relative; padding-left: 52px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding-top: 18px; padding-bottom: 18px; padding-right: 20px;
+    transition: box-shadow 0.2s ease;
+  }
+  ol.steps > li:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  ol.steps > li::before {
+    content: counter(s); position: absolute; left: 18px; top: 17px;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--accent); color: #fff;
+    font-size: 0.75rem; font-weight: 700; line-height: 22px; text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  ol.steps strong { font-weight: 650; }
+
+  /* ===== FLOW ===== */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px;
+  }
+  .flow .node {
+    flex: 1 1 200px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .flow .node .t { font-weight: 650; font-size: 0.9375rem; }
+  .flow .node .s { color: var(--muted); font-size: 0.8125rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .flow .arrow { display: flex; align-items: center; color: var(--muted); font-size: 1.25rem; flex: none; }
+
+  /* ===== TABS (criteria filter) ===== */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .tabs button {
+    font-family: inherit; font-size: 0.875rem; font-weight: 600;
+    padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    transition: all 0.15s;
+  }
+  .tabs button:hover { background: var(--surface-hover); color: var(--text); }
+  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ===== VERDICT TIERS ===== */
+  .tiers { display: grid; gap: 12px; }
+  @media (min-width: 640px) { .tiers { grid-template-columns: repeat(2, 1fr); } }
+  .tier {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; border-top: 3px solid currentColor;
+    transition: box-shadow 0.2s ease;
+  }
+  .tier:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  .tier .name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 1rem; }
+  .tier .cond { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+
+  /* ===== NOTE LIST ===== */
+  .notes { display: grid; gap: 12px; }
+  .note {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px 16px 44px; position: relative;
+    transition: box-shadow 0.2s ease;
+  }
+  .note:hover { box-shadow: 0 0 0 1px var(--border), 0 8px 20px var(--shadow); }
+  .note::before {
+    content: "—"; position: absolute; left: 18px; top: 15px;
+    color: var(--accent); font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .note strong { font-weight: 650; }
+
+  /* ===== FOOTER ===== */
+  footer.page-footer {
+    margin-top: 72px; border-top: 1px solid var(--border);
+    background: var(--surface); padding: 36px 0 56px;
+  }
+  .footer-nav { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .navlink {
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 18px; font-weight: 600; font-size: 0.9375rem;
+    background: var(--bg); transition: background 0.15s, box-shadow 0.2s;
+  }
+  .navlink:hover { background: var(--surface-hover); text-decoration: none; box-shadow: 0 4px 14px var(--shadow); }
+  .footer-meta { color: var(--muted); font-size: 0.8125rem; }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .animate { animation: fadeInUp 0.55s ease-out both; }
+  .animate.delay-1 { animation-delay: 0.08s; }
+  .animate.delay-2 { animation-delay: 0.16s; }
+  .animate.delay-3 { animation-delay: 0.24s; }
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ===== MENU ===== */
+  .viz-menu { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+  .viz-menu-toggle {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: background 0.2s;
+  }
+  .viz-menu-toggle:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown {
+    position: absolute; top: 52px; right: 0; min-width: 208px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 8px; box-shadow: 0 12px 32px var(--shadow);
+    opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s;
+  }
+  .viz-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+  .viz-menu-dropdown button {
+    width: 100%; padding: 10px 12px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text); font-size: 0.875rem;
+    font-family: inherit; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+  }
+  .viz-menu-dropdown button:hover { background: var(--surface-hover); }
+  .viz-menu-dropdown button svg { flex: none; color: var(--muted); }
+
+  /* ===== PRINT ===== */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    .viz-menu { display: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .card, .tier, .note, ol.steps > li { break-inside: avoid; box-shadow: none !important; }
+    .table-scroll { overflow: visible; }
+    table { min-width: 0; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+  @page { margin: 1in; }
+
+  @media (max-width: 520px) {
+    h1 { font-size: 2.25rem; }
+    h2 { font-size: 1.625rem; }
+    header.page-header { padding: 72px 0 36px; }
+  }
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">본문으로 건너뛰기</a>
+
+<div class="viz-menu">
+  <button class="viz-menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기" aria-haspopup="true">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+    </svg>
+  </button>
+  <div class="viz-menu-dropdown" id="vizMenuDropdown" role="menu">
+    <button onclick="cycleTheme()" role="menuitem" aria-label="테마 전환">
+      <span id="themeIcon" aria-hidden="true"></span><span id="themeLabel">다크 모드</span>
+    </button>
+    <button onclick="window.print()" role="menuitem" aria-label="인쇄 또는 PDF 저장">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      <span>인쇄 / PDF</span>
+    </button>
+  </div>
+</div>
+
+<main id="main-content">
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="badge animate">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+      감사 전용
+    </span>
+    <h1 class="animate delay-1">sh-check</h1>
+    <p class="lede animate delay-2">
+      셸 스크립트(<code>*.sh</code>) 한 개를 dotfiles 품질 기준 10개 항목으로 감사하고,
+      PASS/WARN/FAIL/N-A 표 · Score · Verdict · Next Actions 로 구성된 <strong>감사 리포트</strong>를 출력합니다.
+      읽기 전용이라 대상 스크립트를 절대 수정하지 않습니다.
+    </p>
+  </div>
+</header>
+
+<section aria-labelledby="h-flow">
+  <div class="wrap">
+    <h2 id="h-flow" class="kicker" style="font-size:0.8125rem;">동작 개요</h2>
+    <div class="flow" data-reveal>
+      <div class="node">
+        <div class="t">셸 스크립트 1개</div>
+        <div class="s">*.sh · *.bash · *.zsh</div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node">
+        <div class="t">/authoring:sh-check</div>
+        <div class="s">read-only</div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node">
+        <div class="t">10개 기준 감사 리포트</div>
+        <div class="s">표 2개 + Score + Verdict + Next Actions</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-when">
+  <div class="wrap">
+    <span class="kicker">Scope</span>
+    <h2 id="h-when">언제 쓰고 언제 안 쓰는가</h2>
+
+    <div class="grid grid-2" style="margin-top:22px;" data-reveal>
+      <article class="card accent-ok">
+        <h4><span class="v v-pass" aria-hidden="true">✓</span> 쓸 때</h4>
+        <ul>
+          <li><code>*.sh</code> / <code>*.bash</code> / <code>*.zsh</code> 파일 하나의 품질을 점검하고 싶을 때</li>
+          <li>리뷰나 PR 전에 “이 스크립트가 <code>git_worktree.sh</code> 수준인가”를 판정하고 싶을 때</li>
+          <li>고칠 목록을 WARN/FAIL 단위로 뽑아 다음 작업 티켓을 만들고 싶을 때</li>
+        </ul>
+      </article>
+      <article class="card accent-fail">
+        <h4><span class="v v-fail" aria-hidden="true">✗</span> 쓰지 않을 때</h4>
+        <p class="muted">감사 대상 파일 종류가 다르면 형제 스킬로 보냅니다. 아래 표가 그 경계입니다.</p>
+      </article>
+    </div>
+
+    <div class="table-scroll" style="margin-top:16px;" data-reveal>
+      <table>
+        <caption class="muted" style="text-align:left;padding:13px 18px;font-size:0.8125rem;">대상 파일별 담당 스킬</caption>
+        <thead>
+          <tr><th>대상 파일</th><th>담당 스킬</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>SKILL.md</code></td>
+            <td><code>/authoring:skill-check</code></td>
+            <td>스킬 구조 · 설명 예산 16개 검사. sh-check 의 거울상</td>
+          </tr>
+          <tr>
+            <td><code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>GEMINI.md</code></td>
+            <td><code>/devx:ai-context check</code></td>
+            <td>AI 컨텍스트 문서 전용</td>
+          </tr>
+          <tr>
+            <td><code>*.sh</code> 의 help 텍스트를 <strong>실제로 고쳐야</strong> 할 때</td>
+            <td><code>/devx:ux-guidelines</code></td>
+            <td>raw <code>echo</code>/<code>printf</code>/ANSI 를 <code>ux_header</code> · <code>ux_section</code> · <code>ux_bullet</code> 같은 semantic <code>ux_lib</code> 호출로 치환</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card accent-accent" style="margin-top:16px;" data-reveal>
+      <p>
+        특히 마지막 줄이 핵심 경계입니다. sh-check 의 Check 7(UX Lib Usage)은 raw <code>echo</code> 를
+        <strong>지적만</strong> 합니다. 그 지적을 코드로 반영하는 쪽은 <code>ux-guidelines</code> 입니다.
+      </p>
+      <p style="margin-top:10px;">
+        <span class="chip"><span class="dot v-warn" style="color:var(--warn)"></span>sh-check 로 진단</span>
+        <span aria-hidden="true" style="color:var(--muted);margin:0 8px;">→</span>
+        <span class="chip"><span class="dot" style="color:var(--ok)"></span>ux-guidelines 로 치료</span>
+        <span class="muted" style="font-size:0.875rem;"> 순서가 정상 흐름입니다.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-invoke">
+  <div class="wrap">
+    <span class="kicker">Interface</span>
+    <h2 id="h-invoke">호출 형식과 인자/옵션</h2>
+
+    <pre style="margin-top:22px;" data-reveal><code>/authoring:sh-check [path/to/script.sh]
+/authoring:sh-check help</code></pre>
+
+    <p class="muted" style="margin-top:16px;">
+      <code>references/help.md</code> 가 인자 목록의 SSOT 이며, 실제로 문서화된 것은 다음이 전부입니다.
+    </p>
+
+    <div class="table-scroll" style="margin-top:14px;" data-reveal>
+      <table>
+        <thead><tr><th>인자/옵션</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>[path]</code></td><td>감사할 셸 스크립트 경로. <strong>선택</strong></td></tr>
+          <tr>
+            <td>(인자 없음)</td>
+            <td>현재 디렉터리에서 <code>*.sh</code> 탐색 — 1개면 자동 감사, 여러 개면 목록을 보여주고 되물음, 0개면 힌트 출력</td>
+          </tr>
+          <tr>
+            <td><code>-h</code>, <code>--help</code>, <code>help</code></td>
+            <td><code>references/help.md</code> 를 그대로 출력하고 <strong>중단</strong>. 검사 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card accent-fail" style="margin-top:16px;" data-reveal>
+      <p>
+        <code>--fix</code>, <code>--apply</code>, <code>--json</code> 같은 플래그는 존재하지 않습니다.
+        쓰기 동작이 없으므로 dry-run 개념 자체가 없습니다.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-steps">
+  <div class="wrap">
+    <span class="kicker">Process</span>
+    <h2 id="h-steps">동작 단계 요약</h2>
+
+    <ol class="steps" style="margin-top:22px;" data-reveal>
+      <li>
+        <strong>파일 특정</strong> — 경로 검증(확장자 아님 → 경고 후 계속), <code>LINES</code>(<code>wc -l</code>)와
+        <code>IS_SOURCED</code> 판정. <code>shell-common/functions/</code> · <code>bash/</code> · <code>zsh/</code> 아래이거나
+        상단에 <code>case $- in *i*)</code> 가 있으면 sourced fragment, 아니면 executable script 로 분류.
+      </li>
+      <li>
+        <strong>10개 검사 수행</strong> — <code>references/checks.md</code> 의 기준표와 grep 힌트를 사용해
+        각 항목을 <span class="v v-pass">PASS</span> / <span class="v v-warn">WARN</span> /
+        <span class="v v-fail">FAIL</span> / <span class="v v-na">N-A</span> 로 판정.
+      </li>
+      <li>
+        <strong>리포트 출력</strong> — <code>references/report-template.md</code> 형식 그대로.
+        Structure 표 + UX 표, <code>Score: X/10 checks passed (Y warnings, Z N/A)</code>,
+        Verdict 한 줄, WARN/FAIL 마다 한 줄씩인 Next Actions.
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="h-criteria">
+  <div class="wrap">
+    <span class="kicker">Criteria</span>
+    <h2 id="h-criteria">10개 기준</h2>
+    <p class="muted" style="margin-top:10px;">
+      Structure 1–5 와 UX Quality 6–10 두 묶음입니다. 탭으로 한쪽만 볼 수 있습니다.
+    </p>
+
+    <div class="tabs" role="tablist" aria-label="기준 필터" style="margin-top:20px;">
+      <button role="tab" aria-selected="true" aria-controls="grp-structure grp-ux" onclick="filterCriteria('all', this)">전체 10개</button>
+      <button role="tab" aria-selected="false" aria-controls="grp-structure" onclick="filterCriteria('structure', this)">Structure 1–5</button>
+      <button role="tab" aria-selected="false" aria-controls="grp-ux" onclick="filterCriteria('ux', this)">UX Quality 6–10</button>
+    </div>
+
+    <div id="grp-structure" class="crit-group" data-reveal>
+      <h3 style="font-size:1.125rem;margin-bottom:12px;">Structure (1–5)</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>검사</th><th>보는 것</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">1</td><td><strong>Shebang + POSIX Hygiene</strong></td>
+              <td>1행이 <code>#!/bin/sh</code>(권장) 또는 <code>#!/usr/bin/env bash</code>.
+                  <code>[[ ]]</code> · <code>&amp;&gt;/dev/null</code> · <code>declare</code> · <code>function name()</code> 같은 bashism 배제</td>
+            </tr>
+            <tr>
+              <td class="num">2</td><td><strong>Interactive Guard</strong></td>
+              <td>sourced 파일 상단의 <code>case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac</code></td>
+            </tr>
+            <tr>
+              <td class="num">3</td><td><strong>Section Anatomy</strong></td>
+              <td>공개 함수 앞의 <code># ===…===</code> 배너 + <code># Usage:</code> + <code># Args:</code></td>
+            </tr>
+            <tr>
+              <td class="num">4</td><td><strong>Naming Convention</strong></td>
+              <td>비공개 헬퍼는 <code>_prefix_</code>, 공개 함수는 접두사 없음, 전부 snake_case</td>
+            </tr>
+            <tr>
+              <td class="num">5</td><td><strong>ZSH Compat Guard</strong></td>
+              <td>양쪽 셸에 노출되는 함수 상단의 <code>[ -n "${ZSH_VERSION-}" ] &amp;&amp; emulate -L sh</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="grp-ux" class="crit-group" style="margin-top:24px;" data-reveal>
+      <h3 style="font-size:1.125rem;margin-bottom:12px;">UX Quality (6–10)</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>검사</th><th>보는 것</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">6</td><td><strong>Help Flag</strong></td>
+              <td><code>-h|--help</code> 처리 → 구조화된 help 루틴 → 조기 <code>return 0</code>(실행 스크립트는 <code>exit 0</code>)</td>
+            </tr>
+            <tr>
+              <td class="num">7</td><td><strong>UX Lib Usage</strong></td>
+              <td>사용자 대면 출력이 <code>ux_header</code>/<code>ux_section</code>/<code>ux_info</code>/<code>ux_success</code>/<code>ux_warn</code>/<code>ux_error</code>/<code>ux_bullet</code>/<code>ux_table_row</code> 경유.
+                  raw <code>echo</code> · <code>printf</code> · <code>tput</code> 금지(<code>$()</code> 로 잡히는 반환값, <code>DEBUG</code> 가드 출력은 예외)</td>
+            </tr>
+            <tr>
+              <td class="num">8</td><td><strong>Input Validation</strong></td>
+              <td>필수 인자 검사, 상호배타 플래그 거부, unknown option 에서 help + 비정상 종료</td>
+            </tr>
+            <tr>
+              <td class="num">9</td><td><strong>Verdict Output</strong></td>
+              <td>진단 함수가 명시적 <code>state:</code> 를 포함한 구조화된 key:value 판정 출력</td>
+            </tr>
+            <tr>
+              <td class="num">10</td><td><strong>Next-action Hint</strong></td>
+              <td>성공 출력이 다음에 실행할 명령을 <code>next:</code> 한 줄로 제시</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3 style="font-size:1.125rem;margin:36px 0 6px;">Verdict 산정</h3>
+    <p class="muted" style="margin-bottom:16px;">
+      Verdict 는 <code>PASS_COUNT / (10 - NA_COUNT)</code> 비율로 계산합니다.
+    </p>
+    <div class="tiers" data-reveal>
+      <div class="tier" style="color:var(--ok);">
+        <div class="name">EXCELLENT</div>
+        <div class="cond">100%</div>
+      </div>
+      <div class="tier" style="color:var(--ok);">
+        <div class="name">GOOD</div>
+        <div class="cond">80% 이상이며 FAIL 없음</div>
+      </div>
+      <div class="tier" style="color:var(--warn);">
+        <div class="name">NEEDS WORK</div>
+        <div class="cond">60% 이상이거나 FAIL 정확히 1개</div>
+      </div>
+      <div class="tier" style="color:var(--fail);">
+        <div class="name">POOR</div>
+        <div class="cond">60% 미만이거나 FAIL 2개 이상</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-notes">
+  <div class="wrap">
+    <span class="kicker">Constraints</span>
+    <h2 id="h-notes">주의사항 / 제약</h2>
+
+    <div class="notes" style="margin-top:22px;" data-reveal>
+      <div class="note">
+        <strong>읽기 전용 계약.</strong> 대상 파일을 절대 편집하지 않습니다.
+        수정은 사람이 하거나 <code>/devx:ux-guidelines</code> 가 합니다.
+      </div>
+      <div class="note">
+        <strong>10개 전부 보고.</strong> 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
+        환경에 도구가 없어 못 돌린 검사는 조용히 넘기지 말고 사유를 적은 <span class="v v-na">N-A</span> 로 보고합니다.
+      </div>
+      <div class="note">
+        <strong>PASS/N-A 행에는 조치를 제안하지 않습니다.</strong> Next Actions 는 WARN · FAIL 에만
+        한 줄씩 붙고, 각 줄은 <code>[&lt;LEVEL&gt; #N]</code> 로 표 행과 연결됩니다.
+      </div>
+      <div class="note">
+        <strong>표는 진단, 인용은 Next Actions.</strong> 문제를 설명할 때는 실제 파일 라인을 인용하되
+        Notes 열은 40자 이내로 유지합니다. “looks great!” 류의 군더더기 문장은 넣지 않습니다.
+      </div>
+      <div class="note">
+        <strong>기준 참조 구현은 <code>shell-common/functions/git_worktree.sh</code>.</strong>
+        어떤 패턴이 “옳은 방식”인지 애매하면 이 파일과 비교해 판정합니다. 대상이 같은 패턴을 쓰면 PASS.
+      </div>
+      <div class="note">
+        <span class="v v-na">N-A</span> 는 파일 부류상 적용 불가일 때만 씁니다(실행 스크립트의 Interactive Guard,
+        bash 전용 파일의 ZSH Compat Guard 등). 점수 분모에서 빠지므로 남용하면 Verdict 가 왜곡됩니다.
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="wrap">
+    <nav class="footer-nav" aria-label="문서 이동">
+      <a class="navlink" href="../skill-output/sh-check-usage.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>
+        </svg>
+        사용 결과 보기
+      </a>
+      <span class="footer-meta">sh-check · 읽기 전용 감사 스킬 · 대상 파일을 수정하지 않습니다</span>
+    </nav>
+  </div>
+</footer>
+
+</main>
+
+<script>
+  // === Menu ===
+  function toggleMenu() {
+    var dropdown = document.getElementById('vizMenuDropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.viz-menu')) {
+      var d = document.getElementById('vizMenuDropdown');
+      if (d) d.classList.remove('open');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var d = document.getElementById('vizMenuDropdown');
+      if (d) d.classList.remove('open');
+    }
+  });
+
+  // === Theme (class-based; light is this document's default) ===
+  var SUN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="7" y2="7"/><line x1="17" y1="17" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="7" y2="17"/><line x1="17" y1="7" x2="19.1" y2="4.9"/></svg>';
+  var MOON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('sh-check-theme'); } catch (e) { savedTheme = null; }
+  var currentTheme = savedTheme || 'light';
+  function applyTheme(t) {
+    document.documentElement.className = 'theme-' + t;
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.innerHTML = (t === 'dark' ? SUN : MOON);
+    if (label) label.textContent = (t === 'dark' ? '라이트 모드' : '다크 모드');
+    try { localStorage.setItem('sh-check-theme', t); } catch (e) {}
+    currentTheme = t;
+  }
+  function cycleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+  applyTheme(currentTheme);
+
+  // === Criteria filter (meaningful interaction) ===
+  function filterCriteria(which, btn) {
+    var tabs = document.querySelectorAll('.tabs button');
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(tabs[i] === btn));
+    var s = document.getElementById('grp-structure');
+    var u = document.getElementById('grp-ux');
+    s.style.display = (which === 'ux') ? 'none' : '';
+    u.style.display = (which === 'structure') ? 'none' : '';
+  }
+
+  // === Scroll reveal ===
+  var els = document.querySelectorAll('[data-reveal]');
+  for (var i = 0; i < els.length; i++) els[i].classList.add('reveal');
+  if ('IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObserver.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('visible'); });
+  }
+</script>
+</body>
+</html>
