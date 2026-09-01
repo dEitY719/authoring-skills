@@ -26,6 +26,9 @@ Three of them audit and never write; three of them rewrite and say so first.
 - `ux-guidelines` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/ux-guidelines.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/ux-guidelines-usage.html) (raw echo 스크립트 → ux_lib 스크립트)
 - `command-rename` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/command-rename.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/command-rename-usage.html) (명령 패밀리 → 리네임 설계 + 추적 이슈)
 
+Each page is generated from a Markdown source under
+[`docs/skill-guides/`](docs/skill-guides) and [`docs/skill-output/`](docs/skill-output).
+
 ### Picking between them
 
 The discriminator is **what you are pointing at**:
