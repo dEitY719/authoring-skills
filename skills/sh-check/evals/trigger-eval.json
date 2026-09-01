@@ -1,0 +1,89 @@
+[
+  {
+    "query": "shell-common/tools/custom/demo_ux.sh 가 우리 저장소 스타일에 맞는지 항목별로 판정해줘",
+    "should_trigger": true
+  },
+  {
+    "query": "방금 만든 배포 스크립트가 zsh 에서도 안전한지, 출력이 raw echo 대신 ux 함수를 쓰는지 한번에 봐줘",
+    "should_trigger": true
+  },
+  {
+    "query": "i wrote a new bash helper under shell-common/functions/ — grade it against our conventions before i push it",
+    "should_trigger": true
+  },
+  {
+    "query": "this file gets sourced from my rc — does it have the right guard so it stays silent in a non-interactive shell, and what else is off?",
+    "should_trigger": true
+  },
+  {
+    "query": "install.sh 에 인자 검증이랑 --help 처리가 제대로 들어갔는지 확인하고 부족한 부분 알려줘",
+    "should_trigger": true
+  },
+  {
+    "query": "/authoring:sh-check git/hooks/pre-push",
+    "should_trigger": true,
+    "note": "slash-literal: update if the skill is renamed (#1410)"
+  },
+  {
+    "query": "give me a rule-by-rule report on aws/diagnose.sh and a score at the end",
+    "should_trigger": true
+  },
+  {
+    "query": "/sh-check setup.sh 돌려줘",
+    "should_trigger": true,
+    "note": "slash-literal: update if the skill is renamed (#1410)"
+  },
+  {
+    "query": "이 스크립트 품질을 판정만 해줘, 고치지는 말고 — 어디가 기준 미달인지 목록으로",
+    "should_trigger": true
+  },
+  {
+    "query": "스크립트 하나 손봤는데 우리 기준 몇 개나 통과하는지 점수로 알려줘",
+    "should_trigger": true
+  },
+  {
+    "query": "방금 만든 스킬 문서가 우리 저장소 기준을 다 지키는지 항목별로 판정해줘. 경로는 claude/skills/gh-commit/SKILL.md 야",
+    "should_trigger": false,
+    "note": "cross-pair: should_trigger:true for authoring:skill-check"
+  },
+  {
+    "query": "내가 쓴 SKILL.md 가 너무 길어지고 이모지도 섞인 것 같아. 전체적으로 한번 감사해줄래?",
+    "should_trigger": false,
+    "note": "cross-pair: should_trigger:true for authoring:skill-check"
+  },
+  {
+    "query": "스킬 설명이 너무 길어서 다른 스킬들 목록까지 밀어내는 것 같은데, 이 문서 전반을 점검해줘",
+    "should_trigger": false,
+    "note": "cross-pair: should_trigger:true for authoring:skill-check"
+  },
+  {
+    "query": "my skill file is 180 lines and probably breaks a few of our rules — i want the rule-by-rule verdict first, don't rewrite it yet",
+    "should_trigger": false,
+    "note": "cross-pair: should_trigger:true for authoring:skill-check"
+  },
+  {
+    "query": "have a look at the skill i just added under claude/skills/ and tell me which of our conventions it fails, with concrete fixes",
+    "should_trigger": false,
+    "note": "cross-pair: should_trigger:true for authoring:skill-check"
+  },
+  {
+    "query": "shell-common/AGENTS.md 가 100줄 넘었는데 우리 기준에 맞는지 봐주고 정리 방향 알려줘",
+    "should_trigger": false
+  },
+  {
+    "query": "help 함수들에 남은 raw printf 를 전부 ux_lib 호출로 바꿔줘",
+    "should_trigger": false
+  },
+  {
+    "query": "run shellcheck across git/hooks and fix every warning it reports",
+    "should_trigger": false
+  },
+  {
+    "query": "이 스크립트가 WSL 에서만 exit 1 로 죽는데 원인 찾아줘",
+    "should_trigger": false
+  },
+  {
+    "query": "does my GEMINI.md follow the same conventions as the CLAUDE.md at the repo root?",
+    "should_trigger": false
+  }
+]

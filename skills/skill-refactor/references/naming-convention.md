@@ -1,0 +1,68 @@
+# Skill Naming Convention — `category:action` Colon Form Preferred
+
+This user's SSOT (`~/dotfiles/claude/skills/`) uses **`category:action`** in
+the `name:` frontmatter field, and the **kebab form** for the folder name.
+The colon is intentional and should be preserved across refactors.
+
+## Rule
+
+| frontmatter `name:` | folder name |
+|---|---|
+| `gh:commit` | `gh-commit/` |
+| `gh:pr` | `gh-pr/` |
+| `gh:pr-reply` | `gh-pr-reply/` |
+| `gh:issue-create` | `gh-issue-create/` |
+| `skill:refactor` | `skill-refactor/` |
+| `skill:check` | `skill-check/` |
+| `skill:create` | `skill-create/` |
+| `ai-worktree:spawn` | `ai-worktree-spawn/` |
+| `ai-worktree:teardown` | `ai-worktree-teardown/` |
+| `write:insight` | `write-insight/` |
+
+14+ skills already follow this form. Mixing kebab and colon fragments the
+mental model.
+
+## Why colon
+
+- **Memorable grouping**: `gh:*` = GitHub actions, `skill:*` = skill
+  maintenance, `ai-worktree:*` = worktree lifecycle. Users tab-complete or
+  recall by category.
+- **User-stated preference** (2026-04): "category:actions 형태는 기억하기
+  쉬운 이점이 있음."
+
+## Common false alarms — DO NOT act on these
+
+- **VS Code Anthropic Agent extension** flags `name: foo:bar` and
+  `name`/folder mismatch as diagnostics. These are **cosmetic only** —
+  Claude Code CLI accepts both, and 14+ live skills prove it.
+- **Anthropic-published skills** (`document-skills/*`) use kebab-only.
+  That is Anthropic's house style, not a CLI requirement. The user's SSOT
+  has its own convention.
+- **"Verb-first names not allowed"** is a myth. `write:insight` works
+  fine — any rejection some tool cites is purely the colon character, not
+  the verb.
+
+## Refactor rule
+
+When refactoring (Step 3b "Keep frontmatter unchanged"):
+
+- **Never silently rewrite `name: foo:bar` → `foo-bar`** to "fix" a
+  diagnostic. If the skill already follows the SSOT colon convention,
+  preserve it byte-for-byte.
+- The folder being kebab while `name:` is colon is **not a mismatch to
+  fix** — it is the convention.
+- If the user explicitly asks to switch to kebab, do it. Otherwise
+  preserve the colon form.
+
+## Audit rule (mirrors `authoring:skill-check` Check 3)
+
+- Colon in `name:` → **PASS**, not WARN.
+- Folder/name kebab-vs-colon mismatch → **PASS** when the folder is the
+  kebab form of the colon name.
+
+## History
+
+This file exists because the colon-naming question came up twice in
+quick succession (2026-04). The first time, the assistant proposed
+kebab "fix" based on a VS Code diagnostic; the user pushed back with the
+correct reasoning. Recording here so the same mistake is not made again.

@@ -1,0 +1,21 @@
+{
+  "name": "authoring",
+  "description": "Write and audit the things an AI harness reads: create, check, and refactor SKILL.md files, audit shell scripts, apply the UX guidelines to help text, and design command renames",
+  "version": "0.1.0",
+  "author": {
+    "name": "dEitY719",
+    "url": "https://github.com/dEitY719"
+  },
+  "homepage": "https://github.com/dEitY719/authoring-skills",
+  "repository": "https://github.com/dEitY719/authoring-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "plugin",
+    "marketplace",
+    "authoring",
+    "skill-md",
+    "lint",
+    "shellcheck"
+  ]
+}

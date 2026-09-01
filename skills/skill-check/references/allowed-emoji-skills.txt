@@ -1,0 +1,27 @@
+# Skills permitted to contain emojis (one per line).
+# Each entry must have a rationale comment.
+# Adding a new entry requires updating Check 11 rationale.
+
+gh-add-ai-metrics                    # ai-metrics footer SSOT — CLAUDE.md exception (#317 F-2, PR #320, #367)
+devx-exception-merge-checklist       # ai-metrics footer in references/metrics-footer.md per #317 F-2 SSOT (issue #658)
+
+# --- #862 PR-NW-1: NEEDS WORK 일괄 처리 Pattern 2 (Check 11) 사전 제거 ---
+# 표준 ai-metrics footer (📊 👤 🤖) — CLAUDE.md 예외와 동일 (#317 F-2, PR #320, #367)
+gh-commit                            # ai-metrics footer (#837)
+gh-discussion-create                 # ai-metrics footer (#844)
+gh-issue-create                      # ai-metrics footer (#847)
+gh-issue-flow                        # ai-metrics footer — composite skill 집계 footer (#848)
+gh-pr                                # ai-metrics footer (#856)
+gh-pr-approve                        # ai-metrics footer (#857)
+gh-pr-merge                          # ai-metrics footer (#818)
+devx-pr-to-ssot-issue                # ai-metrics footer in references/metrics-footer.md SSOT 참조 (#841)
+
+# --- #862 PR-NW-4: PR-NW-1 누락분 — gh-pr-* ai-metrics footer 보강 (Check 11) ---
+gh-pr-reply                          # ai-metrics footer (#822)
+gh-pr-resolve-conflict               # ai-metrics footer (#825)
+gh-pr-review                         # ai-metrics footer + AI review summary in references/post-comment.md (#829)
+# 문서적/데모용 글리프 — 정책 설명·스타일·UI 아이콘 용도
+skill-check                          # references/checks.md 의 정책 설명용 데모 글리프 (📊 👤 🤖 ✓ ✗) (#840)
+write-blog-dev-learnings             # 의도적 블로그 스타일 글리프 (#850)
+devx-trd-to-issues                   # TRD priority 글리프 (문서적) (#827)
+devx-visualize                       # references/skeleton.md UI 아이콘 (문서적) (#833)

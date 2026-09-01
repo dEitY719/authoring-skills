@@ -1,0 +1,6 @@
+{
+  "name": "authoring",
+  "description": "Author and audit what an AI harness reads — SKILL.md files, shell scripts, help text, command names",
+  "version": "0.1.0",
+  "contextFileName": "GEMINI.md"
+}

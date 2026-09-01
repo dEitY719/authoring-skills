@@ -1,0 +1,20 @@
+{
+  "name": "authoring-skills",
+  "interface": {
+    "displayName": "Authoring Skills"
+  },
+  "plugins": [
+    {
+      "name": "authoring",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
