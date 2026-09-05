@@ -91,24 +91,34 @@ def is_emoji(ch):
     return 0x1F000 <= cp <= 0x1FAFF or cp == 0xFE0F
 ```
 
-`U+2600-U+27BF` is deliberately outside the range: typographic marks such as
-`✓ ✗ ✅ ❌` are not emoji. `U+FE0F` counts, so a text-presentation glyph plus a
+`U+2600-U+27BF` sits below the range on purpose, so the BMP symbol block —
+`✓ ✗ ✅ ❌` and the rest of it — is out of scope for this ban rather than
+adjudicated glyph by glyph. `U+FE0F` counts, so a text-presentation glyph plus a
 variation selector (`⏸️` = U+23F8 U+FE0F) is caught. The `U+1FAFF` upper bound
-keeps plane-2 CJK extension ideographs from reading as emoji.
+keeps plane-2 CJK extension ideographs from reading as emoji. The test is per
+character, matching the gate: a ZWJ or skin-tone sequence trips on its base
+codepoint, so sequences need no separate rule.
 
 Allowlist key resolution: the key is `<plugin>:<skill>`.
 
 - `<plugin>` — the `name` field of the audited repo's
-  `.claude-plugin/plugin.json`. Read it; never infer it from the path.
+  `.claude-plugin/plugin.json`. Read it; never infer it from the path. No such
+  manifest (a personal skills tree, or a lone skill directory) means there is no
+  plugin to qualify with: fall back to the pre-split key — frontmatter `name:`
+  as written, colon form converted to hyphens, else the directory basename — and
+  say so in the output, because the collision guard below is not in force on
+  that path.
 - `<skill>` — frontmatter `name:`, falling back to the SKILL.md directory
   basename when absent. In a marketplace repo `name:` must be bare (a colon
   there is a hard CI failure, `skill-check.yml`: `name must be bare, not
   namespaced`), so in practice the two agree — which is exactly why the *key*
   cannot be bare too.
 
-A bare key is invalid and must be reported as one. `create` resolves to three
-different skills — `gh-issue:create`, `gh-pr:create`, `packaging:create` — so a
-bare `create` would silently exempt all three when only two earn it.
+A bare key in this repo's allowlist is invalid and must be reported as one — the
+fallback above is a reader for manifest-less trees, not a licence to write bare
+keys here. `create` resolves to three different skills — `gh-issue:create`,
+`gh-pr:create`, `packaging:create` — so a bare `create` would silently exempt
+all three when only two earn it.
 
 Stale entries: an entry whose `<plugin>` matches a repo in the audited scope but
 whose `<skill>` directory does not exist there is stale — report it as a WARN
