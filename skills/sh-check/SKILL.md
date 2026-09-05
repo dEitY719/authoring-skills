@@ -4,7 +4,7 @@ description: >-
   Audit a shell script (`*.sh`) against the dotfiles quality bar — 10
   PASS/WARN/FAIL/N/A criteria. Use on "check this shell script",
   "셸 스크립트 점검해줘", "/authoring:sh-check". Do NOT use for SKILL.md
-  (use `authoring:skill-check`) or AGENTS.md (use `devx:ai-context`).
+  (use `authoring:skill-check`) or AGENTS.md (use `harness:ai-context`).
 compatibility:
   tools: Read, Glob, Grep, Bash
 metadata:
@@ -13,6 +13,7 @@ metadata:
     reason: "audit-only shell script linter; read-only pattern matching against git_worktree.sh canonical reference; bounded output"
     claude: prefer
     non_claude: advisory-only
+license: MIT
 ---
 
 # Shell Script Quality Auditor
@@ -90,10 +91,10 @@ great!" prose — the table and Verdict speak for themselves.
 - Quote actual file lines when describing problems in Next Actions.
 - If a check needs a tool the environment lacks (e.g. no `grep`), report
   N/A with an explanatory note rather than failing silently.
-- The canonical reference is `shell-common/functions/git_worktree.sh`. When
-  in doubt about whether a pattern is "the right way", compare to it.
+- Canonical reference: `$SHELL_COMMON/functions/git_worktree.sh` (`SHELL_COMMON`
+  defaults to `$HOME/dotfiles/shell-common`). Compare to it when in doubt.
 
 ## Related Skills
 
 Mirrors `authoring:skill-check`, which audits `SKILL.md` files instead of `.sh` files.
-`devx:ai-context check` audits `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`.
+`harness:ai-context check` audits `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`.

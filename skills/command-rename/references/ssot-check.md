@@ -6,6 +6,10 @@ path in the issue body. Never invent SSOT text — only report gaps.
 
 ## Docs to read (cite all three by path)
 
+All three live in the `dEitY719/dotfiles` checkout — `$DOTFILES_ROOT`, default
+`$HOME/dotfiles`. Against any other repo they resolve to nothing: say so and
+stop rather than reporting "no rule gap" from an unread SSOT.
+
 1. **`docs/.ssot/command-design-pattern.md`** — §1 naming table:
    - public function → `snake_case`
    - private sub-function → `_<prefix>_<verb>`

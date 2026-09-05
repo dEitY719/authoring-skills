@@ -1,6 +1,7 @@
 # UX Foundation — Principles, Colors, and Semantic Functions
 
-Source of truth: `shell-common/tools/ux_lib/UX_GUIDELINES.md`
+Source of truth: `$SHELL_COMMON/tools/ux_lib/UX_GUIDELINES.md` — `SHELL_COMMON`
+defaults to `$HOME/dotfiles/shell-common` (the `dEitY719/dotfiles` checkout).
 
 ## Core Principles
 

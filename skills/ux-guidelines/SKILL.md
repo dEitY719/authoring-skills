@@ -12,6 +12,7 @@ metadata:
     reason: "convention-driven refactoring"
     claude: prefer
     non_claude: advisory-only
+license: MIT
 ---
 
 # UX Guidelines Skill
@@ -22,7 +23,10 @@ If the argument is `help`, read `references/help.md` and output it verbatim, the
 
 ## Objective
 
-Enforce `shell-common/tools/ux_lib/UX_GUIDELINES.md` for user-facing shell output.
+Enforce `$SHELL_COMMON/tools/ux_lib/UX_GUIDELINES.md` for user-facing shell output.
+`SHELL_COMMON` defaults to `$HOME/dotfiles/shell-common` — every `shell-common/`
+path in this skill is relative to the `dEitY719/dotfiles` checkout, and resolves
+to nothing anywhere else.
 Keep implementations semantic (`ux_*`), readable, and cross-shell compatible.
 
 Read `references/ux-foundation.md` for principles, color semantics, and UX function

@@ -19,8 +19,8 @@ PASS/WARN/FAIL/N-A 표 · Score · Verdict · Next Actions 로 구성된 **감�
 | 대상 파일 | 담당 스킬 | 비고 |
 |-----------|-----------|------|
 | `SKILL.md` | `/authoring:skill-check` | 스킬 구조·설명 예산 16개 검사. sh-check 의 거울상 |
-| `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | `/devx:ai-context check` | AI 컨텍스트 문서 전용 |
-| `*.sh` 의 help 텍스트를 **실제로 고쳐야** 할 때 | `/devx:ux-guidelines` | raw `echo`/`printf`/ANSI 를 `ux_header`·`ux_section`·`ux_bullet` 같은 semantic `ux_lib` 호출로 치환 |
+| `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | `/harness:ai-context check` | AI 컨텍스트 문서 전용 |
+| `*.sh` 의 help 텍스트를 **실제로 고쳐야** 할 때 | `/authoring:ux-guidelines` | raw `echo`/`printf`/ANSI 를 `ux_header`·`ux_section`·`ux_bullet` 같은 semantic `ux_lib` 호출로 치환 |
 
 특히 마지막 줄이 핵심 경계입니다. sh-check 의 Check 7(UX Lib Usage)은 raw `echo`
 를 **지적만** 합니다. 그 지적을 코드로 반영하는 쪽은 `ux-guidelines` 입니다.
@@ -84,7 +84,7 @@ Verdict 는 `PASS_COUNT / (10 - NA_COUNT)` 비율로 계산합니다 — 100% `E
 ## 주의사항/제약
 
 - **읽기 전용 계약.** 대상 파일을 절대 편집하지 않습니다. 수정은 사람이 하거나
-  `/devx:ux-guidelines` 가 합니다.
+  `/authoring:ux-guidelines` 가 합니다.
 - **10개 전부 보고.** 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
   환경에 도구가 없어 못 돌린 검사는 조용히 넘기지 말고 사유를 적은 N-A 로 보고합니다.
 - **PASS/N-A 행에는 조치를 제안하지 않습니다.** Next Actions 는 WARN·FAIL 에만

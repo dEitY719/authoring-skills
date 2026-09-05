@@ -441,12 +441,12 @@
           </h4>
           <p>
             <code>gh issue create</code> 를 포함한 어떤 <code>gh</code> 쓰기 명령도,
-            <code>Skill(gh:issue-create, ...)</code> 호출도 실행하지 않았으므로
+            <code>Skill(gh-issue:create, ...)</code> 호출도 실행하지 않았으므로
             <strong>생성된 GitHub 이슈는 없고 이슈 번호도 URL 도 존재하지 않습니다</strong>.
           </p>
           <p>
             정상 실행이었다면 여기서 refactor 이슈 1건 + rule gap 에 따른 docs 이슈 1건이 cross-link 되어
-            만들어지고, <code>Next: /gh:issue-flow &lt;refactor-issue-number&gt;</code> 가 출력됐을 지점입니다.
+            만들어지고, <code>Next: /gh-flow:issue &lt;refactor-issue-number&gt;</code> 가 출력됐을 지점입니다.
           </p>
           <p>
             대상 저장소는 읽기만 했고 <code>git mv</code> · 편집 · 커밋 전부 0건입니다.
@@ -463,7 +463,7 @@
         <div class="card" style="margin-top:16px;">
           <p style="color:var(--muted);font-size:.96rem;">
             command-rename 은 설계와 추적 이슈 등록에서 멈춥니다 — 실제 리네임은 이 스킬이 하지 않고,
-            나중에 <code>/gh:issue-flow &lt;refactor-issue-number&gt;</code> 실행이 수행합니다.
+            나중에 <code>/gh-flow:issue &lt;refactor-issue-number&gt;</code> 실행이 수행합니다.
           </p>
         </div>
       </section>

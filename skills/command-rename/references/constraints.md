@@ -2,7 +2,7 @@
 
 - **Never edit or commit source files.** This skill designs a mapping and
   files issues only. All searching is read-only (`grep`/`Read`). The actual
-  rename happens later via `/gh:issue-flow <refactor-issue>`.
+  rename happens later via `/gh-flow:issue <refactor-issue>`.
 - **Never skip the git-family exclusion.** `gb`, `gwt`, and other
   high-frequency git abbreviations are always dropped from rename candidates,
   regardless of the requested convention (`references/discovery.md`).

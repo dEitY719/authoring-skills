@@ -27,7 +27,7 @@ The skills were extracted from `dEitY719/dotfiles`
 as a snapshot — see the first commit for the source SHA. The `devx-` prefix is
 dropped here because the plugin namespace (`authoring:`) now supplies it. The
 dotfiles copies remain in place for now; they are removed in a later phase of
-that repo's migration plan (#1410 Phase 4).
+that repo's migration plan (dEitY719/dotfiles#1410 Phase 4).
 
 ## Layout: root manifests, one flat `skills/`
 
@@ -54,7 +54,7 @@ manifests under a `plugins/` directory.**
 ## Shared assets live in `harness-skills` — link, never copy
 
 Two things this repo depends on are owned by `dEitY719/harness-skills`
-(dotfiles #1410 F-5 / D-10):
+(dEitY719/dotfiles#1410 F-5 / D-10):
 
 1. **Per-harness tool mappings** — `references/{codex,kimi,gemini,antigravity,hermes,opencode}-tools.md`.
    This repo carries no `references/` tree of its own; `GEMINI.md`,
@@ -119,7 +119,7 @@ upstream dotfiles repo. The gate bans any codepoint at or above `U+1F000` plus
 
 **One exception:** `skills/skill-check/references/` contains emoji as *subject
 matter*. That skill's Check 11 documents the repo-wide emoji ban and its single
-sanctioned exception — the three `ai-metrics` footer glyphs (dotfiles #317 F-2,
+sanctioned exception — the three `ai-metrics` footer glyphs (dEitY719/dotfiles#317 F-2,
 PR #320, #367) — and `references/allowed-emoji-skills.txt` is the
 allowlist data behind it. A policy you cannot read is not a policy, so CI's
 emoji gate is passed `allow-emoji-paths: skills/skill-check/references/` for
@@ -131,5 +131,6 @@ The version appears in seven manifests: `.claude-plugin/marketplace.json`,
 `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`,
 `.kimi-plugin/plugin.json`, `.hermes-plugin/plugin.yaml`,
 `gemini-extension.json`, and `package.json`. CI checks that they agree — bump
-all of them together. Versioning is independent per repo (#1410 D-9); this repo
-does not move in lockstep with its siblings.
+all of them together. Versioning is independent per repo
+(dEitY719/dotfiles#1410 D-9); this repo does not move in lockstep with its
+siblings.

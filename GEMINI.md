@@ -51,7 +51,7 @@ The skills speak in actions. On Gemini CLI these resolve to:
 
 The full mapping, including every capability gap and its workaround, is owned by
 the sibling repo `dEitY719/harness-skills` at `references/gemini-tools.md`
-(dotfiles #1410 F-5) — read it there; this repo keeps no copy. On Antigravity
+(dEitY719/dotfiles#1410 F-5) — read it there; this repo keeps no copy. On Antigravity
 read that repo's `references/antigravity-tools.md` instead: `agy` shares
 `~/.gemini` but not Gemini CLI's tool names.
 
@@ -80,6 +80,6 @@ read that repo's `references/antigravity-tools.md` instead: `agy` shares
   bulk sweep.
 - **`command-rename` renames nothing.** It produces one `refactor` issue (plus a
   `docs` issue when the convention is not codified) and stops. Executing the
-  rename is a separate, later run of `/gh:issue-flow`.
+  rename is a separate, later run of `/gh-flow:issue`.
 - **Never fabricate a verdict.** A check you could not run is `N/A` with the
   reason, not a PASS.

@@ -1,6 +1,7 @@
 # Model Recommendation Metadata — rubric SSOT
 
-Single source of truth for the **권장 모델 티어** policy (#809, supersedes #807).
+Single source of truth for the **권장 모델 티어** policy (dEitY719/dotfiles#809,
+supersedes dEitY719/dotfiles#807).
 Shared by `authoring:skill-check` (audits/recommends, read-only) and `authoring:skill-refactor`
 (generates the metadata). Keep the rubric here so the two skills never drift.
 
@@ -35,9 +36,9 @@ metadata:
 
 | Tier | 기준 | 예시 |
 |---|---|---|
-| `haiku` | 읽기 전용, 짧은 요약, 정형 CLI 래핑, 낮은 추론 | `gh:issue-read`, `gh:commit`, `gh:pr` |
-| `sonnet` | 중간 난이도 분석, 리뷰 응답, 제한적 수정, CI 로그 해석 | `gh:pr-reply`, `gh:pr-resolve-ci-fail` |
-| `opus` | 깊은 구현, 대규모 리팩터링, 충돌 해결, 아키텍처 판단, 고위험 쓰기 | `gh:issue-implement`, `gh:pr-resolve-conflict` |
+| `haiku` | 읽기 전용, 짧은 요약, 정형 CLI 래핑, 낮은 추론 | `gh-issue:read`, `gh-pr:commit`, `gh-pr:create` |
+| `sonnet` | 중간 난이도 분석, 리뷰 응답, 제한적 수정, CI 로그 해석 | `gh-pr:reply`, `gh-resolve:ci-fail` |
+| `opus` | 깊은 구현, 대규모 리팩터링, 충돌 해결, 아키텍처 판단, 고위험 쓰기 | `gh-issue:implement`, `gh-resolve:conflict` |
 
 원칙 (NF-1~4):
 - 비용 절감 — 가벼운 스킬은 기본 `haiku`.
@@ -52,8 +53,9 @@ metadata:
 day-one red wall 로 막지 않기 위함이다 (Open Question 1 결정).
 
 - **`MIGRATION_COMPLETE = true`** (현재): 메타데이터 누락 → **FAIL**.
-  전 스킬 `model_recommendation` 전수 마이그레이션 완료 (#815 #855 #860 #862
-  모두 close) 후 별도 PR (#861) 로 전환됨.
+  전 스킬 `model_recommendation` 전수 마이그레이션 완료 (dEitY719/dotfiles#815,
+  dEitY719/dotfiles#855, dEitY719/dotfiles#860, dEitY719/dotfiles#862 모두
+  close) 후 별도 PR (dEitY719/dotfiles#861) 로 전환됨.
 - 이전 상태 `MIGRATION_COMPLETE = false`: 누락 → **WARN** + 아래 마이그레이션
   명령 제안 (마이그레이션 유예 기간 — 종료됨).
 
@@ -71,7 +73,7 @@ day-one red wall 로 막지 않기 위함이다 (Open Question 1 결정).
 - **재귀는 기본 1-depth.** 깊은 재귀는 `--recursive` opt-in (비용·복잡도 분리,
   Open Question 2 결정).
 
-예시 — `gh:issue-flow` 는 자체 티어(오케스트레이션 → `sonnet`)와 5개 하위
+예시 — `gh-flow:issue` 는 자체 티어(오케스트레이션 → `sonnet`)와 5개 하위
 스킬 계획을 따로 리포트한다 (`Sub-skill Model Plan` 섹션, report-template.md).
 
 ## 5. Compatibility policy (F-7 / F-8)

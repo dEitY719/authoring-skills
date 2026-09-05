@@ -9,7 +9,7 @@ the issue body).
 [OK] refactor issue #<N> created: <url>
   family: <command-family>  ->  convention: <desired-convention>
   renamed: <count> names   dropped: <count>   git-family excluded: gb, gwt
-Next: /gh:issue-flow <N>
+Next: /gh-flow:issue <N>
 ```
 
 ## Success — with rule gap (docs issue + cross-link)
@@ -18,13 +18,13 @@ Next: /gh:issue-flow <N>
 [OK] refactor issue #<N> created: <url>
 [OK] docs issue #<M> created: <url>   (rule gap: <convention> not in SSOT)
   cross-linked: #<N> <-> #<M>
-Next: /gh:issue-flow <N>
+Next: /gh-flow:issue <N>
 ```
 
 ## Failure
 
 ```
-[FAIL] <what failed> (e.g. gh:issue-create returned non-zero / remote not found)
+[FAIL] <what failed> (e.g. gh-issue:create returned non-zero / remote not found)
 <the error line>
 ```
 
@@ -32,7 +32,7 @@ Next: /gh:issue-flow <N>
 
 - Always include every created issue's number **and** URL.
 - Always end the success path with a `Next:` hint pointing at
-  `/gh:issue-flow <refactor-issue-number>` (the refactor issue, not the docs
+  `/gh-flow:issue <refactor-issue-number>` (the refactor issue, not the docs
   issue — the docs issue is authored separately).
 - Exactly one `[OK]`/`[FAIL]` verdict per created issue; a single `[FAIL]`
   block on precondition failure.

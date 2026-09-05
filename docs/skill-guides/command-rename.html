@@ -269,7 +269,7 @@
           명령 패밀리 하나와 목표 네이밍 컨벤션을 받아, old→new 매핑 표 · 동작 보존 근거 ·
           리스크/롤백 계획으로 이뤄진 <strong>리네임 설계</strong>를 만들고 그것을 담은
           <strong>GitHub 추적 이슈</strong>를 등록합니다. 코드는 한 줄도 바꾸지 않습니다 —
-          실제 리네임은 나중에 <code>/gh:issue-flow &lt;refactor-issue-number&gt;</code> 가 수행합니다.
+          실제 리네임은 나중에 <code>/gh-flow:issue &lt;refactor-issue-number&gt;</code> 가 수행합니다.
         </p>
         <span class="badge animate delay-2"><span class="dot" aria-hidden="true"></span>설계 + 이슈 등록 — 코드 미변경</span>
       </header>
@@ -293,7 +293,7 @@
           <div class="arrow" aria-hidden="true">→</div>
           <div class="node">
             <div class="k">이후 (별도 실행)</div>
-            <div class="v"><code>/gh:issue-flow &lt;N&gt;</code></div>
+            <div class="v"><code>/gh-flow:issue &lt;N&gt;</code></div>
             <div class="s">실제 리네임 · 커밋 · PR</div>
           </div>
         </div>
@@ -321,7 +321,7 @@
             <tbody>
               <tr>
                 <td>실제로 파일/심볼을 리네임하고 커밋·PR 까지</td>
-                <td class="nowrap"><code>/gh:issue-flow &lt;N&gt;</code></td>
+                <td class="nowrap"><code>/gh-flow:issue &lt;N&gt;</code></td>
                 <td>command-rename 이 만든 refactor 이슈 번호를 넘긴다</td>
               </tr>
               <tr>
@@ -347,7 +347,7 @@
           즉 command-rename 은 <strong>코드 리팩터러가 아니고</strong>,
           <code>sh-check</code>/<code>skill-check</code> 같은 <strong>감사기도 아닙니다</strong>.
           설계 → 이슈 등록에서 멈추고, 그 이슈를 실행하는 것은 별도의
-          <code>/gh:issue-flow</code> 실행입니다. SKILL.md 의 Role 절과
+          <code>/gh-flow:issue</code> 실행입니다. SKILL.md 의 Role 절과
           <code>references/constraints.md</code> 첫 항목이 이 계약을 명시합니다.
         </p>
       </section>
@@ -396,7 +396,7 @@
         <h3 style="font-size:1.05rem;margin:26px 0 12px;">종료 코드</h3>
         <div class="codes">
           <div class="c ok"><div class="n">0</div><div class="d">이슈 생성 완료</div></div>
-          <div class="c warn"><div class="n">1</div><div class="d">사전조건 실패 — git repo 아님 / remote 없음 / <code>gh auth</code> 실패 / <code>gh:issue-create</code> 실패</div></div>
+          <div class="c warn"><div class="n">1</div><div class="d">사전조건 실패 — git repo 아님 / remote 없음 / <code>gh auth</code> 실패 / <code>gh-issue:create</code> 실패</div></div>
           <div class="c fail"><div class="n">2</div><div class="d">필수 인자 누락</div></div>
         </div>
       </section>
@@ -421,7 +421,9 @@
           </li>
           <li>
             <h4>SSOT 대조 + 규칙 공백 탐지 <span class="ref">(<code>references/ssot-check.md</code>)</span></h4>
-            <p><code>docs/.ssot/command-design-pattern.md</code>(§1 명명 규칙표, §8 deprecated shim),
+            <p>세 SSOT 문서는 <code>dEitY719/dotfiles</code> 체크아웃(<code>$DOTFILES_ROOT</code>,
+            기본 <code>$HOME/dotfiles</code>) 기준입니다.
+            <code>docs/.ssot/command-design-pattern.md</code>(§1 명명 규칙표, §8 deprecated shim),
             <code>command-guidelines.md</code>(help UX), <code>command-delivery-model.md</code>(함수 vs PATH 실행파일)
             세 문서를 전부 읽고 경로로 인용합니다. 요청한 컨벤션이 기존 SSOT 섹션에 <strong>문자 그대로</strong> 없으면
             그것이 <strong>rule gap</strong> 입니다.</p>
@@ -439,7 +441,7 @@
           </li>
           <li>
             <h4>이슈 생성 <span class="ref">(<code>references/issue-creation.md</code>)</span></h4>
-            <p><code>Skill(gh:issue-create, ...)</code> 에 "refactor" 의도를 명시해 refactor 템플릿
+            <p><code>Skill(gh-issue:create, ...)</code> 에 "refactor" 의도를 명시해 refactor 템플릿
             (TL;DR / 동기 / 범위 / Before-After / 동작보존 / 리스크·롤백 / 검증 / References)이 잡히게 합니다.
             3단계에서 rule gap 을 찾았을 <strong>때만</strong> <code>docs</code> 이슈를 하나 더 만들고
             <code>gh issue comment</code> 로 양방향 cross-link 합니다. <code>gh issue create</code> 직접 호출은 금지입니다.</p>
@@ -447,7 +449,7 @@
           <li>
             <h4>리포트 <span class="ref">(<code>references/report-template.md</code>)</span></h4>
             <p>생성된 이슈 번호 + URL, <code>[OK]</code>/<code>[FAIL]</code> 판정, 그리고
-            <code>Next: /gh:issue-flow &lt;refactor-issue-number&gt;</code> 힌트.</p>
+            <code>Next: /gh-flow:issue &lt;refactor-issue-number&gt;</code> 힌트.</p>
           </li>
         </ol>
       </section>
@@ -467,7 +469,7 @@
             <h4>소스는 절대 건드리지 않습니다</h4>
             <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">
               편집도 커밋도 없고, 모든 탐색은 <code>grep</code>/<code>Read</code> 읽기 전용입니다.
-              리네임은 <code>/gh:issue-flow</code> 의 몫입니다.
+              리네임은 <code>/gh-flow:issue</code> 의 몫입니다.
             </p>
           </div>
           <div class="card">
@@ -516,7 +518,7 @@
         </a>
         <p class="foot-note">
           이 문서는 <code>docs/skill-guides/command-rename.md</code> 를 그대로 옮긴 것입니다.
-          설계 + 이슈 등록까지가 범위이며, 실제 리네임은 <code>/gh:issue-flow</code> 가 수행합니다.
+          설계 + 이슈 등록까지가 범위이며, 실제 리네임은 <code>/gh-flow:issue</code> 가 수행합니다.
         </p>
       </footer>
 

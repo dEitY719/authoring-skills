@@ -56,8 +56,8 @@ Keep prose for judgment calls, policy rationale, output interpretation, and user
 Show direct invocation patterns in SKILL.md, for example:
 
 ```bash
-bash claude/skills/<name>/lib/<script>.sh
-python claude/skills/<name>/lib/<script>.py
+bash skills/<name>/lib/<script>.sh
+python skills/<name>/lib/<script>.py
 ```
 
 **Domain organization**: When a skill supports multiple domains/frameworks, organize by variant:
@@ -114,7 +114,8 @@ Try to explain to the model why things are important in lieu of heavy-handed mus
   not bytes: Korean trigger phrases are 3 bytes per glyph. Every installed
   skill's description is loaded into the session's `available_skills` listing,
   and Codex/Kimi cap that listing at ~5,440 characters across all skills — a
-  long description does not just cost this skill, it crowds out others (#1411).
+  long description does not just cost this skill, it crowds out others
+  (dEitY719/dotfiles#1411).
   This does **not** contradict the "pushy" rule above: keep trigger phrases in
   both Korean and English plus short negative triggers, and move the rest —
   flag semantics to `references/help.md`, behaviour detail to Step sections,

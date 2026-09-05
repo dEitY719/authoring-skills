@@ -13,7 +13,7 @@
 | `SKILL.md` 품질을 점검만 하고 싶다 | **`skill-check`** | read-only 감사, 리포트만 생성 |
 | 점검 결과 100줄 초과·구조 문제를 실제로 고쳐야 한다 | `skill-refactor` | 이쪽이 `references/` 로 내용을 빼내며 파일을 **쓴다** |
 | 대상이 `*.sh` 셸 스크립트다 | `sh-check` | 10개 기준의 셸 전용 감사 |
-| 대상이 `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` 다 | `devx:ai-context` | frontmatter 의 negative trigger 가 명시 |
+| 대상이 `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` 다 | `harness:ai-context` | frontmatter 의 negative trigger 가 명시 |
 | 새 스킬을 처음부터 만든다 | `skill-create` | 그 절차의 10번째 단계에서 `skill-check` 를 품질 게이트로 호출한다 |
 
 경계 요약:
@@ -42,8 +42,8 @@
 
 ```
 /authoring:skill-check
-/authoring:skill-check claude/skills/my-skill/SKILL.md
-/authoring:skill-check claude/skills/gh-issue-flow/SKILL.md --recursive
+/authoring:skill-check skills/my-skill/SKILL.md
+/authoring:skill-check skills/my-composite-skill/SKILL.md --recursive
 /authoring:skill-check help
 ```
 

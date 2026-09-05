@@ -29,7 +29,8 @@ What it checks (10 criteria, modeled on git_worktree.sh):
 
 Each check reports PASS / WARN / FAIL / N/A.
 
-Examples:
+Examples (shell-common/ paths are relative to the dEitY719/dotfiles checkout —
+$SHELL_COMMON, default $HOME/dotfiles/shell-common):
   /authoring:sh-check shell-common/functions/git_worktree.sh
   /authoring:sh-check bash/utils/my_function.sh
   /authoring:sh-check
@@ -43,4 +44,4 @@ Output:
 
 Companion skills:
   /authoring:skill-check         — audit a SKILL.md file (Progressive Disclosure)
-  /devx:ai-context check — audit an AGENTS.md, CLAUDE.md, or GEMINI.md file
+  /harness:ai-context check — audit an AGENTS.md, CLAUDE.md, or GEMINI.md file

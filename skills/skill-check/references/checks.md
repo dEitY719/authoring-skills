@@ -158,8 +158,8 @@ Heuristics to look for:
 
 WARN/FAIL remediation must name a concrete helper candidate, its expected
 inputs/outputs, and a direct call pattern such as
-`bash claude/skills/<name>/lib/<script>.sh` or
-`python claude/skills/<name>/lib/<script>.py`.
+`bash skills/<name>/lib/<script>.sh` or
+`python skills/<name>/lib/<script>.py`.
 
 ---
 
@@ -168,7 +168,8 @@ inputs/outputs, and a direct call pattern such as
 ### Check 13: Model Recommendation Metadata
 Read `references/model-recommendation.md` (rubric SSOT) for the full schema,
 tier rubric, migration gate, and compatibility policy. This check is
-**read-only — it recommends a tier, never switches models or writes files** (#809).
+**read-only — it recommends a tier, never switches models or writes files**
+(dEitY719/dotfiles#809).
 
 Detect `metadata.model_recommendation` in the SKILL.md frontmatter:
 
@@ -284,9 +285,10 @@ Executable mirror: `tests/bats/skills/_fixtures/skill_description_length.sh`
 byte-identical between that fixture and the table above.
 
 **This check measures length only.** A description can pass Check 16 and still
-have stopped triggering — that is the failure mode #1411's diet risked and
-#1417 had to measure separately. Trigger accuracy is out of scope for a
-read-only audit (it costs API budget per query), so it lives in a manual
+have stopped triggering — that is the failure mode dEitY719/dotfiles#1411's
+diet risked and dEitY719/dotfiles#1417 had to measure separately. Trigger
+accuracy is out of scope for a read-only audit (it costs API budget per query),
+so it lives in a manual
 harness instead: `references/trigger-eval-procedure.md` →
 `claude/tools/run-trigger-eval.sh`. Run it when a description is shrunk, when a
 skill is renamed, or when a competing pair's boundary wording changes.

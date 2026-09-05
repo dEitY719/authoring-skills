@@ -7,6 +7,7 @@ metadata:
     reason: "new skill generation with interactive interview, draft, eval loop, and description optimization"
     claude: prefer
     non_claude: advisory-only
+license: MIT
 ---
 
 # Skill Creator
@@ -58,8 +59,7 @@ patterns, frontmatter fields, communication style, executable-first extraction r
 Read `references/eval-pipeline.md` for the full pipeline: spawning runs, drafting assertions,
 capturing timing, grading, benchmark aggregation, the high-variance analyst pass, and the viewer.
 
-IMPORTANT: Always generate the eval viewer using `eval-viewer/generate_review.py` BEFORE
-evaluating outputs yourself — get results in front of the human ASAP.
+IMPORTANT: Always generate the eval viewer using `eval-viewer/generate_review.py` BEFORE evaluating outputs yourself — get results in front of the human ASAP.
 
 ## Phase 5: Improve the Skill
 
@@ -74,7 +74,7 @@ review flow, optimization loop script, and triggering mechanics.
 
 If `present_files` is available, run `python -m scripts.package_skill <path>`, then point the
 user to the resulting `.skill` file path so they can install it. When helpers exist, show direct
-call patterns such as `bash claude/skills/<name>/lib/<script>.sh` or `python claude/skills/<name>/lib/<script>.py`.
+call patterns such as `bash skills/<name>/lib/<script>.sh` or `python skills/<name>/lib/<script>.py`.
 
 ## Phase 8: Post-Creation Quality Gate
 

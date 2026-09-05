@@ -2,6 +2,10 @@
 
 Apply UX_GUIDELINES.md standards to shell functions and help text formatting.
 
+Every `shell-common/...` path below is relative to the `dEitY719/dotfiles`
+checkout: `$SHELL_COMMON`, which defaults to `$HOME/dotfiles/shell-common`.
+Run against another repo and these paths resolve to nothing.
+
 ## Usage
 
 ```
