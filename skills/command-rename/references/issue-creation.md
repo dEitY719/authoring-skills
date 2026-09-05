@@ -1,9 +1,15 @@
 # authoring:command-rename — Issue creation (F-7 / F-8)
 
-Both issues are created by **reusing [[gh-issue-create]]** — never by calling
+Both issues are created by **reusing `gh-issue:create`** — never by calling
 `gh issue create` directly. That skill owns classification, template
 selection, auto-labels, AI-metrics, and repo resolution; this skill only
 feeds it the right context.
+
+**Prerequisite.** `gh-issue:create` ships in the sibling marketplace
+`dEitY719/gh-issue-skills` (plugin `gh-issue`), not in this repo. Confirm it
+resolves before Step 6 — `Skill(gh-issue:create, ...)` and the refactor
+template below both come from it. If it is absent, stop and tell the user to
+install that plugin; never fall back to a hand-written `gh issue create`.
 
 ## Refactor issue (always)
 
