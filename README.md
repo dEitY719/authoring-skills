@@ -15,7 +15,7 @@ Three of them audit and never write; three of them rewrite and say so first.
 | `skill-refactor` | `/authoring:skill-refactor [path/to/SKILL.md]` | Shrinks an over-long `SKILL.md` under 100 lines by extracting detail into `references/`. Presents the plan and waits for confirmation before writing. |
 | `sh-check` | `/authoring:sh-check [path/to/script.sh]` | Audits a `*.sh` file against 10 criteria — POSIX hygiene, interactive guard, section anatomy, naming, zsh compat, help flag, `ux_lib` usage, input validation, verdict output, next-action hint. Read-only. |
 | `ux-guidelines` | `/authoring:ux-guidelines [target]` | Replaces raw `echo`/`printf`/ANSI in shell functions and help text with semantic `ux_lib` calls (`ux_header`, `ux_section`, `ux_bullet`). Single-function or bulk-sweep mode. |
-| `command-rename` | `/authoring:command-rename <command-family> <convention> [remote]` | Designs a command-naming refactor — mapping table, behaviour preservation, risk and rollback — and files the tracking issue(s). Renames nothing; the rename runs later via `/gh:issue-flow`. |
+| `command-rename` | `/authoring:command-rename <command-family> <convention> [remote]` | Designs a command-naming refactor — mapping table, behaviour preservation, risk and rollback — and files the tracking issue(s). Renames nothing; the rename runs later via `/gh-flow:issue`. |
 
 ### Visual guides and worked examples (GitHub Pages)
 
@@ -91,7 +91,7 @@ These skills are written in Claude Code's vocabulary, but most of the work is
 read-file / write-markdown / run-a-command, so they port cleanly. The
 per-harness tool mappings and capability gaps are documented once, in
 [`dEitY719/harness-skills/references/`](https://github.com/dEitY719/harness-skills/tree/main/references)
-(#1410 F-5); read the one file for the harness you are on.
+(dEitY719/dotfiles#1410 F-5); read the one file for the harness you are on.
 
 | Skill | Claude Code | Codex | Kimi | Gemini / Antigravity | Hermes | OpenCode |
 |-------|:-----------:|:-----:|:----:|:--------------------:|:------:|:--------:|
@@ -150,7 +150,7 @@ a migration later.
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) calls the
 reusable workflow owned by
 [`dEitY719/harness-skills`](https://github.com/dEitY719/harness-skills/blob/main/.github/workflows/skill-check.yml)
-(#1410 D-10) — manifest parsing, required files, skill frontmatter,
+(dEitY719/dotfiles#1410 D-10) — manifest parsing, required files, skill frontmatter,
 progressive-disclosure line limits, the Codex description budget, version
 agreement, shellcheck, and an emoji gate.
 
@@ -179,16 +179,17 @@ as a content snapshot — no history rewriting. The source commit SHA is recorde
 in this repo's first commit message. The `devx-` prefix is dropped here because
 the plugin namespace (`authoring:`) now supplies it; the dotfiles originals stay
 put and `/skill:check`, `/sh:check`, `/devx:ux-guidelines`, and
-`/devx:command-rename` keep working there until #1410 Phase 4 removes them.
+`/devx:command-rename` keep working there until dEitY719/dotfiles#1410 Phase 4
+removes them.
 
 `skills/skill-create/` is itself a vendored copy of Anthropic's marketplace
 `skill-creator` plugin, taken deliberately so it survives plugin updates and
 since diverged; see `skills/skill-create/references/local-patches.md` and
 `skills/skill-create/LICENSE.txt`.
 
-This is part of Phase 2 of the dotfiles #1410 migration; `packaging-skills` was
-Phase 0, and `harness-skills`, `notes-skills`, and `visuals-skills` are its
-Phase 1 siblings.
+This is part of Phase 2 of the dEitY719/dotfiles#1410 migration;
+`packaging-skills` was Phase 0, and `harness-skills`, `notes-skills`, and
+`visuals-skills` are its Phase 1 siblings.
 
 ## License
 

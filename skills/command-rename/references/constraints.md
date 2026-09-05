@@ -2,7 +2,7 @@
 
 - **Never edit or commit source files.** This skill designs a mapping and
   files issues only. All searching is read-only (`grep`/`Read`). The actual
-  rename happens later via `/gh:issue-flow <refactor-issue>`.
+  rename happens later via `/gh-flow:issue <refactor-issue>`.
 - **Never skip the git-family exclusion.** `gb`, `gwt`, and other
   high-frequency git abbreviations are always dropped from rename candidates,
   regardless of the requested convention (`references/discovery.md`).
@@ -15,7 +15,7 @@
   collision, are interactive — never auto-decided (`references/mapping-design.md`).
 - **The `docs` issue is gap-only.** When there is no rule gap, create just the
   `refactor` issue — no docs issue, no cross-link.
-- **Reuse [[gh-issue-create]] for issue creation.** Never call
+- **Reuse `gh-issue:create` for issue creation.** Never call
   `gh issue create` directly; let that skill own templates, labels, and
   metrics (`references/issue-creation.md`).
 - **Do not cross the delivery-model axis.** The mapping must not move a

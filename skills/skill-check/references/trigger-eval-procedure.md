@@ -1,4 +1,4 @@
-# Trigger-accuracy eval — reproducible procedure (#1417)
+# Trigger-accuracy eval — reproducible procedure (dEitY719/dotfiles#1417)
 
 Check 16 measures a `description`'s **length**. It cannot tell a short
 description from a short-and-broken one. This file is the missing half: how to
@@ -15,23 +15,25 @@ For each skill, over its own `evals/trigger-eval.json` query set:
 after_score >= before_score - 5 percentage points
 ```
 
-`before` = the `description` as of the #1411 parent (`bd91d5dc^`), `after` =
-the working tree. A skill that misses the bar is reverted to a WARN-band
-description (251–400 chars) with a justifying comment, per #1411 decision D-1
-— it is never re-shrunk to chase the number.
+`before` = the `description` as of the dEitY719/dotfiles#1411 parent
+(`bd91d5dc^`), `after` = the working tree. A skill that misses the bar is
+reverted to a WARN-band description (251–400 chars) with a justifying comment,
+per dEitY719/dotfiles#1411 decision D-1 — it is never re-shrunk to chase the
+number.
 
 ### Restoring a below-contract description
 
 Which half of the score dropped tells you what to put back — they are two
-different repairs, measured separately on the pair #1417 had to fix:
+different repairs, measured separately on the pair dEitY719/dotfiles#1417 had
+to fix:
 
 | symptom | what was deleted | what restores it |
 |---|---|---|
 | **reject** fell, recall held | the boundary — `Do NOT use for X — use Y instead`, or a `Sister skill of Y (…)` line | the boundary sentence alone |
 | **recall** fell | the positive discriminator — the *when do I use this* condition (`no running app`, `dirty worktree`) | that condition; a boundary alone does not help, and can cost more recall |
 
-`devx:pr-verify-live` lost only the boundary; restoring it went 65% → 90%.
-`devx:pr-verify-merged` lost both — boundary alone left it at 75% with recall
+`gh-verify:live` lost only the boundary; restoring it went 65% → 90%.
+`gh-verify:merged` lost both — boundary alone left it at 75% with recall
 5/10, and only restoring the discriminator too returned it to 90%.
 
 Put the justification in a YAML comment **above** `description:`. The Check 16
@@ -42,7 +44,7 @@ a reverted wording that has not been measured is a guess.
 
 ## Query sets
 
-One file per skill at `claude/skills/<skill>/evals/trigger-eval.json`, a flat
+One file per skill at `skills/<skill>/evals/trigger-eval.json`, a flat
 array of exactly 20 objects, 10 `should_trigger: true` and 10 false:
 
 ```json
@@ -57,18 +59,19 @@ Authoring rules that keep the measurement honest:
 - **Write from the SKILL.md body, never from either description.** A query
   lifted from the old description rigs the comparison toward `before`; one
   lifted from the new description rigs it toward `after`.
-- **Natural language over slash literals.** #1410 renames every namespace
-  (`gh:issue-create` → `gh-issue:create`), which invalidates slash-literal
-  queries. Natural-language queries survive the rename and are the fixed points
-  that let #1410 re-use these sets to prove the rename did not undo the diet's
-  gains. Any query that does carry a slash literal is tagged
-  `"note": "slash-literal: update if the skill is renamed (#1410)"`.
+- **Natural language over slash literals.** dEitY719/dotfiles#1410 renames
+  every namespace (`gh:issue-create` → `gh-issue:create`), which invalidates
+  slash-literal queries. Natural-language queries survive the rename and are
+  the fixed points that let dEitY719/dotfiles#1410 re-use these sets to prove
+  the rename did not undo the diet's gains. Any query that does carry a slash
+  literal is tagged `"note": "slash-literal: update if the skill is renamed
+  (dEitY719/dotfiles#1410)"`.
 - **Competing pairs cross-reference each other.** For a pair like
   `authoring:skill-check` ↔ `authoring:sh-check`, at least 4 of each side's false-queries are the
   other side's true-queries, tagged `"note": "cross-pair: ..."`. A misfire is
   then a measured failure, not an untested assumption.
 - The file lives under the skill directory so it travels with the skill when
-  skills are split into marketplaces (#1410).
+  skills are split into marketplaces (dEitY719/dotfiles#1410).
 
 ### One harness constraint that shapes true-queries
 
@@ -83,11 +86,11 @@ block, so anything other than `Skill`/`Read` scored a miss outright. That
 early return is gone — every block is now inspected — but phrasing still moves
 the number, so the guidance stands.
 
-Worked example from #1417: bare slash-command queries like
+Worked example from dEitY719/dotfiles#1417: bare slash-command queries like
 `/devx-pr-verify-merged 1388 --matrix full` scored **0/3 in every arm** — and
-`devx:pr-verify-live`, whose description *does* advertise its hyphen alias,
-scored 0/3 on the equivalent query too. The built-in control shows the alias is
-not the variable; the phrasing is.
+`gh-verify:live`, whose description *does* advertise its hyphen alias, scored
+0/3 on the equivalent query too. The built-in control shows the alias is not
+the variable; the phrasing is.
 
 ## Probe twin-shadowing — the one failure mode, four causes
 
@@ -102,18 +105,18 @@ Four separate things create a twin. `run-trigger-eval.sh` suppresses all four:
 
 | # | Twin source | Isolation | Evidence |
 |---|---|---|---|
-| 1 | **Installed.** dotfiles exposes all 71 skills through `~/.claude*/skills/` | `CLAUDE_CONFIG_DIR` → throwaway dir holding only a copy of `.credentials.json` | #1412: 154 exposed slash commands → `trigger_rate 0.0`; 50 exposed → `1.0`, nothing else changed |
-| 2 | **Leftover.** A probe file from an earlier run is still in `.claude/commands/` | Every job gets a freshly created probe project, removed on exit | #1412 |
-| 3 | **Concurrent.** `run_eval --num-workers N` writes N uuid probes into ONE shared `.claude/commands/`, so N near-identical twins are visible at once; each worker only recognises its own uuid | `run_eval` is always invoked with `--num-workers 1`; parallelism moves up to `--jobs`, one whole (skill, arm) measurement per private config dir + probe project | #1417, identical `authoring:sh-check` query — before `b41dae08`: `--num-workers 3` → **0/3 FAIL** vs `1` → **3/3 PASS**; re-measured after it: **1/3 FAIL** vs **3/3 PASS** |
+| 1 | **Installed.** dotfiles exposes all 71 skills through `~/.claude*/skills/` | `CLAUDE_CONFIG_DIR` → throwaway dir holding only a copy of `.credentials.json` | dEitY719/dotfiles#1412: 154 exposed slash commands → `trigger_rate 0.0`; 50 exposed → `1.0`, nothing else changed |
+| 2 | **Leftover.** A probe file from an earlier run is still in `.claude/commands/` | Every job gets a freshly created probe project, removed on exit | dEitY719/dotfiles#1412 |
+| 3 | **Concurrent.** `run_eval --num-workers N` writes N uuid probes into ONE shared `.claude/commands/`, so N near-identical twins are visible at once; each worker only recognises its own uuid | `run_eval` is always invoked with `--num-workers 1`; parallelism moves up to `--jobs`, one whole (skill, arm) measurement per private config dir + probe project | dEitY719/dotfiles#1417, identical `authoring:sh-check` query — before `b41dae08`: `--num-workers 3` → **0/3 FAIL** vs `1` → **3/3 PASS**; re-measured after it: **1/3 FAIL** vs **3/3 PASS** |
 | 4 | **Real checkout.** Without `PYTHONPATH`, `run_eval` only imports when cwd is `skill-create/`, and `find_project_root()` then writes probes into `~/dotfiles/.claude/commands/` | `PYTHONPATH` carries the `skill-create` dir; cwd is the probe project | cause 2, aimed at the live checkout |
 
-### What `b41dae08` (#1412) changed, and what it did not
+### What `b41dae08` (dEitY719/dotfiles#1412) changed, and what it did not
 
-#1412's fixes have since landed on `main`. `run_eval.py` no longer settles the
-whole query at the first tool block — `TriggerDetector` inspects every block and
-only settles a negative at end of stream — and errored runs now leave the
-trigger-rate denominator instead of scoring as "did not fire". Registry:
-`claude/skills/skill-create/references/local-patches.md`.
+dEitY719/dotfiles#1412's fixes have since landed on `main`. `run_eval.py` no
+longer settles the whole query at the first tool block — `TriggerDetector`
+inspects every block and only settles a negative at end of stream — and errored
+runs now leave the trigger-rate denominator instead of scoring as "did not
+fire". Registry: `skills/skill-create/references/local-patches.md`.
 
 That removes the *severity* of causes 1–2 (a real trigger behind an installed
 twin now scores correctly) but not the need for isolation, and re-measurement
@@ -221,7 +224,7 @@ boundary and the answer matters.
 A passing eval proves nothing unless the eval set can also fail. Run a third arm
 for at least one sample skill with a deliberately broken description and confirm
 the score drops. Measured on `devx-mise-migrate`'s 10 should-trigger queries
-(#1417):
+(dEitY719/dotfiles#1417):
 
 | description under test | recall | score |
 |---|---|---|
@@ -242,9 +245,10 @@ So **matching is semantic, not lexical.** Two consequences:
    same job is not a control at all. If your control does not move the score,
    check that it actually stopped describing the task before blaming the query
    set.
-2. This is the mechanism that made #1411's diet safe. What the diet deleted was
-   mostly quoted trigger phrases and option prose; what it kept was the sentence
-   that says what the skill does. That sentence is what triggering runs on.
+2. This is the mechanism that made dEitY719/dotfiles#1411's diet safe. What the
+   diet deleted was mostly quoted trigger phrases and option prose; what it
+   kept was the sentence that says what the skill does. That sentence is what
+   triggering runs on.
 
 ## Results
 

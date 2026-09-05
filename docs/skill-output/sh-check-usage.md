@@ -17,7 +17,7 @@ check_port_registry.sh  ──▶  /authoring:sh-check  ──▶  10개 기준 
 ## 2. 입력
 
 `/home/bwyoon/dotfiles/scripts/check_port_registry.sh` — 118 lines, mode 0755, executable script.
-`PORTS.md` 포트 레지스트리 검증기(dotfiles #1154). 표 행을 `|` 로 분해해 `index` 중복을 잡고, 각 행이
+`PORTS.md` 포트 레지스트리 검증기(dEitY719/dotfiles#1154). 표 행을 `|` 로 분해해 `index` 중복을 잡고, 각 행이
 decade-block 공식(`backend = 9200 + index*10`, `frontend = backend+1`, `db = backend+2`)과 맞는지 대조한다.
 
 ## 3. 결과

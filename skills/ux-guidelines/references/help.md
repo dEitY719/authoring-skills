@@ -1,7 +1,9 @@
 # UX Guidelines Skill Help — Usage and Triggers
 
 Use this skill when you need consistent UX output for shell help text and
-user-facing commands in the dotfiles repository.
+user-facing commands in the `dEitY719/dotfiles` repository. Every
+`shell-common/...` path below is relative to that checkout: `$SHELL_COMMON`,
+which defaults to `$HOME/dotfiles/shell-common`.
 
 ## Usage
 

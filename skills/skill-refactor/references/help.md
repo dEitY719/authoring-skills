@@ -9,7 +9,7 @@ Arguments:
 
 Examples:
   /authoring:skill-refactor
-  /authoring:skill-refactor claude/skills/my-skill/SKILL.md
+  /authoring:skill-refactor skills/my-skill/SKILL.md
   /authoring:skill-refactor help
 
 Options:

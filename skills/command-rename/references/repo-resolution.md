@@ -30,7 +30,7 @@ uses; kept here so SKILL.md holds only the workflow.
    - `https://github.com/<owner>/<repo>.git` → `<owner>/<repo>`
    - `git@github.com:<owner>/<repo>.git` → `<owner>/<repo>`
 
-Store as `TARGET_REPO` for use in this skill's own `gh` calls. `gh:issue-create`
+Store as `TARGET_REPO` for use in this skill's own `gh` calls. `gh-issue:create`
 resolves its own repo context from a remote **name** (e.g. `origin`), not
 `owner/repo` — pass the original `[remote]` argument (not `TARGET_REPO`)
 through to it as the `[remote]` positional in Step 6.

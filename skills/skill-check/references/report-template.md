@@ -53,13 +53,13 @@ Verdict: NEEDS WORK — fix FAIL items before shipping
 (only for composite skills that invoke other skills; 1-depth unless --recursive)
 This skill's own tier: sonnet — orchestration, no deep edits
 
-| Sub-skill                | Declared tier | Notes                          |
-|--------------------------|---------------|--------------------------------|
-| gh:issue-implement       | opus          | deep implementation             |
-| gh:commit                | haiku         | structured CLI wrapping         |
-| gh:pr                    | haiku         | structured CLI wrapping         |
-| gh:pr-resolve-conflict   | opus          | rebase / conflict resolution    |
-| devx:schedule            | unknown       | metadata absent (WARN)          |
+| Sub-skill           | Declared tier | Notes                        |
+|---------------------|---------------|------------------------------|
+| gh-issue:implement  | opus          | deep implementation          |
+| gh-pr:commit        | haiku         | structured CLI wrapping      |
+| gh-pr:create        | haiku         | structured CLI wrapping      |
+| gh-resolve:conflict | opus          | rebase / conflict resolution |
+| session:schedule    | unknown       | metadata absent (WARN)       |
 
 ## Issues & Improvements
 

@@ -1,6 +1,6 @@
 [
   {
-    "query": "방금 만든 스킬 문서가 우리 저장소 기준을 다 지키는지 항목별로 판정해줘. 경로는 claude/skills/gh-commit/SKILL.md 야",
+    "query": "방금 만든 스킬 문서가 우리 저장소 기준을 다 지키는지 항목별로 판정해줘. 경로는 skills/commit/SKILL.md 야",
     "should_trigger": true
   },
   {
@@ -28,17 +28,17 @@
     "should_trigger": true
   },
   {
-    "query": "/authoring:skill-check claude/skills/devx-visualize/SKILL.md",
+    "query": "/authoring:skill-check skills/visualize/SKILL.md",
     "should_trigger": true,
-    "note": "slash-literal: update if the skill is renamed (#1410)"
+    "note": "slash-literal: update if the skill is renamed (dEitY719/dotfiles#1410)"
   },
   {
-    "query": "/skill-check 로 claude/skills/gh-pr/SKILL.md 도 한번 돌려줘",
+    "query": "/skill-check 로 skills/create/SKILL.md 도 한번 돌려줘",
     "should_trigger": true,
-    "note": "slash-literal: update if the skill is renamed (#1410)"
+    "note": "slash-literal: update if the skill is renamed (dEitY719/dotfiles#1410)"
   },
   {
-    "query": "have a look at the skill i just added under claude/skills/ and tell me which of our conventions it fails, with concrete fixes",
+    "query": "have a look at the skill i just added under skills/ and tell me which of our conventions it fails, with concrete fixes",
     "should_trigger": true
   },
   {

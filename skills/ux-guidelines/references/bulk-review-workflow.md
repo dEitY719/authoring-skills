@@ -3,6 +3,9 @@
 Use this when asked to scan `shell-common/**/*.sh` and write findings to
 `docs/abc-review-C.md`, `docs/abc-review-CX.md`, or `docs/abc-review-G.md`.
 
+The scan root is `$SHELL_COMMON` (default `$HOME/dotfiles/shell-common`) —
+against any other repo it matches nothing; see SKILL.md's Objective.
+
 ## Review Output Targets
 
 - `abc-review-C.md`: Claude review.

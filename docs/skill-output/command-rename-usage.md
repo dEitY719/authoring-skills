@@ -37,4 +37,4 @@ remote `origin` → `dEitY719/dotfiles`. 하위 `maintenance/` 의 `*.sh` 3개�
 
 SSOT 대조 결과 **rule gap 있음** — `scripts/` 파일명 규칙은 `command-design-pattern.md`(§1 은 함수/alias 식별자 규칙이고 적용 범위가 `shell-common/functions/*.sh`) · `command-guidelines.md` · `command-delivery-model.md` 어디에도 없습니다. 전달 방식은 불변(`symlinks.conf` 등록 0건, PATH 실행파일 아님).
 
-**이 실행은 이슈 등록 단계(Step 6) 직전에 중단했습니다.** `gh issue create` 를 포함한 어떤 `gh` 쓰기 명령도, `Skill(gh:issue-create, ...)` 호출도 실행하지 않았으므로 **생성된 GitHub 이슈는 없고 이슈 번호도 URL 도 존재하지 않습니다**. 정상 실행이었다면 여기서 refactor 이슈 1건 + rule gap 에 따른 docs 이슈 1건이 cross-link 되어 만들어지고, `Next: /gh:issue-flow <refactor-issue-number>` 가 출력됐을 지점입니다. 대상 저장소는 읽기만 했고 `git mv` · 편집 · 커밋 전부 0건입니다.
+**이 실행은 이슈 등록 단계(Step 6) 직전에 중단했습니다.** `gh issue create` 를 포함한 어떤 `gh` 쓰기 명령도, `Skill(gh-issue:create, ...)` 호출도 실행하지 않았으므로 **생성된 GitHub 이슈는 없고 이슈 번호도 URL 도 존재하지 않습니다**. 정상 실행이었다면 여기서 refactor 이슈 1건 + rule gap 에 따른 docs 이슈 1건이 cross-link 되어 만들어지고, `Next: /gh-flow:issue <refactor-issue-number>` 가 출력됐을 지점입니다. 대상 저장소는 읽기만 했고 `git mv` · 편집 · 커밋 전부 0건입니다.

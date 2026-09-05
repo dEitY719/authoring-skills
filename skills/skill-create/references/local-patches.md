@@ -1,6 +1,6 @@
 # Local patches to the vendored skill-create
 
-`claude/skills/skill-create/` is a **copy** of the Claude Code marketplace
+`skills/skill-create/` is a **copy** of the Claude Code marketplace
 `skill-creator` plugin, taken deliberately so it survives plugin updates
 (`b13f6686`, 2026-04-02). The original still ships on this machine at
 `~/.claude-shared/plugins/marketplaces/anthropic-agent-skills/skills/skill-creator/`,

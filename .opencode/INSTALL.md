@@ -35,7 +35,7 @@ use skill tool to load skill-check
 The authoritative OpenCode tool mapping for every `dEitY719/*-skills` repo is
 owned by the sibling repo
 [`dEitY719/harness-skills`](https://github.com/dEitY719/harness-skills/blob/main/references/opencode-tools.md)
-(dotfiles #1410 F-5). Read it there when a skill names a tool you do not
+(dEitY719/dotfiles#1410 F-5). Read it there when a skill names a tool you do not
 recognise; this repo keeps no copy on purpose. Short version:
 
 - "Read a file" -> `read`

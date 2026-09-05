@@ -104,7 +104,7 @@ before/after 라인 수를 보고한다.
 - **description은 250자 이하로.** 설치된 모든 스킬의 description이 세션 목록에 함께
   실리고 Codex/Kimi는 그 합계를 약 5,440자로 자른다 — 긴 description은 남의 자리를
   뺏는다.
-- `references/local-patches.md`가 이 사본의 로컬 패치 이력(#1412 등)을 기록한다 —
+- `references/local-patches.md`가 이 사본의 로컬 패치 이력(dEitY719/dotfiles#1412 등)을 기록한다 —
   마켓플레이스 원본에서 재임포트하는 흐름은 없고, 이 사본이 SSOT다.
 - 플랫폼 제약은 `references/platform-instructions.md`: Claude.ai에는 서브에이전트가
   없어 baseline 실행과 description 최적화(`claude -p` 필요)를 건너뛴다.

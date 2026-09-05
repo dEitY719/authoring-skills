@@ -4,9 +4,10 @@ description: >-
   Audit a SKILL.md against 16 structure, UX, security, and context-budget
   checks. Use when the user says "check my skill", "audit my skill",
   "스킬 점검해줘", "/authoring:skill-check". Do NOT use for AGENTS.md, CLAUDE.md, or
-  GEMINI.md — use devx:ai-context instead.
+  GEMINI.md — use harness:ai-context instead.
 compatibility:
   tools: Read, Glob, Grep, Bash
+license: MIT
 ---
 
 # SKILL.md Quality Auditor
@@ -35,9 +36,10 @@ Help Flag Pattern · Step Structure · Options Documentation · Verdict Output �
 Detects/validates `metadata.model_recommendation` (tier haiku/sonnet/opus +
 reason + compatibility) and reports a recommended tier per the rubric SSOT
 `references/model-recommendation.md`. **Read-only — recommends a tier, never
-switches models or writes files** (#809). For composite skills (body invokes
-`/gh-*`, `gh:*`, `Skill(...)`), build a 1-depth Sub-skill Model Plan separate
-from this skill's own tier; `--recursive` opts into deeper traversal.
+switches models or writes files** (dEitY719/dotfiles#809). For composite skills
+(body invokes `/gh-*`, `gh:*`, `Skill(...)`), build a 1-depth Sub-skill Model
+Plan separate from this skill's own tier; `--recursive` opts into deeper
+traversal.
 
 Check 11 (No Emojis) consults `references/allowed-emoji-skills.txt` —
 a skill whose `<plugin>:<skill>` key appears in that file resolves to `[N/A] allowlisted`.
@@ -56,10 +58,10 @@ gap, never edit files.
 Frontmatter `description` measured in **characters, not bytes** (Korean glyphs
 are 3 bytes each). PASS ≤ 250 · WARN 251–400 (needs a justifying comment) ·
 FAIL > 400. Descriptions load into every session's `available_skills` listing,
-which Codex/Kimi cap at ~5,440 characters across all installed skills (#1411).
-Keep trigger phrases and short negative triggers; move flag semantics to
-`references/help.md`, behaviour detail to Step sections, and sister-skill
-cross-references to the body. Executable mirror:
+which Codex/Kimi cap at ~5,440 characters across all installed skills
+(dEitY719/dotfiles#1411). Keep trigger phrases and short negative triggers;
+move flag semantics to `references/help.md`, behaviour detail to Step sections,
+and sister-skill cross-references to the body. Executable mirror:
 `tests/bats/skills/_fixtures/skill_description_length.sh`.
 
 ## Step 3: Output the Report

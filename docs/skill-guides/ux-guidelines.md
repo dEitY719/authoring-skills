@@ -23,7 +23,7 @@
 | `*.sh` 를 **판정만** 하고 싶을 때 | `/authoring:sh-check` | 읽기 전용 10개 기준 감사. 이 스킬은 그 진단의 치료 쪽 |
 | `SKILL.md` 구조·설명 예산 점검 | `/authoring:skill-check` | 셸이 아니라 스킬 문서 |
 | `SKILL.md` 100줄 초과 축소 | `/authoring:skill-refactor` | 마크다운 리팩터링 |
-| `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | `/devx:ai-context` | AI 컨텍스트 문서 전용 |
+| `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | `/harness:ai-context` | AI 컨텍스트 문서 전용 |
 
 핵심 경계는 첫 줄입니다. `sh-check` 는 raw `echo` 를 **지적**하고 `ux-guidelines` 는
 그 지적을 **코드로 반영**합니다 — 진단 → 치료 순서가 정상 흐름입니다.

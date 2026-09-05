@@ -13,6 +13,7 @@ metadata:
     reason: "skill refactoring: extracts references, compresses to <=100 lines, auto-generates metadata blocks per rubric SSOT"
     claude: prefer
     non_claude: advisory-only
+license: MIT
 ---
 
 # SKILL.md Progressive Disclosure Refactoring Specialist

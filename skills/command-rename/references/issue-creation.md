@@ -1,14 +1,20 @@
 # authoring:command-rename — Issue creation (F-7 / F-8)
 
-Both issues are created by **reusing [[gh-issue-create]]** — never by calling
+Both issues are created by **reusing `gh-issue:create`** — never by calling
 `gh issue create` directly. That skill owns classification, template
 selection, auto-labels, AI-metrics, and repo resolution; this skill only
 feeds it the right context.
 
+**Prerequisite.** `gh-issue:create` ships in the sibling marketplace
+`dEitY719/gh-issue-skills` (plugin `gh-issue`), not in this repo. Confirm it
+resolves before Step 6 — `Skill(gh-issue:create, ...)` and the refactor
+template below both come from it. If it is absent, stop and tell the user to
+install that plugin; never fall back to a hand-written `gh issue create`.
+
 ## Refactor issue (always)
 
-Invoke `Skill(gh:issue-create, "<remote>")`, having first laid out the design
-in the conversation so gh:issue-create's classifier lands on `refactor`:
+Invoke `Skill(gh-issue:create, "<remote>")`, having first laid out the design
+in the conversation so gh-issue:create's classifier lands on `refactor`:
 
 - State the intent explicitly up front (the word "refactor", "동작 보존하며
   구조 정리") so its `references/prefix-table.md` heuristic picks
@@ -22,13 +28,15 @@ in the conversation so gh:issue-create's classifier lands on `refactor`:
   - 검증 = help tests + bats that must still pass.
   - References = the three SSOT doc paths.
 
-Do **not** recreate the refactor skeleton here — it already lives at
-`claude/skills/gh-issue-create/references/templates/refactor.md`.
+Do **not** recreate the refactor skeleton here — `gh-issue:create` owns it, at
+`skills/create/references/templates/refactor.md` in the sibling repo
+`dEitY719/gh-issue-skills`. It is a cross-repo dependency: if that plugin is not
+installed, say so and stop rather than improvising a skeleton.
 
 ## Docs issue (only on a rule gap)
 
 Only when `references/ssot-check.md` detected a gap, create a second issue via
-`Skill(gh:issue-create, "<remote>")` with explicit `docs` intent (문서 자체
+`Skill(gh-issue:create, "<remote>")` with explicit `docs` intent (문서 자체
 변경) so it selects `references/templates/docs.md`. Its content: which
 convention is missing from which SSOT doc, and that the SSOT section (e.g. a
 new `<tool>-<noun>` rule) needs to be authored. Do not propose final SSOT
