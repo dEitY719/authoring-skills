@@ -70,25 +70,58 @@ N/A — skill is terminal (no natural follow-up action exists)
 
 ### Check 11: No Emojis
 PASS — no emoji glyphs in SKILL.md body or `references/*.md`
-FAIL — emoji present AND skill name NOT in `references/allowed-emoji-skills.txt`
-N/A — skill name IS in allowlist (`[N/A] allowlisted in references/allowed-emoji-skills.txt`)
-WARN — allowlist file missing (degrade rather than block; authoring:skill-check stays read-only)
+FAIL — emoji present AND the skill's allowlist key is NOT in
+`references/allowed-emoji-skills.txt`
+N/A — the key IS in the allowlist (`[N/A] allowlisted in references/allowed-emoji-skills.txt`)
+WARN — allowlist file missing, or an allowlist entry resolves to nothing in the
+audited scope (see "Stale entries" below). Degrade rather than block;
+authoring:skill-check stays read-only.
 
 Rationale: CLAUDE.md "No emojis anywhere" policy with one exception — the
 `ai-metrics` footer's `📊 👤 🤖` glyphs inside `<details>` / `<!-- ai-metrics -->`
-blocks (#317 F-2, PR #320, #367 wrapper).
+blocks (dEitY719/dotfiles#317 F-2, PR #320, #367 wrapper).
 
-Detection: grep for codepoints in the ranges `U+1F300-U+1FAFF` (pictographic
-extended) and `U+2600-U+27BF` (misc symbols & dingbats). Range is intentionally
-narrower than "all emoji" to avoid false positives on BMP symbols (✓ ✗ etc).
+Detection: the enforcing gate is
+`dEitY719/harness-skills/.github/workflows/skill-check.yml`, so it owns the
+definition and this rubric quotes it rather than restating a second range:
 
-Skill name resolution: take frontmatter `name:` colon form and convert to
-hyphen form (`gh:add-ai-metrics` → `gh-add-ai-metrics`), or fall back to the
-directory basename when frontmatter `name:` is absent.
+```python
+def is_emoji(ch):
+    cp = ord(ch)
+    return 0x1F000 <= cp <= 0x1FAFF or cp == 0xFE0F
+```
 
-Allowlist: `claude/skills/skill-check/references/allowed-emoji-skills.txt` —
-one skill name per line, `#` comments allowed, blank lines ignored. Each
-entry must carry an inline rationale comment.
+`U+2600-U+27BF` is deliberately outside the range: typographic marks such as
+`✓ ✗ ✅ ❌` are not emoji. `U+FE0F` counts, so a text-presentation glyph plus a
+variation selector (`⏸️` = U+23F8 U+FE0F) is caught. The `U+1FAFF` upper bound
+keeps plane-2 CJK extension ideographs from reading as emoji.
+
+Allowlist key resolution: the key is `<plugin>:<skill>`.
+
+- `<plugin>` — the `name` field of the audited repo's
+  `.claude-plugin/plugin.json`. Read it; never infer it from the path.
+- `<skill>` — frontmatter `name:`, falling back to the SKILL.md directory
+  basename when absent. In a marketplace repo `name:` must be bare (a colon
+  there is a hard CI failure, `skill-check.yml`: `name must be bare, not
+  namespaced`), so in practice the two agree — which is exactly why the *key*
+  cannot be bare too.
+
+A bare key is invalid and must be reported as one. `create` resolves to three
+different skills — `gh-issue:create`, `gh-pr:create`, `packaging:create` — so a
+bare `create` would silently exempt all three when only two earn it.
+
+Stale entries: an entry whose `<plugin>` matches a repo in the audited scope but
+whose `<skill>` directory does not exist there is stale — report it as a WARN
+naming the key. Entries for plugins outside the audited scope are out of reach,
+not stale: when auditing one repo, do not flag the other repos' entries. Without
+this state a full allowlist and an empty one look identical, which is how every
+key survived the repo split unnoticed.
+
+Allowlist: `skills/skill-check/references/allowed-emoji-skills.txt` — one key
+per line, `#` comments allowed, blank lines ignored. Each entry must carry an
+inline rationale comment. This file governs the rubric only; CI exemptions are
+separate `allow-emoji-paths` entries in each repo's
+`.github/workflows/validate.yml`, and neither implies the other.
 
 FAIL output: list up to 5 matched files+lines and append the guidance
 `Remove emoji or add to references/allowed-emoji-skills.txt with rationale`.
