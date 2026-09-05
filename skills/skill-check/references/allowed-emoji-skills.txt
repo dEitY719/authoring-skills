@@ -1,27 +1,45 @@
-# Skills permitted to contain emojis (one per line).
-# Each entry must have a rationale comment.
-# Adding a new entry requires updating Check 11 rationale.
+# Skills permitted to contain emoji (one key per line).
+# `#` comments and blank lines are ignored.
+#
+# ## Adding an entry
+#
+# 1. The key is `<plugin>:<skill>`, where `<plugin>` is the `name` field in that
+#    repo's `.claude-plugin/plugin.json` and `<skill>` is the SKILL.md directory
+#    basename. Never a bare skill name: `create` resolves to three different
+#    skills in three different repos (gh-issue, gh-pr, packaging), so a bare key
+#    silently exempts skills that never asked for it.
+# 2. The rationale comment is mandatory. Name *which* glyphs and *why* they are
+#    subject matter rather than decoration.
+# 3. This file exempts a skill from the `skill-check` **rubric** only. CI is a
+#    separate gate with a separate mechanism: add the path prefix to
+#    `allow-emoji-paths` in that repo's `.github/workflows/validate.yml`. Both
+#    are required; neither implies the other. That split is what made the
+#    pre-split key breakage invisible for so long.
+#
+# Detection range and key resolution are specified in `checks.md` (Check 11).
 
-gh-add-ai-metrics                    # ai-metrics footer SSOT — CLAUDE.md exception (#317 F-2, PR #320, #367)
-devx-exception-merge-checklist       # ai-metrics footer in references/metrics-footer.md per #317 F-2 SSOT (issue #658)
+# --- ai-metrics footer: the chart/person/robot glyphs 📊 👤 🤖 are the wire
+# --- format of the footer itself, not decoration (dEitY719/dotfiles#317 F-2,
+# --- PR #320, #367 wrapper).
+gh-setup:add-ai-metrics              # ai-metrics footer SSOT — 📊 👤 🤖 (dEitY719/dotfiles#317 F-2, PR #320, #367)
+gh-issue:create                      # ai-metrics footer 📊 👤 🤖 in references/create-cmd.md (dEitY719/dotfiles#847)
+gh-issue:discussion-create           # ai-metrics footer 📊 👤 🤖 mirrored from gh-issue:create (dEitY719/dotfiles#844)
+gh-pr:approve                        # ai-metrics footer 🤖 in references/ai-metrics.md (dEitY719/dotfiles#857)
+gh-pr:commit                         # ai-metrics footer 📊 🤖 in references/ai-metrics-comment.md (dEitY719/dotfiles#837)
+gh-pr:create                         # ai-metrics footer 📊 👤 🤖 in references/ai-metrics-footer.md (dEitY719/dotfiles#856)
+gh-pr:merge                          # ai-metrics footer 📊 👤 🤖 in references/ai-metrics-comment.sh.md (dEitY719/dotfiles#818)
+gh-pr:reply                          # ai-metrics footer 📊 👤 🤖 in references/ai-metrics-comment.sh.md (dEitY719/dotfiles#822)
+gh-pr:review                         # ai-metrics footer + 🤖 AI review summary header in references/post-comment.md (dEitY719/dotfiles#829)
+gh-verify:exception-merge-checklist  # ai-metrics footer 📊 👤 🤖 in references/metrics-footer.md (dEitY719/dotfiles#317 F-2, #658)
+spec-flow:pr-to-ssot-issue           # ai-metrics footer 📊 👤 🤖 in references/metrics-footer.md (dEitY719/dotfiles#841)
 
-# --- #862 PR-NW-1: NEEDS WORK 일괄 처리 Pattern 2 (Check 11) 사전 제거 ---
-# 표준 ai-metrics footer (📊 👤 🤖) — CLAUDE.md 예외와 동일 (#317 F-2, PR #320, #367)
-gh-commit                            # ai-metrics footer (#837)
-gh-discussion-create                 # ai-metrics footer (#844)
-gh-issue-create                      # ai-metrics footer (#847)
-gh-issue-flow                        # ai-metrics footer — composite skill 집계 footer (#848)
-gh-pr                                # ai-metrics footer (#856)
-gh-pr-approve                        # ai-metrics footer (#857)
-gh-pr-merge                          # ai-metrics footer (#818)
-devx-pr-to-ssot-issue                # ai-metrics footer in references/metrics-footer.md SSOT 참조 (#841)
+# --- Quoted label text: the glyph is part of a real GitHub label name the skill
+# --- must match on, so it cannot be spelled any other way.
+gh-issue:implement                   # `⏸️ Postpone` label name quoted in references/claim.md — U+23F8 U+FE0F (dEitY719/dotfiles#1410)
+gh-issue:proceed                     # `⏸️ Postpone` label name quoted in references/claim.md, help.md — U+23F8 U+FE0F (dEitY719/dotfiles#1410)
 
-# --- #862 PR-NW-4: PR-NW-1 누락분 — gh-pr-* ai-metrics footer 보강 (Check 11) ---
-gh-pr-reply                          # ai-metrics footer (#822)
-gh-pr-resolve-conflict               # ai-metrics footer (#825)
-gh-pr-review                         # ai-metrics footer + AI review summary in references/post-comment.md (#829)
-# 문서적/데모용 글리프 — 정책 설명·스타일·UI 아이콘 용도
-skill-check                          # references/checks.md 의 정책 설명용 데모 글리프 (📊 👤 🤖 ✓ ✗) (#840)
-write-blog-dev-learnings             # 의도적 블로그 스타일 글리프 (#850)
-devx-trd-to-issues                   # TRD priority 글리프 (문서적) (#827)
-devx-visualize                       # references/skeleton.md UI 아이콘 (문서적) (#833)
+# --- Documentary glyphs: policy illustration, authored style, UI mockups.
+authoring:skill-check                # 📊 👤 🤖 ⏸️ quoted in references/checks.md as the policy being documented (dEitY719/dotfiles#840)
+notes:blog-dev-learnings             # 🔥 and kin — deliberate blog-voice glyphs the skill teaches an author to use (dEitY719/dotfiles#850)
+spec-flow:trd-to-issues              # 🔥 priority marker in references/decomposition-rules.md issue templates (dEitY719/dotfiles#827)
+visuals:visualize                    # 🌙 and kin — UI icons inside the HTML skeleton in references/skeleton.md (dEitY719/dotfiles#833)

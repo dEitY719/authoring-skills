@@ -40,7 +40,7 @@ switches models or writes files** (#809). For composite skills (body invokes
 from this skill's own tier; `--recursive` opts into deeper traversal.
 
 Check 11 (No Emojis) consults `references/allowed-emoji-skills.txt` —
-audited skill names that appear in that file resolve to `[N/A] allowlisted`.
+a skill whose `<plugin>:<skill>` key appears in that file resolves to `[N/A] allowlisted`.
 
 **Checks 14–15: Security & Policy Alignment**
 License Declaration · Capability Declaration Consistency
