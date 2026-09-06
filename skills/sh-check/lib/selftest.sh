@@ -73,6 +73,7 @@ eq "bad: verdict"                        "$(verdict "$b")" POOR
 # ---------- N/A rows leave the denominator ----------
 plain=$work/plain.sh
 printf '#!/bin/sh\nexit 0\n' > "$plain"
+chmod +x "$plain"   # checks.md Check 2: N/A needs the execute bit, not just #!
 p=$(sh "$here/sh_check.sh" "$plain" 'N/A' 'N/A' 'N/A' 'N/A')
 eq "plain: 4 no functions" "$(row "$p" 4)" 'N/A'
 eq "plain: score drops N/A rows" \
@@ -93,6 +94,7 @@ mid() {
     ux_success "ok"
 }
 EOF
+chmod +x "$mid"
 eq "mid: 8/8 is EXCELLENT" \
   "$(verdict "$(sh "$here/sh_check.sh" "$mid" PASS PASS PASS PASS)")" EXCELLENT
 eq "mid: 7/8 no FAIL is GOOD" \
@@ -165,8 +167,15 @@ cat > "$aliased" <<'EOF'
 alias gwt='git worktree'
 ux_info "loaded"
 EOF
+chmod +x "$aliased"   # so the alias, not the missing mode bit, is what decides
 eq "aliased: top-level alias marks the file sourced" \
   "$(row "$(sh "$here/sh_check.sh" "$aliased")" 2)" FAIL
+
+# A shebang without the execute bit is a sourced fragment, not a script.
+nonexec=$work/nonexec.sh
+printf '#!/bin/sh\nux_info hi\n' > "$nonexec"   # deliberately not chmod +x
+eq "nonexec: a shebang without the execute bit still needs a guard" \
+  "$(row "$(sh "$here/sh_check.sh" "$nonexec")" 2)" FAIL
 
 # A function merely named *helper* does not satisfy the help-flag check.
 namebait=$work/namebait.sh
