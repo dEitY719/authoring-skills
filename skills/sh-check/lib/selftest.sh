@@ -126,6 +126,22 @@ EOF
 eq "skew: guard counted per function, not file-wide" \
   "$(row "$(sh "$here/sh_check.sh" "$skew")" 5)" WARN
 
+# State must not leak past the closing brace into the next function.
+leak=$work/dotfiles/shell-common/functions/leak.sh
+cat > "$leak" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac
+
+one() {
+    local a=""
+    ux_info "$a"
+}
+
+# every local-using function needs [ -n "${ZSH_VERSION-}" ] && emulate -L sh
+EOF
+eq "leak: a line after the closing brace is not the function's guard" \
+  "$(row "$(sh "$here/sh_check.sh" "$leak")" 5)" FAIL
+
 # Definitions are found whichever way the brace is placed.
 braces=$work/braces.sh
 cat > "$braces" <<'EOF'
