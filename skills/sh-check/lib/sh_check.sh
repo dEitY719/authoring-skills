@@ -59,13 +59,17 @@ case $file in
   *)                shell_specific=0 ;;
 esac
 
-# IS_SOURCED heuristic, SKILL.md Step 1: location, an interactive guard near
-# the top, or the absence of a shebang.
+# IS_SOURCED heuristic, SKILL.md Step 1 and checks.md Check 2: location, an
+# interactive guard near the top, a top-level `alias` in the opening lines, or
+# the absence of a shebang. A shebang alone never proves the file is executed
+# rather than sourced, so it only decides the case none of the others caught.
 sourced=0
 case $file in
   */shell-common/functions/*|*/bash/*|*/zsh/*) sourced=1 ;;
 esac
-if head -20 "$file" | grep -qF 'case $- in *i*'; then sourced=1; fi
+head20=$(head -20 "$file")
+if printf '%s\n' "$head20" | grep -qF 'case $- in *i*'; then sourced=1; fi
+if printf '%s\n' "$head20" | grep -qE '^[[:space:]]*alias '; then sourced=1; fi
 case $shebang in '#!'*) ;; *) sourced=1 ;; esac
 
 # ---------- Check 1: Shebang + POSIX Hygiene ----------
@@ -106,9 +110,34 @@ else
   r2=FAIL; n2='sourced file with no interactive guard'
 fi
 
+# One pass over the file yields, per function definition:
+#   name<TAB>uses-local<TAB>has-emulate-guard
+# The opening brace may sit on the definition line, on the next line, or the
+# whole body may be a one-liner, so the definition is recognised by `name()`
+# alone and the remainder of that same line is scanned as body.
+FUNCS=$(awk '
+  function flush() {
+    if (cur != "") printf "%s\t%d\t%d\n", cur, needs, guarded
+  }
+  function body(line) {
+    if (line ~ /(^|[^A-Za-z_])local[ \t]/) needs = 1
+    if (line ~ /emulate -L sh/) guarded = 1
+  }
+  /^[A-Za-z_][A-Za-z0-9_]*[ \t]*\(\)/ {
+    flush()
+    cur = $0
+    sub(/[ \t]*\(\).*/, "", cur)
+    needs = 0
+    guarded = 0
+    body($0)
+    next
+  }
+  cur != "" { body($0) }
+  END { flush() }
+' "$file" 2>/dev/null || true)
+
 # ---------- Check 4: Naming Convention ----------
-funcs=$(grep -E '^[A-Za-z_][A-Za-z0-9_]*\(\) *\{' "$file" 2>/dev/null |
-  sed 's/().*//' || true)
+funcs=$(printf '%s\n' "$FUNCS" | cut -f1 | grep -v '^$' || true)
 if [ -z "$funcs" ]; then
   nfunc=0; camel=0; odd=0
 else
@@ -129,18 +158,20 @@ else
 fi
 
 # ---------- Check 5: ZSH Compat Guard ----------
-locals=$(count '(^|[^A-Za-z_])local ')
-guards=$(count 'emulate -L sh')
+# Counted per function, not file-wide: two guards inside one function must not
+# cover a second, unguarded one.
+need_guard=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$2 == 1' | grep -c . || true)
+have_guard=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$2 == 1 && $3 == 1' | grep -c . || true)
 if [ "$shell_specific" -eq 1 ]; then
   r5='N/A'; n5='single-shell tree (bash/ or zsh/)'
-elif [ "$nfunc" -eq 0 ] || [ "$locals" -eq 0 ]; then
+elif [ "$need_guard" -eq 0 ]; then
   r5='N/A'; n5='no cross-shell function using local'
-elif [ "$guards" -ge "$nfunc" ]; then
-  r5=PASS; n5="emulate -L sh guard present ($guards hit(s), $nfunc function(s))"
-elif [ "$guards" -gt 0 ]; then
-  r5=WARN; n5="emulate -L sh in only $guards of $nfunc function(s)"
+elif [ "$have_guard" -eq "$need_guard" ]; then
+  r5=PASS; n5="emulate -L sh in all $need_guard local-using function(s)"
+elif [ "$have_guard" -gt 0 ]; then
+  r5=WARN; n5="emulate -L sh in $have_guard of $need_guard local-using function(s)"
 elif [ "$in_common" -eq 1 ]; then
-  r5=FAIL; n5='shell-common file, no emulate -L sh anywhere'
+  r5=FAIL; n5='shell-common file, no emulate -L sh in any function'
 else
   r5=WARN; n5='no emulate -L sh guard'
 fi
@@ -148,7 +179,7 @@ fi
 # ---------- Check 6: Help Flag ----------
 if ! has '--help|-h\)|-h\|'; then
   r6=FAIL; n6='no -h/--help handling'
-elif printf '%s\n' "$funcs" | grep -qE 'help'; then
+elif printf '%s\n' "$funcs" | grep -qE 'help$'; then
   r6=PASS; n6='-h/--help delegates to a help function'
 else
   r6=WARN; n6='help handled inline, not via a help function'

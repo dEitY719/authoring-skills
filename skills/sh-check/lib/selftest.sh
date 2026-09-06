@@ -104,6 +104,68 @@ eq "mid: 5/8 with one FAIL is NEEDS WORK" \
 eq "mid: 4/8 with two FAILs is POOR" \
   "$(verdict "$(sh "$here/sh_check.sh" "$mid" FAIL FAIL WARN WARN)")" POOR
 
+# ---------- regressions: PR #12 review ----------
+# Two guards inside one function must not cover a second, unguarded one.
+skew=$work/dotfiles/shell-common/functions/skew.sh
+cat > "$skew" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac
+
+one() {
+    [ -n "${ZSH_VERSION-}" ] && emulate -L sh
+    [ -n "${ZSH_VERSION-}" ] && emulate -L sh
+    local a=""
+    ux_info "$a"
+}
+
+two() {
+    local b=""
+    ux_info "$b"
+}
+EOF
+eq "skew: guard counted per function, not file-wide" \
+  "$(row "$(sh "$here/sh_check.sh" "$skew")" 5)" WARN
+
+# Definitions are found whichever way the brace is placed.
+braces=$work/braces.sh
+cat > "$braces" <<'EOF'
+#!/bin/sh
+tight(){
+    ux_info one
+}
+spaced ()
+{
+    ux_info two
+}
+oneline() { ux_info three; }
+EOF
+eq "braces: all three definition styles counted" \
+  "$(row "$(sh "$here/sh_check.sh" "$braces")" 4)" PASS
+
+# A shebang does not prove the file is executed rather than sourced.
+aliased=$work/aliased.sh
+cat > "$aliased" <<'EOF'
+#!/bin/sh
+alias gwt='git worktree'
+ux_info "loaded"
+EOF
+eq "aliased: top-level alias marks the file sourced" \
+  "$(row "$(sh "$here/sh_check.sh" "$aliased")" 2)" FAIL
+
+# A function merely named *helper* does not satisfy the help-flag check.
+namebait=$work/namebait.sh
+cat > "$namebait" <<'EOF'
+#!/bin/sh
+help_text_builder() { ux_info "..."; }
+run() {
+    case "$1" in
+        -h|--help) ux_info "usage: run"; return 0 ;;
+    esac
+}
+EOF
+eq "namebait: a *help* substring is not a help function" \
+  "$(row "$(sh "$here/sh_check.sh" "$namebait")" 6)" WARN
+
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
   no "usage: no argument" "exited 0, expected 2"
