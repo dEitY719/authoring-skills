@@ -210,6 +210,47 @@ EOF
 eq "namebait: a *help* substring is not a help function" \
   "$(row "$(sh "$here/sh_check.sh" "$namebait")" 6)" WARN
 
+# Nor does a *help function nothing ever calls.
+orphan=$work/orphan.sh
+cat > "$orphan" <<'EOF'
+#!/bin/sh
+render_help() { ux_info "usage: run"; }
+run() {
+    case "$1" in
+        -h|--help) ux_info "usage: run"; return 0 ;;
+    esac
+}
+EOF
+eq "orphan: an uncalled *help function is not delegation" \
+  "$(row "$(sh "$here/sh_check.sh" "$orphan")" 6)" WARN
+
+# `--help` written in prose is not flag handling.
+prose=$work/prose.sh
+cat > "$prose" <<'EOF'
+#!/bin/sh
+# run --help would be nice; nothing here handles it yet
+run() {
+    ux_info "$1"
+}
+EOF
+eq "prose: --help in a comment is not flag handling" \
+  "$(row "$(sh "$here/sh_check.sh" "$prose")" 6)" FAIL
+
+# ...but a spaced-out equality test is.
+spaced_flag=$work/spaced_flag.sh
+cat > "$spaced_flag" <<'EOF'
+#!/bin/sh
+run_help() { ux_info "usage: run"; }
+run() {
+    if [ "$1" = "--help" ]; then
+        run_help
+        return 0
+    fi
+}
+EOF
+eq "spaced_flag: a --help equality test counts as flag handling" \
+  "$(row "$(sh "$here/sh_check.sh" "$spaced_flag")" 6)" PASS
+
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
   no "usage: no argument" "exited 0, expected 2"
