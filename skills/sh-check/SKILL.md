@@ -36,10 +36,11 @@ is also the SSOT for the accepted arguments (`[path/to/script.sh]`, `help`).
 Audit-only — never stop on a failing check. Every check produces a row, and a
 check whose tooling is unavailable produces `N/A` with a note.
 
-Run the mechanical half first, from this skill's own directory:
+Run the mechanical half first. `<skill-dir>` is this skill's own installed
+directory, never a path inside the repository being audited:
 
 ```sh
-sh lib/sh_check.sh path/to/script.sh
+sh <skill-dir>/lib/sh_check.sh path/to/script.sh
 ```
 
 It classifies the target file (sourced fragment vs executable script) and
@@ -51,7 +52,7 @@ four the helper leaves to you — 3 Section Anatomy, 8 Input Validation,
 every row plus the score and verdict:
 
 ```sh
-sh lib/sh_check.sh path/to/script.sh <c3> <c8> <c9> <c10>
+sh <skill-dir>/lib/sh_check.sh path/to/script.sh <c3> <c8> <c9> <c10>
 ```
 
 The trailing `score<TAB><pass>/<effective-total><TAB><verdict>` row is the
