@@ -7,6 +7,12 @@
 #
 # Never falls back to another remote: a typo must fail, not file the issue in
 # the wrong repo (references/repo-resolution.md -> "Failure rule").
+#
+# SSOT for the parse is dotfiles `shell-common/functions/gh_host.sh`
+# (`_gh_parse_owner_repo_url`), which `gh-issue-skills/lib/resolve-target.sh`
+# sources via `lib/vendor/`. This repo has no vendor tree, so the two lines are
+# reimplemented rather than sourced; unlike the SSOT this does not derive
+# GH_HOST, so callers needing a GHES host must not reuse it as-is.
 
 set -eu
 

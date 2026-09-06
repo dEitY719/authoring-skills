@@ -4,7 +4,7 @@ Step 1 resolves the remote name to `owner/repo` before any `gh` call. The
 procedure is deterministic, so it lives in a helper rather than here:
 
 ```bash
-sh <command-rename-path>/lib/resolve-repo.sh "<remote>"   # default: origin
+sh "${SKILL_DIR}/lib/resolve-repo.sh" "<remote>"   # default: origin
 ```
 
 ## Contract
