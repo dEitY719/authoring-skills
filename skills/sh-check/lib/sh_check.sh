@@ -200,9 +200,24 @@ else
 fi
 
 # ---------- Check 6: Help Flag ----------
-if ! has '--help|-h\)|-h\|'; then
+# The flag has to sit where an option is read -- a case pattern (`-h)`, `-h|`,
+# `--help)`) or a test (`[ "$1" = "--help" ]`) -- on a line with no `#` before
+# it. A bare `--help` anywhere also matched prose in comments and strings, and
+# missed the spacing variants (`-h )`, `"--help" ]`).
+help_arm='^[^#]*(^|[^-[:alnum:]_])(-h|--help)[^[:alnum:]]*[])|]'
+# A `*help` function only counts as delegation when something calls it: a
+# defined-but-unreferenced `render_help` used to satisfy this on its name alone.
+# Which *public commands* route to it is not decidable here -- that stays with
+# the auditor, and Check 6's N/A row is per function.
+help_fn=0
+for h in $(printf '%s\n' "$funcs" | grep -E 'help$' || true); do
+  if grep -qE "(^|[^A-Za-z0-9_])$h([^A-Za-z0-9_(]|\$)" "$file" 2>/dev/null; then
+    help_fn=1; break
+  fi
+done
+if ! has "$help_arm"; then
   r6=FAIL; n6='no -h/--help handling'
-elif printf '%s\n' "$funcs" | grep -qE 'help$'; then
+elif [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
 else
   r6=WARN; n6='help handled inline, not via a help function'
