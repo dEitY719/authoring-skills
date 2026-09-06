@@ -3,35 +3,53 @@
 Goal: find the family's **definitions** and **every reference point**, so the
 mapping designed in Step 5 has no dangling reference left after the eventual
 rename. A missed category means a broken alias, stale help text, or a failing
-test survives the refactor. Search read-only (`grep`/`Read`) — never edit.
+test survives the refactor. Discovery is read-only — never edit.
 
-## 1. Definitions
+## Running the sweep
 
-Every `shell-common/...` path below is relative to the `dEitY719/dotfiles`
-checkout: `$SHELL_COMMON`, which defaults to `$HOME/dotfiles/shell-common`.
-Run against another repo and these paths resolve to nothing.
+```bash
+bash skills/command-rename/lib/discover-refs.sh <family-token> [dotfiles-root]
+```
 
-Where aliases/functions are declared:
+`dotfiles-root` defaults to `$DOTFILES_ROOT`, else `$HOME/dotfiles` — the
+`dEitY719/dotfiles` checkout. Run against another repo and the paths below
+resolve to nothing.
 
-- `shell-common/tools/integrations/*.sh` — tool integration alias/function definitions.
-- `shell-common/functions/*.sh` — shared function definitions.
+| | |
+|---|---|
+| stdout | one row per hit: `category<TAB>file<TAB>line<TAB>text`, file relative to the root |
+| exit 0 | hits found |
+| exit 1 | no hits — the family token is wrong, or the root is |
+| exit 2 | missing `<family-token>`, or the root is not a directory |
 
-Grep the family token across both trees (e.g. `grep -rn '\bagy\b' shell-common/tools/integrations shell-common/functions`).
+Matching treats `_` as a boundary, so `agy` also finds `_agy_run` and
+`agy-help` but not `shaggy`.
 
-## 2. Reference points (all categories — check every one)
+`bash skills/command-rename/lib/selftest.sh` asserts these contracts.
 
-- **Inline help text / comment DOC blocks** — help strings and `# DOC:`-style comment blocks that name the command.
-- **`install_*.sh` scripts** — installers referencing the alias/binary name.
-- **`my_help.sh` `HELP_DESCRIPTIONS` registration** — the help-topic registry entry.
-- **`zz_help_standard_adapter.sh`** — the standard help adapter wiring.
-- **`tests/integration/test_help_*.py`** — pytest help-topic assertions.
-- **`tests/bats/**`** — bats function/alias tests.
+## What each category means
 
-For each category, grep the old name(s) from the Step 5 mapping and record
-every file:line hit — these become the "범위(Scope)" list in the refactor
-issue body.
+| Category | What it covers |
+|---|---|
+| `definition` | `shell-common/tools/integrations/*.sh` and `shell-common/functions/*.sh` — where aliases/functions are declared |
+| `inline-help` | help strings and `# DOC:`-style comment blocks naming the command |
+| `installer` | `install_*.sh` scripts referencing the alias/binary name |
+| `help-registry` | the `my_help.sh` `HELP_DESCRIPTIONS` topic entry |
+| `help-adapter` | `zz_help_standard_adapter.sh` wiring |
+| `help-test` | `tests/integration/test_help_*.py` assertions |
+| `bats` | `tests/bats/**` function/alias tests |
 
-## 3. git-family exception (always excluded)
+Every category the sweep emits becomes part of the "범위(Scope)" list in the
+refactor issue body. The sweep is deliberately generous — it over-reports
+rather than miss a category. Reading the rows and deciding which hits are real
+reference points (versus incidental prose) is the judgment step; do not skip it
+by pasting raw output into the issue.
+
+If a category comes back empty, confirm it is genuinely absent before moving
+on — an empty `help-registry` usually means the command was never registered,
+which is itself worth noting in the issue.
+
+## git-family exception (always excluded)
 
 `gb`, `gwt`, and other high-frequency git abbreviations are **always**
 excluded from rename candidates, regardless of the requested convention.

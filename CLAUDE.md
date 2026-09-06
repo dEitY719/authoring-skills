@@ -108,8 +108,10 @@ have not changed the other — and when CI fails, the fix is in the tree or in
   failure. `skill-refactor` presents a plan and waits before writing.
   `command-rename` files issues and renames nothing.
 - **Helpers stay executable.** `skills/skill-create/{scripts,eval-viewer}/`
-  hold real Python entry points. Prefer fixing a helper over describing the fix
-  in prose — that is the rule `skill-create` itself teaches.
+  hold real Python entry points and `skills/command-rename/lib/` holds POSIX
+  shell ones. Prefer fixing a helper over describing the fix in prose — that is
+  the rule `skill-create` itself teaches. A helper carrying non-trivial logic
+  ships one runnable check beside it (`lib/selftest.sh`).
 
 ## Emojis
 
