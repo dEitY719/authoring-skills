@@ -1,12 +1,16 @@
 # authoring:sh-check — 10 Quality Criteria
 
-Each check returns PASS / WARN / FAIL / N/A. The reference implementation
-is `$SHELL_COMMON/functions/git_worktree.sh` — when the target file uses
-the same pattern, the check passes.
+Each check returns PASS / WARN / FAIL / N/A. The concrete pattern quoted in
+each entry below is the bar — nothing here requires a file outside the
+repository being audited.
 
-Every `shell-common/...` path below is relative to the `dEitY719/dotfiles`
-checkout: `$SHELL_COMMON`, which defaults to `$HOME/dotfiles/shell-common`.
-Run against another repo and these paths resolve to nothing.
+Checks 1, 2, 4, 5, 6 and 7 are decided mechanically by `lib/sh_check.sh`; the
+entries below document what it looks for, so a rule change lands in both. The
+other four are the auditor's judgment.
+
+`shell-common/` names a shared cross-shell tree (the layout these rules came
+from, `dEitY719/dotfiles`). A repo without one simply never trips the
+`shell-common`-only arms.
 
 ---
 
@@ -64,7 +68,7 @@ at minimum a one-line description. Substantial functions also have:
 - `# Usage: <name> <args>`
 - `# Args:` with one line per argument
 
-git_worktree.sh uses 78-char `=`-fences. Any consistent banner counts.
+A 78-char `=`-fence is the original form. Any consistent banner counts.
 
 | Result | When |
 |--------|------|
@@ -135,8 +139,8 @@ grep -nE 'emulate -L sh|ZSH_VERSION' "$FILE"
 Every public command-style function handles `-h|--help` and delegates to a
 structured help routine, then `return 0` (or `exit 0` for executables).
 
-git_worktree.sh pattern: `gwt-help [section]` with `--list` / `--all` /
-`<section>` arguments, all rendered via `ux_table_row`.
+Canonical form: `<cmd>-help [section]` with `--list` / `--all` / `<section>`
+arguments, all rendered via `ux_table_row`.
 
 | Result | When |
 |--------|------|
@@ -198,8 +202,7 @@ grep -nE 'Unknown option|Missing argument|Required' "$FILE"
 
 **What to look for**
 Status/diagnostic functions emit a structured 2–3 line verdict with an
-explicit state value. git_worktree.sh's `_gwt_compute_status` is the
-template:
+explicit state value. A status helper's output is the template:
 
 ```
 state: dirty
@@ -220,8 +223,7 @@ Or a key:value table via `ux_info "  Key: $value"`.
 
 **What to look for**
 Success output ends with a one-line hint pointing at the next command the
-user should run. git_worktree.sh's status verdicts include `next: gwt
-teardown`, `next: gwt push`, etc.
+user should run — e.g. `next: gwt teardown`, `next: gwt push`.
 
 | Result | When |
 |--------|------|
@@ -248,4 +250,6 @@ After running all 10 checks, compute:
 
 `Score: PASS_COUNT/(10 - NA_COUNT) checks passed (WARN_COUNT warnings)`
 
-The Verdict line is computed in `references/report-template.md`.
+`lib/sh_check.sh` emits this arithmetic and the verdict as its final `score`
+row once it is given the four judgment results; the table it implements lives
+in `references/report-template.md`.

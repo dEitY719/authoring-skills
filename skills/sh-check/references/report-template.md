@@ -39,11 +39,12 @@ Verdict: GOOD — production-ready, minor polish needed
 
 ## Verdict Computation
 
-Map `PASS_COUNT` (out of `10 - NA_COUNT`) to a verdict:
+`lib/sh_check.sh` implements this table and prints the result as its `score`
+row. Map `PASS_COUNT` (out of `10 - NA_COUNT`) to a verdict:
 
 | PASS / Effective Total | Verdict      | Meaning                                     |
 |------------------------|--------------|---------------------------------------------|
-| 100%                   | EXCELLENT    | Reference-quality — could replace git_worktree.sh as canonical example |
+| 100%                   | EXCELLENT    | Reference-quality — nothing to fix          |
 | ≥ 80% AND no FAIL      | GOOD         | Production-ready, minor polish needed       |
 | ≥ 60% OR exactly 1 FAIL| NEEDS WORK   | Functional but several gaps                 |
 | < 60% OR ≥ 2 FAILs     | POOR         | Major rework required                       |

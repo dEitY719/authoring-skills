@@ -1,17 +1,17 @@
-/authoring:sh-check — Audit a shell script (`*.sh`) against the dotfiles quality bar
+/authoring:sh-check — Audit a shell script (`*.sh`) against 10 quality criteria
 
 Usage:
   /authoring:sh-check [path/to/script.sh]
   /authoring:sh-check help
 
-Arguments:
-  [path]    Path to the shell script to audit (optional)
-            If omitted, searches the current directory for *.sh files
+Arguments and options:
 
-Options:
-  -h, --help, help   Print this help and stop. No checks are run.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[path]` | Shell script to audit. | search `./` for `*.sh`; ask if several |
+| `-h`, `--help`, `help` | Print this help and stop. No checks are run. | — |
 
-What it checks (10 criteria, modeled on git_worktree.sh):
+What it checks (10 criteria):
 
   Structure (1–5)
     1. Shebang + POSIX Hygiene   — #!/bin/sh, [ ], >/dev/null 2>&1
@@ -29,12 +29,14 @@ What it checks (10 criteria, modeled on git_worktree.sh):
 
 Each check reports PASS / WARN / FAIL / N/A.
 
-Examples (shell-common/ paths are relative to the dEitY719/dotfiles checkout —
-$SHELL_COMMON, default $HOME/dotfiles/shell-common):
-  /authoring:sh-check shell-common/functions/git_worktree.sh
-  /authoring:sh-check bash/utils/my_function.sh
+Examples:
+  /authoring:sh-check scripts/deploy.sh
+  /authoring:sh-check shell-common/functions/gwt.sh
   /authoring:sh-check
   /authoring:sh-check help
+
+Checks 1, 2, 4, 5, 6 and 7 are decided by lib/sh_check.sh, which also computes
+the score and verdict; 3, 8, 9 and 10 are the auditor's judgment.
 
 Output:
   - Two tables (Structure, UX Quality) with results + notes
@@ -44,4 +46,4 @@ Output:
 
 Companion skills:
   /authoring:skill-check         — audit a SKILL.md file (Progressive Disclosure)
-  /harness:ai-context check — audit an AGENTS.md, CLAUDE.md, or GEMINI.md file
+  /harness:ai-context check     — audit an AGENTS.md, CLAUDE.md, or GEMINI.md file
