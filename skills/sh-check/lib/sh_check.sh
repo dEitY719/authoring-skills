@@ -61,8 +61,9 @@ esac
 
 # IS_SOURCED heuristic, SKILL.md Step 1 and checks.md Check 2: location, an
 # interactive guard near the top, a top-level `alias` in the opening lines, or
-# the absence of a shebang. A shebang alone never proves the file is executed
-# rather than sourced, so it only decides the case none of the others caught.
+# the first line. A shebang alone never proves the file is executed rather than
+# sourced -- checks.md Check 2 makes the N/A row conditional on `#!` *and*
+# `chmod +x`, so an unexecutable fragment is sourced however it starts.
 sourced=0
 case $file in
   */shell-common/functions/*|*/bash/*|*/zsh/*) sourced=1 ;;
@@ -70,7 +71,7 @@ esac
 head20=$(head -20 "$file")
 if printf '%s\n' "$head20" | grep -qF 'case $- in *i*'; then sourced=1; fi
 if printf '%s\n' "$head20" | grep -qE '^[[:space:]]*alias '; then sourced=1; fi
-case $shebang in '#!'*) ;; *) sourced=1 ;; esac
+case $shebang in '#!'*) [ -x "$file" ] || sourced=1 ;; *) sourced=1 ;; esac
 
 # ---------- Check 1: Shebang + POSIX Hygiene ----------
 case $shebang in
