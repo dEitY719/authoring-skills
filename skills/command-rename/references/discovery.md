@@ -25,7 +25,7 @@ the categories below simply resolve to nothing.
 |---|---|
 | stdout | one row per hit: `category<TAB>file<TAB>line<TAB>text`, file relative to the root |
 | exit 0 | hits found |
-| exit 1 | no hits — the family token is wrong, or the root is |
+| exit 1 | no hits — every category ran cleanly and came back empty; usually a wrong family token, or a root whose layout has none of the categories |
 | exit 2 | missing `<family-token>`, or the root is not a directory |
 | exit 3 | `grep` itself failed — its stderr is reproduced |
 
