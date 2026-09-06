@@ -118,10 +118,23 @@ fi
 FUNCS=$(awk '
   function flush() {
     if (cur != "") printf "%s\t%d\t%d\n", cur, needs, guarded
+    cur = ""
   }
   function body(line) {
     if (line ~ /(^|[^A-Za-z_])local[ \t]/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
+  }
+  # The body ends at the brace that closes it. Without this the lines after a
+  # function -- a comment mentioning `emulate -L sh`, or top-level code -- were
+  # still charged to it, so the next function inherited its state. Braces inside
+  # strings are miscounted; an unbalanced one only degrades to the old
+  # everything-leaks behaviour, never to a wrong early close.
+  function track(line,   t, o, c) {
+    t = line; o = gsub(/[{]/, "", t)
+    t = line; c = gsub(/[}]/, "", t)
+    if (o > 0) opened = 1
+    depth += o - c
+    if (opened && depth <= 0) flush()
   }
   /^[A-Za-z_][A-Za-z0-9_]*[ \t]*\(\)/ {
     flush()
@@ -129,10 +142,13 @@ FUNCS=$(awk '
     sub(/[ \t]*\(\).*/, "", cur)
     needs = 0
     guarded = 0
+    opened = 0
+    depth = 0
     body($0)
+    track($0)
     next
   }
-  cur != "" { body($0) }
+  cur != "" { body($0); track($0) }
   END { flush() }
 ' "$file" 2>/dev/null || true)
 
