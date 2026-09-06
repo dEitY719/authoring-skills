@@ -45,7 +45,7 @@ exits "resolve-repo outside git" 1 sh "$here/resolve-repo.sh"
 # ---------- discover-refs.sh ----------
 d=$work/dotfiles
 mkdir -p "$d/shell-common/tools/integrations" "$d/shell-common/functions" \
-         "$d/tests/bats" "$d/tests/integration" "$d/install"
+         "$d/shell-common/lib" "$d/tests/bats" "$d/tests/integration" "$d/install"
 echo 'alias agy="agent-yolo"'            > "$d/shell-common/tools/integrations/agy.sh"
 echo '_agy_run() { :; }'                 > "$d/shell-common/functions/agy_helpers.sh"
 echo '# DOC: agy -- run the agent'       > "$d/shell-common/tools/integrations/doc.sh"
@@ -55,10 +55,18 @@ echo 'register agy'                      > "$d/zz_help_standard_adapter.sh"
 echo 'def test_help_agy(): assert "agy"' > "$d/tests/integration/test_help_agy.py"
 echo '@test "agy runs" { agy; }'         > "$d/tests/bats/agy.bats"
 echo 'alias shaggy="dog"'                > "$d/shell-common/functions/decoy.sh"
+# An ordinary description naming the family, with no DOC/help/usage word and
+# outside every path-scoped category. The old inline-help filter dropped this
+# line entirely; it must now survive as a generic `reference` row.
+echo 'note="agy replaces the old runner"' > "$d/shell-common/lib/notes.sh"
+# A tab-indented help line: the row must stay 4 fields, and the classifier must
+# still see past the indentation to label it inline-help.
+printf '\t# DOC: agy usage\n' > "$d/shell-common/lib/indented.sh"
 
 outf=$work/out.tsv
 sh "$here/discover-refs.sh" agy "$d" > "$outf"
-for c in definition inline-help installer help-registry help-adapter help-test bats; do
+for c in definition inline-help reference installer help-registry help-adapter \
+         help-test bats; do
   if cut -f1 "$outf" | grep -qx "$c"; then
     ok "discover-refs category $c"
   else
@@ -72,8 +80,22 @@ eq "discover-refs paths are root-relative" \
    "$(cut -f2 "$outf" | grep -c '^/' || true)" "0"
 eq "discover-refs skips shaggy" \
    "$(grep -c 'decoy.sh' "$outf" || true)" "0"
-eq "discover-refs finds _agy_run" \
-   "$(grep -c 'agy_helpers.sh' "$outf" || true)" "1"
+eq "discover-refs finds _agy_run as a definition" \
+   "$(awk -F'\t' '$1=="definition" && $2=="shell-common/functions/agy_helpers.sh"' \
+      "$outf" | wc -l | tr -d ' ')" "1"
+
+# The shell sweep drops nothing: a plain description line with no help/usage
+# word is still emitted, classified as `reference` rather than excluded.
+eq "discover-refs keeps an unfiltered reference line" \
+   "$(awk -F'\t' '$2=="shell-common/lib/notes.sh" { print $1 }' "$outf")" "reference"
+# ... and the DOC/help/usage test still CLASSIFIES the ones that do match.
+eq "discover-refs classifies a DOC line as inline-help" \
+   "$(awk -F'\t' '$2=="shell-common/tools/integrations/doc.sh" { print $1 }' \
+      "$outf" | sort -u | tr '\n' ',')" "definition,inline-help,"
+
+eq "discover-refs squeezes tabs out of the text field" \
+   "$(awk -F'\t' '$2=="shell-common/lib/indented.sh" { print $1 "/" NF }' "$outf")" \
+   "inline-help/4"
 
 exits "discover-refs no hits" 1 sh "$here/discover-refs.sh" nosuchtoken "$d"
 exits "discover-refs rejects regex metacharacters" 2 sh "$here/discover-refs.sh" 'a.y' "$d"
@@ -84,12 +106,32 @@ eq "discover-refs treats 'help' as a token" \
    "$(sh "$here/discover-refs.sh" help "$d" | cut -f1 | sort -u | tr '\n' ',')" \
    "help-test,"
 
+# A grep that cannot honour the scan's options (`--include` is a GNU/BSD
+# extension, not POSIX) must abort loudly instead of reporting an empty
+# category as "no hits". Exit 3, with grep's real stderr reproduced.
+fakebin=$work/fakebin
+mkdir -p "$fakebin"
+cat > "$fakebin/grep" <<'FAKE'
+#!/bin/sh
+echo "grep: unrecognized option '--include'" >&2
+exit 2
+FAKE
+chmod +x "$fakebin/grep"
+exits "discover-refs aborts when grep fails" 3 \
+      env PATH="$fakebin:$PATH" sh "$here/discover-refs.sh" agy "$d"
+msg=$(env PATH="$fakebin:$PATH" sh "$here/discover-refs.sh" agy "$d" 2>&1 >/dev/null || true)
+case $msg in
+  *"unrecognized option"*) ok "discover-refs reproduces grep's stderr" ;;
+  *) no "discover-refs reproduces grep's stderr" "got [$msg]" ;;
+esac
+
 # A root whose name carries regex metacharacters must still work.
 odd="$work/o[d]d"
 mkdir -p "$odd/shell-common/functions"
 echo 'alias agy="x"' > "$odd/shell-common/functions/agy.sh"
 eq "discover-refs handles a regex-ish root" \
-   "$(sh "$here/discover-refs.sh" agy "$odd" | cut -f2)" "shell-common/functions/agy.sh"
+   "$(sh "$here/discover-refs.sh" agy "$odd" | cut -f2 | sort -u)" \
+   "shell-common/functions/agy.sh"
 
 exits "discover-refs missing root" 2 sh "$here/discover-refs.sh" agy "$work/absent"
 
