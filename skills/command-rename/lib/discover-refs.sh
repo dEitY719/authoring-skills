@@ -29,26 +29,37 @@ case $family in
     ;;
 esac
 
+# The token goes straight into an ERE, so reject anything that could act as a
+# metacharacter rather than silently matching the wrong thing.
+case $family in
+  *[!A-Za-z0-9_-]*)
+    echo "discover-refs: <family-token> must match [A-Za-z0-9_-]+, got '$family'" >&2
+    exit 2
+    ;;
+esac
+
 [ -d "$root" ] || { echo "discover-refs: not a directory: $root" >&2; exit 2; }
-root=$(cd "$root" && pwd)
+cd "$root" || exit 2
 
 # `_` is treated as a boundary so `_agy_run` and `agy-help` both hit while
 # `shaggy` does not.
 re="(^|[^A-Za-z0-9])$family([^A-Za-z0-9]|\$)"
 # Only the inline-help category narrows further; every other category is
 # already scoped by its path glob.
-filter='.'
+filter=''
 found=0
 
-# scan <category> <grep args...>  -- extra args are appended to `grep -rnE`.
+# scan <category> <grep args...> -- extra args go BEFORE the path operands,
+# which are always relative to `$root` (we chdir'd there), so no absolute
+# prefix has to be stripped back off with a regex.
 scan() {
   category=$1
   shift
-  out=$(grep -rnE "$re" "$@" 2>/dev/null |
-    sed -E "s|^$root/||; s|^([^:]*):([0-9]+):|$category\t\1\t\2\t|" || true)
+  out=$(grep -rnE "$@" 2>/dev/null |
+    sed -E "s|^\./||; s|^([^:]*):([0-9]+):|$category\t\1\t\2\t|" || true)
   # The filter applies to the matched text only -- a path such as
   # `agy_helpers.sh` must not pass the inline-help filter on its name alone.
-  if [ "$filter" != '.' ]; then
+  if [ -n "$filter" ]; then
     out=$(printf '%s\n' "$out" | awk -F'\t' -v f="$filter" '$4 ~ f' || true)
   fi
   [ -n "$out" ] || return 0
@@ -58,17 +69,17 @@ scan() {
 
 # 1. Definitions -- alias/function declaration sites.
 for d in shell-common/tools/integrations shell-common/functions; do
-  if [ -d "$root/$d" ]; then scan definition "$root/$d"; fi
+  if [ -d "$d" ]; then scan definition "$re" "$d"; fi
 done
 
 # 2. Reference points -- every category in discovery.md section 2.
 filter='(#[[:space:]]*DOC:|[Hh]elp|HELP|[Uu]sage|USAGE)'
-scan inline-help "$root" --include='*.sh' --include='*.zsh' --include='*.bash'
-filter='.'
-scan installer     "$root" --include='install_*.sh'
-scan help-registry "$root" --include='my_help.sh'
-scan help-adapter  "$root" --include='zz_help_standard_adapter.sh'
-scan help-test     "$root" --include='test_help_*.py'
-if [ -d "$root/tests/bats" ]; then scan bats "$root/tests/bats"; fi
+scan inline-help --include='*.sh' --include='*.zsh' --include='*.bash' "$re" .
+filter=''
+scan installer     --include='install_*.sh'                "$re" .
+scan help-registry --include='my_help.sh'                  "$re" .
+scan help-adapter  --include='zz_help_standard_adapter.sh' "$re" .
+scan help-test     --include='test_help_*.py'              "$re" .
+if [ -d tests/bats ]; then scan bats "$re" tests/bats; fi
 
 [ "$found" -eq 1 ] || exit 1
