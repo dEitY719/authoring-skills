@@ -79,6 +79,19 @@ else
   ok "discover-refs no hits"
 fi
 
+if sh "$here/discover-refs.sh" 'a.y' "$d" >/dev/null 2>&1; then
+  no "discover-refs rejects regex metacharacters" "exited 0, expected 2"
+else
+  ok "discover-refs rejects regex metacharacters"
+fi
+
+# A root whose name carries regex metacharacters must still work.
+odd="$work/o[d]d"
+mkdir -p "$odd/shell-common/functions"
+echo 'alias agy="x"' > "$odd/shell-common/functions/agy.sh"
+eq "discover-refs handles a regex-ish root" \
+   "$(sh "$here/discover-refs.sh" agy "$odd" | cut -f2)" "shell-common/functions/agy.sh"
+
 if sh "$here/discover-refs.sh" agy "$work/absent" >/dev/null 2>&1; then
   no "discover-refs missing root" "exited 0, expected 2"
 else

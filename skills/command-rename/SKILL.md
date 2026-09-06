@@ -36,18 +36,18 @@ argument surface: `<command-family> <desired-convention> [remote]` plus
 
 Parse `<command-family>` (e.g. `agy`), `<desired-convention>` (e.g.
 `dash-form`), optional `[remote]` (default `origin`). Resolve the target repo
-with `bash skills/command-rename/lib/resolve-repo.sh "<remote>"` — it prints
-`TARGET_REPO=<owner>/<repo>`, and fails with the `git remote -v` listing on a
-missing remote (`references/repo-resolution.md`). If the family is ambiguous or
-matches nothing, present the candidate names you found and ask — never guess.
+with `sh <command-rename-path>/lib/resolve-repo.sh "<remote>"` — it prints
+`TARGET_REPO=<owner>/<repo>` and fails with the `git remote -v` listing on a
+missing remote (`references/repo-resolution.md`). `<command-rename-path>` is
+this skill's own installed directory, never a path inside the swept repo. If the
+family is ambiguous or matches nothing, show the candidates and ask — no guess.
 
 ## Step 2: Discover definitions + ALL reference points
 
-Run `bash skills/command-rename/lib/discover-refs.sh <command-family>` — it
+Run `sh <command-rename-path>/lib/discover-refs.sh <command-family>` — it
 sweeps every category and emits `category<TAB>file<TAB>line<TAB>text` per hit.
 Read `references/discovery.md` for what each category means, the git-family
-exception, and the judgment the sweep cannot make. Omitting a category leaves
-dangling references after the rename.
+exception, and the judgment the sweep cannot make.
 
 ## Step 3: Compare against SSOT + detect rule gap
 
