@@ -8,7 +8,7 @@ test survives the refactor. Discovery is read-only — never edit.
 ## Running the sweep
 
 ```bash
-sh <command-rename-path>/lib/discover-refs.sh <family-token> [dotfiles-root]
+sh "${SKILL_DIR}/lib/discover-refs.sh" <family-token> [dotfiles-root]
 ```
 
 `dotfiles-root` defaults to `$DOTFILES_ROOT`, else `$HOME/dotfiles` — the
@@ -25,9 +25,9 @@ resolve to nothing.
 Matching treats `_` as a boundary, so `agy` also finds `_agy_run` and
 `agy-help` but not `shaggy`.
 
-`sh <command-rename-path>/lib/selftest.sh` asserts these contracts.
-`<command-rename-path>` is this skill's own installed directory — the helpers do
-not live in the repo being swept.
+`sh "${SKILL_DIR}/lib/selftest.sh"` asserts these contracts; `tests/` runs it
+in CI. `SKILL_DIR` is this skill's own directory — the helpers do not live in
+the repo being swept.
 
 `<family-token>` must match `[A-Za-z0-9_-]+`; anything else exits 2 rather than
 being interpolated into the search regex.

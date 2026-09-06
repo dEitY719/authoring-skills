@@ -110,8 +110,12 @@ have not changed the other — and when CI fails, the fix is in the tree or in
 - **Helpers stay executable.** `skills/skill-create/{scripts,eval-viewer}/`
   hold real Python entry points and `skills/command-rename/lib/` holds POSIX
   shell ones. Prefer fixing a helper over describing the fix in prose — that is
-  the rule `skill-create` itself teaches. A helper carrying non-trivial logic
-  ships one runnable check beside it (`lib/selftest.sh`).
+  the rule `skill-create` itself teaches. A *new* helper carrying non-trivial
+  logic ships one runnable check (`lib/selftest.sh`) **and** the one-line
+  `tests/*.sh` shim that wires it into CI: the shared workflow discovers only
+  tracked scripts directly under the repo-root `tests/`, so a check left beside
+  its helper never runs. See harness-skills' README, "Where a repo's tests
+  live".
 
 ## Emojis
 

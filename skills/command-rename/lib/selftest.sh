@@ -15,6 +15,16 @@ no() { printf 'FAIL %s -- %s\n' "$1" "$2"; fails=$((fails + 1)); }
 eq() {
   if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected [$3], got [$2]"; fi
 }
+# exits <name> <expected-code> <cmd...> -- asserts the documented exit code,
+# not merely "non-zero", so the 1-vs-2 split in each helper's header is real.
+exits() {
+  name=$1
+  want=$2
+  shift 2
+  got=0
+  "$@" >/dev/null 2>&1 || got=$?
+  eq "$name" "$got" "$want"
+}
 
 # ---------- resolve-repo.sh ----------
 mkdir -p "$work/repo"
@@ -27,19 +37,10 @@ mkdir -p "$work/repo"
 cd "$work/repo"
 eq "resolve-repo ssh url"   "$(sh "$here/resolve-repo.sh")"        "TARGET_REPO=dEitY719/authoring-skills"
 eq "resolve-repo https url" "$(sh "$here/resolve-repo.sh" https)"  "TARGET_REPO=dEitY719/other-repo"
-
-if sh "$here/resolve-repo.sh" nope >/dev/null 2>&1; then
-  no "resolve-repo missing remote" "exited 0, expected non-zero"
-else
-  ok "resolve-repo missing remote"
-fi
+exits "resolve-repo missing remote" 1 sh "$here/resolve-repo.sh" nope
 
 cd "$work"
-if sh "$here/resolve-repo.sh" >/dev/null 2>&1; then
-  no "resolve-repo outside git" "exited 0, expected non-zero"
-else
-  ok "resolve-repo outside git"
-fi
+exits "resolve-repo outside git" 1 sh "$here/resolve-repo.sh"
 
 # ---------- discover-refs.sh ----------
 d=$work/dotfiles
@@ -55,9 +56,10 @@ echo 'def test_help_agy(): assert "agy"' > "$d/tests/integration/test_help_agy.p
 echo '@test "agy runs" { agy; }'         > "$d/tests/bats/agy.bats"
 echo 'alias shaggy="dog"'                > "$d/shell-common/functions/decoy.sh"
 
-out=$(sh "$here/discover-refs.sh" agy "$d")
+outf=$work/out.tsv
+sh "$here/discover-refs.sh" agy "$d" > "$outf"
 for c in definition inline-help installer help-registry help-adapter help-test bats; do
-  if printf '%s\n' "$out" | cut -f1 | grep -qx "$c"; then
+  if cut -f1 "$outf" | grep -qx "$c"; then
     ok "discover-refs category $c"
   else
     no "discover-refs category $c" "no row emitted"
@@ -65,25 +67,22 @@ for c in definition inline-help installer help-registry help-adapter help-test b
 done
 
 eq "discover-refs 4 tab-separated fields" \
-   "$(printf '%s\n' "$out" | awk -F'\t' 'NF!=4' | wc -l | tr -d ' ')" "0"
+   "$(awk -F'\t' 'NF!=4' "$outf" | wc -l | tr -d ' ')" "0"
 eq "discover-refs paths are root-relative" \
-   "$(printf '%s\n' "$out" | cut -f2 | grep -c '^/' || true)" "0"
+   "$(cut -f2 "$outf" | grep -c '^/' || true)" "0"
 eq "discover-refs skips shaggy" \
-   "$(printf '%s\n' "$out" | grep -c 'decoy.sh' || true)" "0"
+   "$(grep -c 'decoy.sh' "$outf" || true)" "0"
 eq "discover-refs finds _agy_run" \
-   "$(printf '%s\n' "$out" | grep -c 'agy_helpers.sh' || true)" "1"
+   "$(grep -c 'agy_helpers.sh' "$outf" || true)" "1"
 
-if sh "$here/discover-refs.sh" nosuchtoken "$d" >/dev/null 2>&1; then
-  no "discover-refs no hits" "exited 0, expected 1"
-else
-  ok "discover-refs no hits"
-fi
+exits "discover-refs no hits" 1 sh "$here/discover-refs.sh" nosuchtoken "$d"
+exits "discover-refs rejects regex metacharacters" 2 sh "$here/discover-refs.sh" 'a.y' "$d"
 
-if sh "$here/discover-refs.sh" 'a.y' "$d" >/dev/null 2>&1; then
-  no "discover-refs rejects regex metacharacters" "exited 0, expected 2"
-else
-  ok "discover-refs rejects regex metacharacters"
-fi
+# `help` is a family token, not a synonym for --help: this must scan (and hit
+# `test_help_agy.py`) rather than print a usage line and exit 0.
+eq "discover-refs treats 'help' as a token" \
+   "$(sh "$here/discover-refs.sh" help "$d" | cut -f1 | sort -u | tr '\n' ',')" \
+   "help-test,"
 
 # A root whose name carries regex metacharacters must still work.
 odd="$work/o[d]d"
@@ -92,12 +91,7 @@ echo 'alias agy="x"' > "$odd/shell-common/functions/agy.sh"
 eq "discover-refs handles a regex-ish root" \
    "$(sh "$here/discover-refs.sh" agy "$odd" | cut -f2)" "shell-common/functions/agy.sh"
 
-if sh "$here/discover-refs.sh" agy "$work/absent" >/dev/null 2>&1; then
-  no "discover-refs missing root" "exited 0, expected 2"
-else
-  ok "discover-refs missing root"
-fi
+exits "discover-refs missing root" 2 sh "$here/discover-refs.sh" agy "$work/absent"
 
-[ "$fails" -eq 0 ] && { echo "[OK] lib selftest passed"; exit 0; }
-echo "[FAIL] $fails assertion(s) failed"
-exit 1
+[ "$fails" -eq 0 ] || { echo "[FAIL] $fails assertion(s) failed"; exit 1; }
+echo "[OK] lib selftest passed"
