@@ -41,15 +41,14 @@ gwt() {
     ux_success "done"
 }
 EOF
-g=$(sh "$here/sh_check.sh" "$good")
+g=$(sh "$here/sh_check.sh" "$good" PASS PASS PASS PASS)
 eq "good: 1 shebang"      "$(row "$g" 1)" PASS
 eq "good: 2 guard"        "$(row "$g" 2)" PASS
 eq "good: 4 naming"       "$(row "$g" 4)" PASS
 eq "good: 5 zsh guard"    "$(row "$g" 5)" PASS
 eq "good: 6 help flag"    "$(row "$g" 6)" PASS
 eq "good: 7 ux lib"       "$(row "$g" 7)" PASS
-eq "good: verdict" \
-  "$(verdict "$(sh "$here/sh_check.sh" "$good" PASS PASS PASS PASS)")" EXCELLENT
+eq "good: verdict"        "$(verdict "$g")" EXCELLENT
 
 # ---------- fixture 2: a shell-common file breaking every mechanical rule ----------
 bad=$work/dotfiles/shell-common/functions/bad.sh
@@ -62,15 +61,14 @@ doThing() {
     fi
 }
 EOF
-b=$(sh "$here/sh_check.sh" "$bad")
+b=$(sh "$here/sh_check.sh" "$bad" FAIL FAIL FAIL FAIL)
 eq "bad: 1 bash shebang in shell-common" "$(row "$b" 1)" FAIL
 eq "bad: 2 no interactive guard"         "$(row "$b" 2)" FAIL
 eq "bad: 4 camelCase"                    "$(row "$b" 4)" FAIL
 eq "bad: 5 no emulate guard"             "$(row "$b" 5)" FAIL
 eq "bad: 6 no help flag"                 "$(row "$b" 6)" FAIL
 eq "bad: 7 raw echo only"                "$(row "$b" 7)" FAIL
-eq "bad: verdict" \
-  "$(verdict "$(sh "$here/sh_check.sh" "$bad" FAIL FAIL FAIL FAIL)")" POOR
+eq "bad: verdict"                        "$(verdict "$b")" POOR
 
 # ---------- N/A rows leave the denominator ----------
 plain=$work/plain.sh

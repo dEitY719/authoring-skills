@@ -96,12 +96,11 @@ case $shebang in
 esac
 
 # ---------- Check 2: Interactive Guard ----------
-guard='case \$- in \*i\*'
 if [ "$sourced" -eq 0 ]; then
   r2='N/A'; n2='executable script, no guard needed'
 elif head -10 "$file" | grep -qF 'case $- in *i*'; then
   r2=PASS; n2='guard within the first 10 lines'
-elif has "$guard"; then
+elif grep -qF 'case $- in *i*' "$file" 2>/dev/null; then
   r2=WARN; n2='guard present but below the first 10 lines'
 else
   r2=FAIL; n2='sourced file with no interactive guard'
@@ -199,11 +198,14 @@ if [ "$total" -le 0 ]; then
   verdict='N/A'
 elif [ "$pass" -eq "$total" ]; then
   verdict=EXCELLENT
-elif [ $((pass * 100 / total)) -ge 80 ] && [ "$fail" -eq 0 ]; then
-  verdict=GOOD
-elif [ $((pass * 100 / total)) -ge 60 ] || [ "$fail" -eq 1 ]; then
-  verdict='NEEDS WORK'
 else
-  verdict=POOR
+  pct=$((pass * 100 / total))
+  if [ "$pct" -ge 80 ] && [ "$fail" -eq 0 ]; then
+    verdict=GOOD
+  elif [ "$pct" -ge 60 ] || [ "$fail" -eq 1 ]; then
+    verdict='NEEDS WORK'
+  else
+    verdict=POOR
+  fi
 fi
 printf 'score\t%s/%s\t%s\n' "$pass" "$total" "$verdict"
