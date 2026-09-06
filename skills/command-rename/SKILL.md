@@ -35,16 +35,19 @@ argument surface: `<command-family> <desired-convention> [remote]` plus
 ## Step 1: Parse input & resolve target family
 
 Parse `<command-family>` (e.g. `agy`), `<desired-convention>` (e.g.
-`dash-form`), optional `[remote]` (default `origin`). Resolve `TARGET_REPO` per `references/repo-resolution.md`
-(fail-fast on a missing remote). If the family is ambiguous or matches
-nothing, present the candidate names you found and ask — never guess.
+`dash-form`), optional `[remote]` (default `origin`). Resolve the target repo
+with `bash skills/command-rename/lib/resolve-repo.sh "<remote>"` — it prints
+`TARGET_REPO=<owner>/<repo>`, and fails with the `git remote -v` listing on a
+missing remote (`references/repo-resolution.md`). If the family is ambiguous or
+matches nothing, present the candidate names you found and ask — never guess.
 
 ## Step 2: Discover definitions + ALL reference points
 
-Follow `references/discovery.md` verbatim: locate alias/function definitions
-and every reference-point category (inline help/DOC blocks, `install_*.sh`,
-`my_help.sh` registration, `zz_help_standard_adapter.sh`, help tests, bats).
-Omitting a category leaves dangling references after the rename.
+Run `bash skills/command-rename/lib/discover-refs.sh <command-family>` — it
+sweeps every category and emits `category<TAB>file<TAB>line<TAB>text` per hit.
+Read `references/discovery.md` for what each category means, the git-family
+exception, and the judgment the sweep cannot make. Omitting a category leaves
+dangling references after the rename.
 
 ## Step 3: Compare against SSOT + detect rule gap
 
@@ -86,12 +89,10 @@ an `[OK]`/`[FAIL]` verdict, and a `Next:` hint pointing at
 
 ## Constraints
 
-See `references/constraints.md` (no source edits/commits, never skip the
-git-family exclusion, never invent SSOT text, always confirm
-backward-compat/collision decisions, docs issue only on a real gap).
+See `references/constraints.md`.
 
 ## Related Skills
 
 Issue creation is delegated to `gh-issue:create` (never `gh issue create`
 directly). The rename this skill designs is executed later by a separate
-`/gh-flow:issue <refactor-issue-number>` run — this skill never edits code.
+`/gh-flow:issue <refactor-issue-number>` run.
