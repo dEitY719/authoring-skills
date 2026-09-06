@@ -112,7 +112,7 @@ else
 fi
 
 # One pass over the file yields, per function definition:
-#   name<TAB>uses-local<TAB>has-emulate-guard
+#   name<TAB>needs-guard<TAB>has-emulate-guard
 # The opening brace may sit on the definition line, on the next line, or the
 # whole body may be a one-liner, so the definition is recognised by `name()`
 # alone and the remainder of that same line is scanned as body.
@@ -121,8 +121,14 @@ FUNCS=$(awk '
     if (cur != "") printf "%s\t%d\t%d\n", cur, needs, guarded
     cur = ""
   }
+  # checks.md Check 5 requires the guard for `local`, arrays *and* `set -x`,
+  # so all three mark the function -- zsh traces and word-splits every one of
+  # them differently, not just `local`.
   function body(line) {
     if (line ~ /(^|[^A-Za-z_])local[ \t]/) needs = 1
+    if (line ~ /(^|[^A-Za-z_])set[ \t]+-[A-Za-z]*x([ \t]|$)/) needs = 1
+    if (line ~ /(^|[^A-Za-z_])[A-Za-z_][A-Za-z0-9_]*\+?=\(/) needs = 1
+    if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
   }
   # The body ends at the brace that closes it. Without this the lines after a
@@ -182,11 +188,11 @@ have_guard=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$2 == 1 && $3 == 1' | grep -c 
 if [ "$shell_specific" -eq 1 ]; then
   r5='N/A'; n5='single-shell tree (bash/ or zsh/)'
 elif [ "$need_guard" -eq 0 ]; then
-  r5='N/A'; n5='no cross-shell function using local'
+  r5='N/A'; n5='no cross-shell function needing the guard'
 elif [ "$have_guard" -eq "$need_guard" ]; then
-  r5=PASS; n5="emulate -L sh in all $need_guard local-using function(s)"
+  r5=PASS; n5="emulate -L sh in all $need_guard function(s) that need it"
 elif [ "$have_guard" -gt 0 ]; then
-  r5=WARN; n5="emulate -L sh in $have_guard of $need_guard local-using function(s)"
+  r5=WARN; n5="emulate -L sh in $have_guard of $need_guard function(s) that need it"
 elif [ "$in_common" -eq 1 ]; then
   r5=FAIL; n5='shell-common file, no emulate -L sh in any function'
 else
