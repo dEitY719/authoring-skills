@@ -149,9 +149,14 @@ arguments, all rendered via `ux_table_row`.
 | FAIL | No help flag — user must read the source |
 | N/A  | Function takes no arguments (pure side-effect helper) |
 
+Mechanically, PASS needs the flag in an option position — a case pattern or a
+test, not prose in a comment — *and* a `*help` function with a call site, so a
+defined-but-unwired help routine does not carry the file. Whether every public
+command routes to it is the auditor's call.
+
 **Grep hints**
 ```sh
-grep -nE -- '-h\|--help|--help)' "$FILE"
+grep -nE -- '(-h|--help)[^[:alnum:]]*[])|]' "$FILE"   # flag in option position
 ```
 
 ### Check 7 — UX Lib Usage
