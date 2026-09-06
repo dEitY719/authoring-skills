@@ -22,7 +22,7 @@ license: MIT
 From a target command family and a desired naming convention, design an
 old→new rename mapping, check it against the naming SSOT, flag any rule gap,
 and file the `refactor` (and gap-only `docs`) issue via `gh-issue:create`.
-Design and file only — no code edits, no commits. The rename itself is a
+Design and file only — no code edits, no commits; the rename itself is a
 separate later `/gh-flow:issue` run.
 
 ## Help
@@ -34,30 +34,32 @@ argument surface: `<command-family> <desired-convention> [remote]` plus
 
 ## Step 1: Parse input & resolve target family
 
-`SKILL_DIR` = this file's directory.
-
-Parse `<command-family>` (e.g. `agy`), `<desired-convention>` (e.g.
-`dash-form`), optional `[remote]` (default `origin`). Resolve the target repo
-with `sh "${SKILL_DIR}/lib/resolve-repo.sh" "<remote>"` — it prints
+`SKILL_DIR` = this file's directory. Parse `<command-family>` (e.g. `agy`),
+`<desired-convention>` (e.g. `dash-form`), optional `[remote]` (default
+`origin`). Resolve the target repo with
+`sh "${SKILL_DIR}/lib/resolve-repo.sh" "<remote>"` — it prints
 `TARGET_REPO=<owner>/<repo>` and fails with the `git remote -v` listing on a
 missing remote (`references/repo-resolution.md`). If the family is ambiguous or
 matches nothing, show the candidates and ask — no guess.
 
 ## Step 2: Discover definitions + ALL reference points
 
-Run `sh "${SKILL_DIR}/lib/discover-refs.sh" <command-family>` — it
+Run `sh "${SKILL_DIR}/lib/discover-refs.sh" <command-family> [root]` — it
 sweeps every category and emits `category<TAB>file<TAB>line<TAB>text` per hit.
-Read `references/discovery.md` for what each category means, the git-family
-exception, and the judgment the sweep cannot make.
+The sweep is **dotfiles-scoped by design** (its category paths exist only in
+the `dEitY719/dotfiles` checkout), so `[root]` defaults to `$DOTFILES_ROOT`,
+else `$HOME/dotfiles`; Step 1's `TARGET_REPO` is an `owner/repo` slug for
+*issue filing*, never a sweep root. Pass `[root]` to scan another checkout.
+Read `references/discovery.md` for the categories, the git-family exception,
+and the judgment the sweep cannot make.
 
 ## Step 3: Compare against SSOT + detect rule gap
 
-Follow `references/ssot-check.md`: read and cite all three docs, which live in
-the `dEitY719/dotfiles` checkout (`$DOTFILES_ROOT`, default `$HOME/dotfiles`) —
-`docs/.ssot/command-design-pattern.md`, `command-guidelines.md`,
-`command-delivery-model.md`. If the requested convention is not literally
-covered by an existing SSOT section, that is a **rule gap** — record it. Do
-not invent SSOT text.
+Follow `references/ssot-check.md`: read and cite all three `docs/.ssot/` docs
+in the same dotfiles checkout Step 2 swept — `command-design-pattern.md`,
+`command-guidelines.md`, `command-delivery-model.md`. If the requested
+convention is not literally covered by an existing SSOT section, that is a
+**rule gap** — record it. Do not invent SSOT text.
 
 ## Step 4: Exclude git-family abbreviations
 
@@ -76,11 +78,10 @@ List intentionally-dropped names. Never auto-decide these — confirm first.
 
 Follow `references/issue-creation.md` — it names the prerequisite plugin
 (`gh-issue`, from `dEitY719/gh-issue-skills`). Create the `refactor` issue by
-`Skill(gh-issue:create, ...)` with explicit "refactor" intent so its
-classifier picks the `refactor` template. **Only if Step 3 found a rule
-gap**, also create a `docs` issue the same way, then cross-link both
-(`gh issue comment <A> --body "Related: #<B>"` each way). Never call
-`gh issue create` directly here.
+`Skill(gh-issue:create, ...)` with explicit "refactor" intent so its classifier
+picks the `refactor` template. **Only if Step 3 found a rule gap**, also create
+a `docs` issue the same way, then cross-link both (`gh issue comment <A>
+--body "Related: #<B>"` each way). Never call `gh issue create` directly here.
 
 ## Step 7: Report
 
@@ -94,6 +95,5 @@ See `references/constraints.md`.
 
 ## Related Skills
 
-Issue creation is delegated to `gh-issue:create` (never `gh issue create`
-directly). The rename this skill designs is executed later by a separate
-`/gh-flow:issue <refactor-issue-number>` run.
+Issue creation is delegated to `gh-issue:create` (never `gh issue create`).
+The rename itself runs later via `/gh-flow:issue <refactor-issue-number>`.
