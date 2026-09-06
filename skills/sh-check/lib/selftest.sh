@@ -144,6 +144,25 @@ EOF
 eq "leak: a line after the closing brace is not the function's guard" \
   "$(row "$(sh "$here/sh_check.sh" "$leak")" 5)" FAIL
 
+# checks.md Check 5 names arrays and `set -x` beside `local` as guard-needing.
+constructs=$work/dotfiles/shell-common/functions/constructs.sh
+cat > "$constructs" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac
+
+listy() {
+    items=(one two)
+    ux_info "${items[0]}"
+}
+
+traced() {
+    set -x
+    ux_info tracing
+}
+EOF
+eq "constructs: arrays and set -x need the guard too" \
+  "$(row "$(sh "$here/sh_check.sh" "$constructs")" 5)" FAIL
+
 # Definitions are found whichever way the brace is placed.
 braces=$work/braces.sh
 cat > "$braces" <<'EOF'
