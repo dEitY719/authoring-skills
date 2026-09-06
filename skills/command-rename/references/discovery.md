@@ -34,9 +34,10 @@ POSIX). It tells grep's three outcomes apart — hits, no match, grep failed —
 so a `grep` that cannot scope by path aborts at exit 3 instead of returning
 zero rows for a category and letting the run read as an honest "no hits".
 
-Matching treats `_` as a boundary, so `agy` also finds `_agy_run` and
-`agy-help` but not `shaggy` — see "Deliberate over-reporting" below for the
-cost that buys.
+Matching delimits on `[^A-Za-z0-9]`, so `_` counts as a delimiter rather than
+as a word character (deliberately unlike `\b`/`\w`): `agy` also finds
+`_agy_run` and `agy-help`, but not `shaggy` — see "Deliberate over-reporting"
+below for the cost that buys.
 
 `sh "${SKILL_DIR}/lib/selftest.sh"` asserts these contracts; `tests/` runs it
 in CI. `SKILL_DIR` is this skill's own directory — the helpers do not live in
@@ -76,10 +77,12 @@ refactor as a broken alias or stale help text, while an extra row costs one
 glance from the human reading the output. Two known, **accepted** false
 positives follow from that trade — neither is a bug:
 
-- **`_` counts as a word boundary.** That is exactly what makes `_agy_run`, a
-  real definition site, hit. The cost is that an unrelated `unrelated_agy_bar`
-  hits too. Narrowing the boundary class to exclude `_` would drop `_agy_run`
-  and break the guarantee above, so it stays.
+- **`_` is a delimiter, not a word character.** The class is `[^A-Za-z0-9]`
+  and `_` is neither a letter nor a digit, so it delimits — the opposite of
+  `\b`/`\w`, where `_` belongs to the word. That is exactly what makes
+  `_agy_run`, a real definition site, hit. The cost is that an unrelated
+  `unrelated_agy_bar` hits too. Moving `_` to the word side (`[^A-Za-z0-9_]`)
+  would drop `_agy_run` and break the guarantee above, so it stays.
 - **One line can appear under several categories.** A definition inside
   `shell-common/` is also a `reference`; `my_help.sh` rows arrive as both
   `help-registry` and `inline-help`. Dedupe when you build the Scope list.

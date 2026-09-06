@@ -47,14 +47,21 @@ esac
 
 cd "$root" 2>/dev/null || { echo "discover-refs: cannot use root: $root" >&2; exit 2; }
 
-# `_` sits inside the boundary class DELIBERATELY: it is what makes `_agy_run`
-# -- a real definition site -- and `agy-help` hit, while `shaggy` does not.
+# The delimiter class is `[^A-Za-z0-9]`: everything that is NOT a letter or a
+# digit -- and `_` is not a letter or a digit, so `_` IS a delimiter here.
+# This is deliberately UNLIKE `\b`/`\w`, where `_` counts as a word character
+# and `_agy_run` would therefore NOT match. Treating `_` as a delimiter is
+# exactly what makes `_agy_run` -- a real definition site, pinned by
+# selftest.sh's "discover-refs finds _agy_run as a definition" assertion --
+# and `agy-help` hit, while `shaggy` does not.
+#
 # The accepted cost is that an unrelated `unrelated_agy_bar` hits too. That is
 # a known false positive, not a bug: this is a read-only discovery tool whose
 # rows a human reads and filters, and missing a real reference point is the
-# expensive failure while an extra row costs one glance. Narrowing `_` out of
-# the class would drop `_agy_run` and break the "ALL reference points"
-# guarantee (references/discovery.md -> "Deliberate over-reporting").
+# expensive failure while an extra row costs one glance. Moving `_` to the
+# word side (`[^A-Za-z0-9_]`) would drop `_agy_run` and break the "ALL
+# reference points" guarantee (references/discovery.md -> "Deliberate
+# over-reporting").
 re="(^|[^A-Za-z0-9])$family([^A-Za-z0-9]|\$)"
 # A literal tab: `\t` in a sed replacement is a GNU extension and emits a bare
 # `t` on BSD/macOS, which would silently break the TSV contract.
