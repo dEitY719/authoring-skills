@@ -163,12 +163,8 @@ inputs/outputs, and a direct call pattern such as
 
 `authoring:skill-check` extracts its own six mechanical checks (1, 11, 13
 shape, 14, 15, 16) plus the score/verdict arithmetic this way:
-`skills/skill-check/lib/skill_check.sh` — input: a SKILL.md path, plus
-optionally the ten auditor-judged results (checks 2, 3, 4, 5, 6, 7, 8, 9, 10,
-12) in check-id order; output: one `check_id<TAB>result<TAB>note` row per
-decided check, and — only when all ten judgments are supplied — a final
-`score<TAB><pass>/<total><TAB><verdict>` row. Invoked from Step 2 as
-`bash skills/skill-check/lib/skill_check.sh path/to/SKILL.md`.
+`skills/skill-check/lib/skill_check.sh` — usage, the full I/O contract, and
+exit codes are documented in that script's own header. Invoked from Step 2.
 
 ---
 
