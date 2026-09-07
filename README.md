@@ -184,8 +184,9 @@ removes them.
 
 `skills/skill-create/` is itself a vendored copy of Anthropic's marketplace
 `skill-creator` plugin, taken deliberately so it survives plugin updates and
-since diverged; see `skills/skill-create/references/local-patches.md` and
-`skills/skill-create/LICENSE.txt`.
+since diverged (Korean SKILL.md, the `authoring:skill-create` name,
+`metadata.model_recommendation`, the Phase 8 quality gate, a progressive-disclosure
+`references/` split); see `skills/skill-create/LICENSE.txt`.
 
 This is part of Phase 2 of the dEitY719/dotfiles#1410 migration;
 `packaging-skills` was Phase 0, and `harness-skills`, `notes-skills`, and
