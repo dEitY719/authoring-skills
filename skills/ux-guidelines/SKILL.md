@@ -19,7 +19,7 @@ license: MIT
 
 ## Help
 
-If the argument is `help`, read `references/help.md` and output it verbatim, then stop.
+If the argument is `-h`, `--help`, or `help`, read `references/help.md` and output it verbatim, then stop.
 
 ## Objective
 
@@ -37,8 +37,8 @@ selection rules.
 Choose one mode before editing:
 
 1. **Individual function refactoring**: a specific function/module is requested.
-2. **Bulk compliance review**: user asks to scan `shell-common/**/*.sh` and write
-   findings to `docs/abc-review-*.md`.
+2. **Bulk compliance review**: user asks to scan a shell tree (default
+   `$SHELL_COMMON`) and write findings to `docs/abc-review-*.md`.
 
 ## Mode A: Individual Function Refactoring
 
@@ -60,28 +60,24 @@ Stop on first failure and report — do not proceed to the next step.
 
 Read `references/bulk-review-workflow.md` when executing this mode.
 
-1. Discover `shell-common/**/*.sh` files in scope.
-2. Analyze each file for UX guideline violations and exclusions.
-3. Categorize findings by severity (`high`, `medium`, `low`).
-4. Write the report to the requested file (`docs/abc-review-C.md`,
+1. Run `sh <skill-dir>/lib/scan-ux.sh [path ...]` — it walks the given files and
+   directories (default `$SHELL_COMMON`) and prints one
+   `file<TAB>line<TAB>pattern<TAB>severity` row per mechanical hit. Pass the
+   user's scope as the argument; do not assume `shell-common/`.
+2. Judge each row: apply the exclusions, drop false positives, and add the
+   findings only a reader can see (missing help discoverability, inconsistent
+   grouping).
+3. Write the report to the requested file (`docs/abc-review-C.md`,
    `docs/abc-review-CX.md`, or `docs/abc-review-G.md`).
-5. Include concrete file/line evidence and suggested fixes.
-6. Do not commit unless explicitly requested.
+4. Include concrete file/line evidence and suggested fixes.
+5. Do not commit unless explicitly requested.
 
 Audit mode — scan the entire scope and report every finding. Do NOT stop on
 the first violation; Mode B is read-only and the report must be complete.
 
-## Output Requirements
-
-Always include:
-
-1. Mode used (`individual` or `bulk`).
-2. Files inspected and files changed.
-3. Validation commands run and outcomes.
-4. Remaining risks or follow-up items — list with concrete next commands
-   (e.g. `mise run lint-sh`, `./tests/test`).
-
 ## Output
+
+List remaining risks and follow-up commands below the block.
 
 ```
 [OK] authoring:ux-guidelines — mode=<a|b> files_changed=<n> validated=<true|false>

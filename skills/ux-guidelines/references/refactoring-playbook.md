@@ -49,6 +49,25 @@ proxy_help() {
 }
 ```
 
+### Reference pattern: `cc_help`
+
+`$SHELL_COMMON/functions/cc_help.sh` is the canonical shape when the dotfiles
+checkout is present — header, then one section per group, then a blank line:
+
+```bash
+cc_help() {
+    ux_header "Claude Code Usage Commands"
+
+    ux_section "Installation"
+    ux_bullet "Global prefix: npm install -g ccusage"
+    echo ""
+
+    ux_section "Quick Commands"
+    ux_table_row "ccd" "ccusage daily" "Token usage"
+    echo ""
+}
+```
+
 ## Step 4: Organize Information
 
 Use this ordering:
@@ -68,11 +87,15 @@ bash -c "source ./<target-file>.sh && <help_function>"
 zsh -c "source ./<target-file>.sh && <help_function>"
 ```
 
-For wider checks:
+For wider checks, when the dotfiles checkout supplies the scanner:
 
 ```bash
-shell-common/tools/custom/check_ux_consistency.sh
+_ux_scan="${SHELL_COMMON:-$HOME/dotfiles/shell-common}/tools/custom/check_ux_consistency.sh"
+[ -x "$_ux_scan" ] && "$_ux_scan"
 ```
+
+It ships with `dEitY719/dotfiles`, not with this plugin. Without it, this
+skill's own `lib/scan-ux.sh` is the wider check.
 
 ## Suggested Commit Message Template
 

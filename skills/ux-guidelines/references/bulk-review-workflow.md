@@ -1,10 +1,12 @@
 # Bulk Review Workflow — shell-common UX Compliance Audit
 
-Use this when asked to scan `shell-common/**/*.sh` and write findings to
+Use this when asked to scan a shell tree and write findings to
 `docs/abc-review-C.md`, `docs/abc-review-CX.md`, or `docs/abc-review-G.md`.
 
-The scan root is `$SHELL_COMMON` (default `$HOME/dotfiles/shell-common`) —
-against any other repo it matches nothing; see SKILL.md's Objective.
+The scope is whatever paths are passed to `lib/scan-ux.sh`. With no argument it
+defaults to `$SHELL_COMMON` (itself defaulting to `$HOME/dotfiles/shell-common`),
+which exists only inside the `dEitY719/dotfiles` checkout — see SKILL.md's
+Objective. Pass the user's own paths when working anywhere else.
 
 ## Review Output Targets
 
@@ -45,9 +47,14 @@ Do not report these as UX violations unless user-facing output is explicit:
 
 ## Procedure
 
-1. Discover files in scope (`shell-common/**/*.sh`).
-2. Scan each file for violations and capture file/line evidence.
-3. Categorize by severity.
+1. Run `sh <skill-dir>/lib/scan-ux.sh [path ...]`. It emits
+   `file<TAB>line<TAB>pattern<TAB>severity` rows for the three decidable
+   patterns — `heredoc-help`, `ansi-color`, `raw-status` — and exits 2 rather
+   than reporting an empty scan when the scope has no `*.sh` file, so a typo'd
+   path never reads as "no violations found".
+2. Apply the exclusions above to those rows and drop the false positives.
+3. Add the findings the scanner cannot see: missing help discoverability and
+   inconsistent presentation.
 4. Add concrete remediation guidance per finding.
 5. Produce final review Markdown at requested path.
 

@@ -11,8 +11,8 @@ which defaults to `$HOME/dotfiles/shell-common`.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `[target]` | Function, module, or glob to bring in line with `UX_GUIDELINES.md`. | ask |
-| `help` | Print this help and stop. No files are read or written. | — |
+| `[target]` | Function, module, file, or directory to bring in line with `UX_GUIDELINES.md`. | ask |
+| `-h`, `--help`, `help` | Print this help and stop. No files are read or written. | off |
 
 ## Typical Requests
 
@@ -29,7 +29,8 @@ which defaults to `$HOME/dotfiles/shell-common`.
    - Target: one function or module.
    - Goal: replace hardcoded formatting with semantic `ux_*` calls.
 2. **Bulk compliance review**
-   - Target: `shell-common/**/*.sh`.
+   - Target: the files and directories passed to `lib/scan-ux.sh`; with no
+     argument it falls back to `$SHELL_COMMON`.
    - Goal: produce a review document with violations, severity, and fixes.
 
 ## Inputs to Confirm
