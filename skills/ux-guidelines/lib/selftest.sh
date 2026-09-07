@@ -115,6 +115,44 @@ eq 'single-quoted status exits 0' "$st" 0
 eq 'single-quoted status found' "$(hits "$out" raw-status)" 2
 eq 'mixed-case here-doc delimiters found' "$(hits "$out" heredoc-help)" 2
 
+# 4c. A here-doc body is data, not code: nothing inside one is reported, and
+#     the left-shift operator does not open a body that swallows the file
+#     (agy PR #19). The un-indented `<<EOF` form is covered too.
+cat > "$work/scope/body.sh" <<'FIXTURE'
+#!/bin/sh
+usage() {
+    cat <<EOF
+Done
+usage: cmd <<thing>>
+EOF
+}
+shift_op() {
+    mask=$((1 << 4))
+    echo "Error: $mask"
+}
+FIXTURE
+run "$work/scope/body.sh"
+eq 'body scope exits 0' "$st" 0
+eq 'one here-doc opener reported' "$(hits "$out" heredoc-help)" 1
+eq 'here-doc body is not scanned' "$(hits "$out" raw-status)" 1
+case "$out" in
+  *"	10	raw-status"*) ok 'the line after the body is still scanned' ;;
+  *) no 'the line after the body is still scanned' "got [$out]" ;;
+esac
+
+# 4d. A path containing a space survives collection and scanning. The loop
+#     reads with `IFS= read -r`, so only a NEWLINE in a path would break it --
+#     the documented ceiling (agy PR #19 BLOCKER, which named spaces).
+mkdir -p "$work/with space"
+cp "$work/scope/status.sh" "$work/with space/has space.sh"
+run "$work/with space"
+eq 'path with a space exits 0' "$st" 0
+eq 'path with a space is scanned' "$(hits "$out" raw-status)" 2
+case "$out" in
+  *"has space.sh"*) ok 'the spaced path is reported whole' ;;
+  *) no 'the spaced path is reported whole' "got [$out]" ;;
+esac
+
 # 5. An unreadable scope is a usage error, not an empty scan -- otherwise a
 #    typo'd path reads as "no violations found".
 run "$work/does-not-exist"
@@ -125,13 +163,16 @@ eq 'scope with no *.sh exits 2' "$st" 2
 
 # 6. A file in scope that cannot be read must not read as a clean one
 #    (codex PR #19 BLOCKER): exit 1 and name it on stderr.
-if [ "$(id -u)" = 0 ]; then
-  ok 'unreadable file exits 1 (skipped: running as root)'
+mkdir -p "$work/locked"
+cp "$work/scope/clean.sh" "$work/locked/readable.sh"
+cp "$work/scope/status.sh" "$work/locked/locked.sh"
+chmod 000 "$work/locked/locked.sh" 2>/dev/null || :
+# Probe rather than assume: root ignores the mode bits, and so do some
+# container filesystems. Asserting on a chmod that did not take would be a
+# flaky test, not a stricter one (agy PR #19).
+if [ -r "$work/locked/locked.sh" ]; then
+  ok 'unreadable file exits 1 (skipped: this environment cannot deny read)'
 else
-  mkdir -p "$work/locked"
-  cp "$work/scope/clean.sh" "$work/locked/readable.sh"
-  cp "$work/scope/status.sh" "$work/locked/locked.sh"
-  chmod 000 "$work/locked/locked.sh"
   err=$(sh "$here/scan-ux.sh" "$work/locked" 2>&1 >/dev/null) && st=0 || st=$?
   eq 'unreadable file exits 1' "$st" 1
   case "$err" in

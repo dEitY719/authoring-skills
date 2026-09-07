@@ -27,6 +27,12 @@
 #
 # Read-only: never edits a scanned file. Severity model and the exclusions
 # the model still has to apply: references/bulk-review-workflow.md.
+#
+# ponytail: the scan set is passed to the loop one path per line, so a path
+# containing a NEWLINE would be split. Spaces are safe (`IFS= read -r`, and
+# lib/selftest.sh asserts it); a newline is the ceiling. Upgrade path if that
+# ever matters: `find -print0` and a reader that splits on NUL, which POSIX sh
+# `read` cannot do -- it would mean requiring bash or an awk RS="\0" pass.
 
 set -eu
 
@@ -68,26 +74,55 @@ while IFS= read -r f; do
     unreadable=1
     continue
   fi
+  # The patterns are built as strings with \047 for the single quote, so this
+  # awk program contains no quote character the shell would have to escape.
   awk -v file="$f" '
+    BEGIN {
+      # A here-doc opener: << or <<-, an optional quote, an identifier.
+      open_re   = "<<-?[[:space:]]*[\"\047]?[A-Za-z_][A-Za-z0-9_]*[\"\047]?"
+      # Strip the operator and quotes back off to recover the delimiter word.
+      strip_re  = "^<<-?[[:space:]]*[\"\047]?"
+      # A hardcoded escape sequence, or a raw COLOR_* variable the ux_*
+      # wrappers exist to replace.
+      color_re  = "\\\\033\\[|\\\\e\\[|\\\\x1[bB]\\[|\\$\\{?COLOR_"
+      # A status word printed as plain text where a semantic ux_* call
+      # belongs. Both quote styles: echo \047Done\047 is as raw as echo "Done".
+      status_re = "(echo|printf)[^|]*[\"\047](Done|OK|Error|Failed|Failure|Success|Warning|Warn)"
+    }
+    # Inside a here-doc body every line is data, not code. Skipping to the
+    # closing delimiter is what stops a << in the help text itself, or a
+    # status word being *documented*, from being reported as output.
+    inbody {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      if (line == delim) inbody = 0
+      next
+    }
     # A comment is documentation, not output. Skipping them here is what keeps
     # a file that *describes* these patterns from reporting itself.
     /^[[:space:]]*#/ { next }
-    # A here-doc opener carrying help text. The delimiter may be quoted with
-    # either quote and is not necessarily upper case (`<<HELP`, `<<-'"'"'eof'"'"').
-    /<<-?[[:space:]]*['"'"'"]?[A-Za-z_][A-Za-z0-9_]*/ {
-      print file "\t" NR "\theredoc-help\thigh"
-      next
-    }
-    # A hardcoded escape sequence, or one of the raw COLOR_* variables the
-    # ux_* wrappers exist to replace.
-    /\\033\[|\\e\[|\\x1[bB]\[|\$\{?COLOR_/ {
-      print file "\t" NR "\tansi-color\thigh"
-      next
-    }
-    # A status word printed as plain text where a semantic ux_* call belongs.
-    # Both quote styles: `echo '"'"'Done'"'"'` is exactly as raw as `echo "Done"`.
-    /(echo|printf)[^|]*["'"'"'](Done|OK|Error|Failed|Failure|Success|Warning|Warn)/ {
-      print file "\t" NR "\traw-status\tmedium"
+    {
+      if (match($0, open_re)) {
+        # A real delimiter word ends there. Requiring that rules out the
+        # left-shift operator, where the next character is ) or a digit:
+        # $((1 << n)) must not open a here-doc body and swallow the file.
+        tail = substr($0, RSTART + RLENGTH, 1)
+        if (tail == "" || tail == " " || tail == "\t" ||
+            tail == ";" || tail == "|" || tail == "&" || tail == ">") {
+          print file "\t" NR "\theredoc-help\thigh"
+          delim = substr($0, RSTART, RLENGTH)
+          sub(strip_re, "", delim)
+          sub("[\"\047]$", "", delim)
+          inbody = 1
+          next
+        }
+      }
+      if ($0 ~ color_re) {
+        print file "\t" NR "\tansi-color\thigh"
+        next
+      }
+      if ($0 ~ status_re)
+        print file "\t" NR "\traw-status\tmedium"
     }
   ' "$f"
 done <<SCAN_SET
