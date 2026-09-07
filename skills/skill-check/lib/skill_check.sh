@@ -17,11 +17,12 @@
 #
 # Read-only: never edits the audited file. Criteria: references/checks.md.
 #
-# ponytail: Check 16's char count assumes a UTF-8 `wc -m` (forced via
-# LC_ALL=C.utf8 below); on a system with no UTF-8 locale installed, `wc -m`
-# silently degrades to a byte count and over-reports multibyte (Korean)
-# descriptions by ~3x. Upgrade path: shell out to `python3 -c` for length if
-# that ever bites in practice.
+# ponytail: Check 16 probes `locale -a` for a real UTF-8 locale (see that
+# check, below) rather than hardcoding one. If NONE is installed at all --
+# rare, but possible on a minimal container -- it still falls back to
+# C.utf8 and flags the result as approximate in the note rather than either
+# crashing or silently mis-measuring. Upgrade path if that ever bites: shell
+# out to `python3 -c` for a locale-independent length.
 # ponytail: Check 13's migration-gate state (metadata absent -> FAIL) is
 # hardcoded from references/model-recommendation.md Section 3's current
 # MIGRATION_COMPLETE=true. If that gate ever reopens, flip GATE_FAIL below.
@@ -283,13 +284,26 @@ esac
 if [ -z "$desc" ]; then
   r16='N/A'; n16='no description found in frontmatter'
 else
-  len=$(printf '%s' "$desc" | LC_ALL=C.utf8 wc -m | tr -d ' ')
+  # Probe for a UTF-8 locale actually installed on this system instead of
+  # assuming C.utf8 -- an uninstalled locale makes wc -m silently degrade to
+  # byte counting, over-reporting a Korean description's length by ~3x and
+  # false-FAILing this check (codex PR #16 round-3 BLOCKER).
+  utf8_locale=''
+  for cand in C.utf8 C.UTF-8 en_US.UTF-8 en_US.utf8; do
+    locale -a 2>/dev/null | grep -qiFx "$cand" && { utf8_locale=$cand; break; }
+  done
+  degraded_note=''
+  if [ -z "$utf8_locale" ]; then
+    utf8_locale=C.utf8
+    degraded_note=' (no UTF-8 locale found on this system -- count may be approximate)'
+  fi
+  len=$(printf '%s' "$desc" | LC_ALL="$utf8_locale" wc -m | tr -d ' ')
   if [ "$len" -le 250 ]; then
-    r16=PASS; n16="$len characters"
+    r16=PASS; n16="$len characters$degraded_note"
   elif [ "$len" -le 400 ]; then
-    r16=WARN; n16="$len characters (251-400 band, needs a justifying comment)"
+    r16=WARN; n16="$len characters (251-400 band, needs a justifying comment)$degraded_note"
   else
-    r16=FAIL; n16="$len characters (over 400)"
+    r16=FAIL; n16="$len characters (over 400)$degraded_note"
   fi
 fi
 
