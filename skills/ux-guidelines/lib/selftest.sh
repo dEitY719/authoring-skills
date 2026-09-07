@@ -51,6 +51,24 @@ run() {
 }
 FIXTURE
 
+# Single-quoted output is exactly as raw as double-quoted, and a here-doc
+# delimiter need not be upper case (codex + agy, PR #19).
+cat > "$work/scope/quoting.sh" <<'FIXTURE'
+#!/bin/sh
+run() {
+    echo 'Done'
+    printf 'Warning: %s\n' "$1"
+}
+usage() {
+    cat <<-eof
+plain text
+eof
+    cat <<"Help"
+more text
+Help
+}
+FIXTURE
+
 # The compliant file: semantic calls only, nothing to report.
 cat > "$work/scope/clean.sh" <<'FIXTURE'
 #!/bin/sh
@@ -64,9 +82,9 @@ FIXTURE
 # 1. A directory scope walks *.sh recursively and finds each pattern.
 run "$work/scope"
 eq 'dir scope exits 0' "$st" 0
-eq 'heredoc found' "$(hits "$out" heredoc-help)" 1
+eq 'heredoc found' "$(hits "$out" heredoc-help)" 3
 eq 'ansi found twice' "$(hits "$out" ansi-color)" 2
-eq 'status found twice' "$(hits "$out" raw-status)" 2
+eq 'status found four times' "$(hits "$out" raw-status)" 4
 eq 'heredoc severity' "$(sev "$out" heredoc-help)" high
 eq 'ansi severity' "$(sev "$out" ansi-color)" high
 eq 'status severity' "$(sev "$out" raw-status)" medium
@@ -90,6 +108,13 @@ eq 'single file exits 0' "$st" 0
 eq 'single file rows' "$(hits "$out" raw-status)" 2
 eq 'single file only' "$(hits "$out" heredoc-help)" 0
 
+# 4b. Quoting style does not hide a violation (codex PR #19 BLOCKER on
+#     single-quoted status output, agy on lower-case here-doc delimiters).
+run "$work/scope/quoting.sh"
+eq 'single-quoted status exits 0' "$st" 0
+eq 'single-quoted status found' "$(hits "$out" raw-status)" 2
+eq 'mixed-case here-doc delimiters found' "$(hits "$out" heredoc-help)" 2
+
 # 5. An unreadable scope is a usage error, not an empty scan -- otherwise a
 #    typo'd path reads as "no violations found".
 run "$work/does-not-exist"
@@ -97,6 +122,24 @@ eq 'missing scope exits 2' "$st" 2
 mkdir -p "$work/empty"
 run "$work/empty"
 eq 'scope with no *.sh exits 2' "$st" 2
+
+# 6. A file in scope that cannot be read must not read as a clean one
+#    (codex PR #19 BLOCKER): exit 1 and name it on stderr.
+if [ "$(id -u)" = 0 ]; then
+  ok 'unreadable file exits 1 (skipped: running as root)'
+else
+  mkdir -p "$work/locked"
+  cp "$work/scope/clean.sh" "$work/locked/readable.sh"
+  cp "$work/scope/status.sh" "$work/locked/locked.sh"
+  chmod 000 "$work/locked/locked.sh"
+  err=$(sh "$here/scan-ux.sh" "$work/locked" 2>&1 >/dev/null) && st=0 || st=$?
+  eq 'unreadable file exits 1' "$st" 1
+  case "$err" in
+    *locked.sh*) ok 'unreadable file is named on stderr' ;;
+    *) no 'unreadable file is named on stderr' "got [$err]" ;;
+  esac
+  chmod 644 "$work/locked/locked.sh"
+fi
 
 if [ "$fails" -eq 0 ]; then
   printf '\nall checks passed\n'

@@ -19,7 +19,11 @@
 #   ansi-color    high    a hardcoded ANSI escape or COLOR_* variable
 #   raw-status    medium  a bare echo of a status word (Done/Error/...)
 #
-# exit: 0 scan ran (with or without hits) | 2 bad usage or no readable path
+# exit: 0 scan ran and every file in scope was read | 1 at least one file in
+#       scope could not be read (named on stderr) | 2 bad usage or no such path
+#
+# Exit 1 exists because Mode B promises a complete audit: a file skipped for
+# permissions must not read as a clean one (codex PR #19 BLOCKER).
 #
 # Read-only: never edits a scanned file. Severity model and the exclusions
 # the model still has to apply: references/bulk-review-workflow.md.
@@ -50,17 +54,27 @@ files=$(
 )
 [ -n "$files" ] || die "no *.sh file found in: $*"
 
+# The loop reads from a here-document rather than a pipe so it runs in this
+# shell: a pipeline's subshell would throw `unreadable` away and the scan would
+# exit 0 after silently skipping a file.
+#
 # One awk pass per file rather than three greps: the same line can only be
 # reported once per pattern, and the ordering stays file-then-line.
-printf '%s\n' "$files" | while IFS= read -r f; do
-  [ -r "$f" ] || continue
+unreadable=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if [ ! -r "$f" ]; then
+    printf 'cannot read, excluded from the scan: %s\n' "$f" >&2
+    unreadable=1
+    continue
+  fi
   awk -v file="$f" '
     # A comment is documentation, not output. Skipping them here is what keeps
     # a file that *describes* these patterns from reporting itself.
     /^[[:space:]]*#/ { next }
-    # A here-doc opener carrying help text. `<<` plus an all-caps word is the
-    # shape every hit in this repo family takes.
-    /<<-?[[:space:]]*'"'"'?[A-Z]+'"'"'?/ {
+    # A here-doc opener carrying help text. The delimiter may be quoted with
+    # either quote and is not necessarily upper case (`<<HELP`, `<<-'"'"'eof'"'"').
+    /<<-?[[:space:]]*['"'"'"]?[A-Za-z_][A-Za-z0-9_]*/ {
       print file "\t" NR "\theredoc-help\thigh"
       next
     }
@@ -71,8 +85,13 @@ printf '%s\n' "$files" | while IFS= read -r f; do
       next
     }
     # A status word printed as plain text where a semantic ux_* call belongs.
-    /(echo|printf)[^|]*"(Done|OK|Error|Failed|Failure|Success|Warning|Warn)/ {
+    # Both quote styles: `echo '"'"'Done'"'"'` is exactly as raw as `echo "Done"`.
+    /(echo|printf)[^|]*["'"'"'](Done|OK|Error|Failed|Failure|Success|Warning|Warn)/ {
       print file "\t" NR "\traw-status\tmedium"
     }
   ' "$f"
-done
+done <<SCAN_SET
+$files
+SCAN_SET
+
+exit "$unreadable"

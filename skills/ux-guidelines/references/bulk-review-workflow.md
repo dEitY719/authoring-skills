@@ -49,9 +49,11 @@ Do not report these as UX violations unless user-facing output is explicit:
 
 1. Run `sh <skill-dir>/lib/scan-ux.sh [path ...]`. It emits
    `file<TAB>line<TAB>pattern<TAB>severity` rows for the three decidable
-   patterns — `heredoc-help`, `ansi-color`, `raw-status` — and exits 2 rather
-   than reporting an empty scan when the scope has no `*.sh` file, so a typo'd
-   path never reads as "no violations found".
+   patterns — `heredoc-help`, `ansi-color`, `raw-status`. Two exit codes carry
+   meaning and neither may be ignored: **2** when the scope holds no `*.sh`
+   file, so a typo'd path never reads as "no violations found", and **1** when
+   a file in scope could not be read — it is named on stderr and must appear
+   in the report as an unscanned file, never as a clean one.
 2. Apply the exclusions above to those rows and drop the false positives.
 3. Add the findings the scanner cannot see: missing help discoverability and
    inconsistent presentation.

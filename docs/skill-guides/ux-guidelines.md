@@ -14,7 +14,7 @@
 - `*_help()` 같은 help 함수를 `cat <<EOF` 덩어리에서 `ux_*` 호출로 옮길 때
 - 진단 스크립트의 성공/경고/실패 메시지를 semantic 함수로 정리할 때
 - `/authoring:sh-check` 의 Check 7(UX Lib Usage)이 FAIL 로 지적한 파일을 실제로 고칠 때
-- `shell-common/**/*.sh` 전체를 UX 위반 관점으로 훑어 리뷰 문서를 낼 때 (Mode B)
+- 셸 트리 전체(기본 `$SHELL_COMMON`)를 UX 위반 관점으로 훑어 리뷰 문서를 낼 때 (Mode B)
 
 **쓰지 않을 때** — 대상 파일이나 목적이 다르면 형제 스킬로 보냅니다.
 
@@ -32,22 +32,27 @@
 
 ```
 /authoring:ux-guidelines [target]
-/authoring:ux-guidelines help
+/authoring:ux-guidelines -h | --help | help
 ```
 
 `references/help.md` 가 인자의 SSOT 이며 문서화된 것은 이게 전부입니다.
 
 | 인자/옵션 | 의미 |
 |-----------|------|
-| `[target]` | `UX_GUIDELINES.md` 기준에 맞출 함수·모듈·glob. 생략하면 **되묻습니다** |
-| `help` | `references/help.md` 를 그대로 출력하고 중단. 파일을 읽지도 쓰지도 않음 |
+| `[target]` | `UX_GUIDELINES.md` 기준에 맞출 함수·모듈·파일·디렉터리. 생략하면 **되묻습니다** |
+| `-h`, `--help`, `help` | `references/help.md` 를 그대로 출력하고 중단. 파일을 읽지도 쓰지도 않음 |
 
 `--fix`·`--apply`·`--dry-run` 같은 플래그는 없습니다. Mode A 는 기본이 쓰기, Mode B 는 읽기입니다.
 
 **Mode A — 개별 함수 리팩터링.** 함수/모듈 하나가 대상이고 그 파일을 편집합니다.
 `references/refactoring-playbook.md` 를 읽고 수행하며, **첫 실패에서 멈추고 보고**합니다.
 
-**Mode B — 일괄 준수 점검.** `shell-common/**/*.sh` 전체가 대상. 코드를 고치지 않고
+**Mode B — 일괄 준수 점검.** 대상은 `lib/scan-ux.sh` 에 넘긴 경로들이고, 인자를 주지
+않으면 `$SHELL_COMMON`(기본 `$HOME/dotfiles/shell-common`) 으로 떨어집니다. 이 헬퍼가
+`file<TAB>line<TAB>pattern<TAB>severity` 행으로 기계적 위반(`heredoc-help`,
+`ansi-color`, `raw-status`)을 찍고, 모델은 제외 규칙 판단과 수정 제안을 맡습니다.
+읽을 수 없는 파일이 있으면 exit 1 로 알리므로 권한 문제가 "위반 없음"으로 둔갑하지
+않습니다. 코드를 고치지 않고
 `docs/abc-review-C.md`(Claude) / `-CX.md`(ChatGPT) / `-G.md`(Gemini) 중 요청된 경로에
 `high`/`medium`/`low` 심각도별 리뷰 문서를 씁니다. 감사 모드이므로 **첫 위반에서
 멈추지 않고 전부** 보고합니다 — `references/bulk-review-workflow.md` 참고.
