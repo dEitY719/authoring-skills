@@ -73,6 +73,18 @@ applies unchanged.
   (neither colon SSOT form nor consistent kebab) — that is genuine
   inconsistency.
 
+## Refactor rule (`authoring:skill-refactor` Step 3b)
+
+When rewriting a SKILL.md, "keep frontmatter unchanged" includes `name:`:
+
+- **Never silently rewrite `name: foo:bar` → `foo-bar`** to "fix" a
+  diagnostic. If the skill already follows the SSOT colon convention,
+  preserve it byte-for-byte.
+- The folder being kebab while `name:` is colon is **not a mismatch to
+  fix** — it is the convention.
+- If the user explicitly asks to switch to kebab, do it. Otherwise
+  preserve the colon form.
+
 ## History
 
 This file exists because the colon-naming question came up twice in

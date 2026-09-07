@@ -93,8 +93,11 @@ have not changed the other — and when CI fails, the fix is in the tree or in
   a command writes `/authoring:skill-check`. The dotfiles-era `/skill:check`,
   `/sh:check`, `/devx:ux-guidelines`, and `/devx-command-rename` forms are dead
   here. The one deliberate exception is
-  `skills/{skill-check,skill-refactor}/references/naming-convention.md`, whose
-  table quotes the dotfiles colon convention as its subject matter.
+  `skills/skill-check/references/naming-convention.md`, whose table quotes the
+  dotfiles colon convention as its subject matter. That file is the single copy
+  of the convention — it carries both the audit rule and the refactor rule, and
+  `skills/skill-refactor/references/naming-convention.md` is only a pointer to
+  it. Do not re-fork it.
 - **Progressive disclosure.** `SKILL.md` stays under 100 lines (CI enforces it)
   and names which `references/` file to read and when. Detail lives in that
   skill's own `references/`. Do not inline a reference file back into

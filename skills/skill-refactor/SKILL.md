@@ -1,10 +1,10 @@
 ---
 name: skill-refactor
 description: >-
-  Shrink a too-long SKILL.md under 100 lines, extracting detail into
+  Shrink a too-long SKILL.md under 100 lines, moving detail into
   references/. Use on "refactor my skill", "apply progressive
-  disclosure", "스킬 너무 길어", "/authoring:skill-refactor", or after /authoring:skill-check
-  FAIL/WARN — that audits, this rewrites.
+  disclosure", "스킬 너무 길어", "/authoring:skill-refactor", or after
+  /authoring:skill-check flags it — that audits, this rewrites.
 compatibility:
   tools: Read, Glob, Grep, Write, Edit, Bash
 metadata:
@@ -24,12 +24,8 @@ If the argument is `-h`, `--help`, or `help`, read `references/help.md` and outp
 
 ## Arguments
 
-Only `-h`/`--help`/`help` (prints help) plus an optional path to the target SKILL.md. No other flags.
-
-> **Pattern**: All skills should place help content (usage, arguments, examples) in
-> `references/help.md` and use a one-line pointer here. This keeps SKILL.md under
-> the 100-line limit while making help always reachable. When refactoring a skill,
-> create `references/help.md` if the skill lacks one.
+One optional path to the target SKILL.md, plus the help flags. No others —
+the option table lives in `references/help.md`.
 
 ## Step 1: Analyze
 
@@ -38,8 +34,9 @@ now — you'll need it for both the plan (Step 2) and the completion report (Ste
 
 Identify:
 
-1. **Line count** — if already ≤ 100 lines with good Progressive Disclosure structure,
-   tell the user the skill passes and stop here.
+1. **Line count** — run `sh <skill-dir>/lib/validate-refactor.sh <path>` and take
+   `lines_before` from its `line-count` row. If the file is already ≤ 100 lines
+   with good Progressive Disclosure structure, tell the user it passes and stop here.
 2. **Extractable content** — detail, not workflow:
    - Full output templates, report format blocks
    - Reference tables, configuration examples
@@ -60,22 +57,22 @@ After confirmation:
 - Single-responsibility per file
 - Header: `# <Topic> — <purpose>`
 - Under 300 lines each
+- Create `references/help.md` if the skill lacks one
 
 **3b. Rewrite SKILL.md**
 - Keep frontmatter unchanged (fix only if frontmatter has issues)
-- **Naming**: never silently rewrite `name: foo:bar` → `foo-bar` to "fix"
-  a VS Code diagnostic. Read `references/naming-convention.md` if the
-  skill uses `category:action` colon form — that is the SSOT convention,
-  preserve it byte-for-byte.
+- **Naming**: preserve `name:` byte-for-byte (`references/naming-convention.md`)
 - Replace extracted blocks with pointer lines:
   `Read references/<filename>.md when <trigger condition>.`
 - Compress step descriptions to action-oriented one-liners
-- Verify line count ≤ 100
 
 **3c. Validate**
-- SKILL.md ≤ 100 lines?
-- All `references/` files triggered from SKILL.md?
-- Output format still reachable?
+
+Run `sh <skill-dir>/lib/validate-refactor.sh <path>`. It prints one
+`check<TAB>PASS|FAIL<TAB>detail` row per gate — line count, uncited and orphaned
+`references/` files, output block still present — and exits non-zero if any row
+is `FAIL`. Fix every `FAIL` and re-run. Feed the final rows into the Step 4
+validation table, and take `lines_after` from the `line-count` row's detail.
 
 ## Step 4: Report
 

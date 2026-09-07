@@ -41,12 +41,14 @@ Before: <N> lines → After: <M> lines (↓ X%)
 - references/<file>.md — <N> lines — <what it covers>
 
 ### Validation
-| Check                    | Result    |
-|--------------------------|-----------|
-| SKILL.md ≤ 100 lines     | PASS/FAIL |
-| Frontmatter valid        | PASS/FAIL |
-| References linked        | PASS/FAIL |
-| Output format preserved  | PASS/FAIL |
+Copy the rows `lib/validate-refactor.sh` printed in Step 3c verbatim:
+
+| Check              | Result    | Detail |
+|--------------------|-----------|--------|
+| line-count         | PASS/FAIL | <n> lines (limit 100) |
+| uncited-references | PASS/FAIL | ... |
+| orphan-references  | PASS/FAIL | ... |
+| output-block       | PASS/FAIL | ... |
 
 ### Next step
 Run /authoring:skill-check to verify the result.
