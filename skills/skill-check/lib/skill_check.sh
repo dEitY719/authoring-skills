@@ -81,7 +81,11 @@ refdir="$dir/references"
 tool_dir=$(cd "$(dirname "$0")" && pwd)
 
 # find_upward <start-dir> <name>... -- print the first <start-dir>/<name>
-# found while walking up parent directories, stopping at a `.git` dir or `/`.
+# found while walking up parent directories, stopping at `.git` or `/`.
+# `.git` is `-e`, not `-d`: a git-worktree checkout (this repo included, per
+# codex PR #16 FOLLOW-UP -- confirmed empirically, this very worktree has a
+# `.git` FILE pointing at the real gitdir) would otherwise walk straight past
+# its own root into whatever sits above it.
 # Shared by Check 11 (plugin.json) and Check 14 (LICENSE).
 find_upward() {
   d=$1; shift
@@ -89,7 +93,7 @@ find_upward() {
     for n in "$@"; do
       [ -f "$d/$n" ] && { printf '%s\n' "$d/$n"; return; }
     done
-    [ -d "$d/.git" ] && return
+    [ -e "$d/.git" ] && return
     [ "$d" = / ] && return
     d=$(dirname "$d")
   done
@@ -116,9 +120,9 @@ fm=$(awk '
 # ---------- Check 11: No Emojis ----------
 scan_files="$file"
 if [ -d "$refdir" ]; then
-  for f in "$refdir"/*.md; do
-    [ -e "$f" ] && scan_files="$scan_files $f"
-  done
+  # find, not a bare */*.md glob -- also catches emoji in nested reference
+  # subdirectories (codex PR #16 FOLLOW-UP).
+  scan_files="$scan_files $(find "$refdir" -type f -name '*.md' 2>/dev/null)"
 fi
 # Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
 # BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
@@ -133,8 +137,9 @@ emoji_lead=$(printf '\360\237')
 emoji_vs16=$(printf '\357\270\217')
 emoji_hits=0
 for f in $scan_files; do
-  c=$(LC_ALL=C grep -cF -e "$emoji_lead" -e "$emoji_vs16" "$f" 2>/dev/null || true)
-  [ -n "$c" ] || c=0
+  # -o (occurrences), not -c (matching lines) -- a line with two glyphs must
+  # count as two, not one (agy PR #16 BLOCKER, round 2).
+  c=$( { LC_ALL=C grep -oF -e "$emoji_lead" -e "$emoji_vs16" "$f" 2>/dev/null || true; } | wc -l | tr -d ' ')
   emoji_hits=$((emoji_hits + c))
 done
 if [ "$emoji_hits" -eq 0 ]; then
@@ -163,19 +168,27 @@ else
 fi
 
 # ---------- Check 13: Model Recommendation Metadata (shape validation) ----------
+# Scoped to the metadata: block specifically -- searching the whole
+# frontmatter for a bare tier:/reason:/etc. let an unrelated top-level key
+# produce a false PASS (codex PR #16 BLOCKER).
+meta_block=$(printf '%s\n' "$fm" | awk '
+  /^metadata:/ { inblock = 1; next }
+  inblock && /^[A-Za-z_-]+:/ { exit }
+  inblock { print }
+')
 if printf '%s\n' "$fm" | grep -qE '^disable-model-invocation:[[:space:]]*true'; then
   r13='N/A'; n13='disable-model-invocation: true'
-elif ! printf '%s\n' "$fm" | grep -q 'model_recommendation:'; then
+elif ! printf '%s\n' "$meta_block" | grep -q 'model_recommendation:'; then
   if [ "$GATE_FAIL" -eq 1 ]; then
     r13=FAIL; n13='metadata.model_recommendation absent (migration gate closed)'
   else
     r13=WARN; n13='metadata.model_recommendation absent (migration gate open)'
   fi
 else
-  tier=$(printf '%s\n' "$fm" | awk -F': *' '/^[[:space:]]*tier:/ { print $2; exit }' | tr -d ' "')
-  reason=$(printf '%s\n' "$fm" | awk -F': *' '/^[[:space:]]*reason:/ { print $2; exit }')
-  claude=$(printf '%s\n' "$fm" | awk -F': *' '/^[[:space:]]*claude:/ { print $2; exit }' | tr -d ' "')
-  nonclaude=$(printf '%s\n' "$fm" | awk -F': *' '/^[[:space:]]*non_claude:/ { print $2; exit }' | tr -d ' "')
+  tier=$(printf '%s\n' "$meta_block" | awk -F': *' '/^[[:space:]]*tier:/ { print $2; exit }' | tr -d ' "')
+  reason=$(printf '%s\n' "$meta_block" | awk -F': *' '/^[[:space:]]*reason:/ { print $2; exit }')
+  claude=$(printf '%s\n' "$meta_block" | awk -F': *' '/^[[:space:]]*claude:/ { print $2; exit }' | tr -d ' "')
+  nonclaude=$(printf '%s\n' "$meta_block" | awk -F': *' '/^[[:space:]]*non_claude:/ { print $2; exit }' | tr -d ' "')
   case $tier in
     haiku|sonnet|opus) ;;
     *) r13=FAIL; n13="disallowed tier value '$tier' (allowed: haiku|sonnet|opus)" ;;
@@ -204,6 +217,12 @@ else
 fi
 
 # ---------- Check 15: Capability Declaration Consistency ----------
+# ponytail: this word list is checks.md's own "Network signals" list
+# (references/checks.md, Check 15), verbatim -- it will flag a comment that
+# merely mentions a URL as readily as a real network call (codex PR #16
+# round-2 BLOCKER, declined: the same ambiguity exists for a human reading
+# the file by eye, which is what this check replaced; worst case is a WARN,
+# not a FAIL, and the note always names the file for a human to re-check).
 net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(|https?://'
 scripts=''
 for d in "$dir/lib" "$dir/scripts"; do
@@ -241,11 +260,14 @@ else
 fi
 
 # ---------- Check 16: Description Length ----------
-# Fold a `description:` value -- inline or a `>-`/`|-` block -- to one
-# whitespace-normalised line, stopping at the next top-level key.
+# Fold a `description:` value -- inline or a `>`/`>-`/`>+`/`|`/`|-`/`|+`
+# block -- to one whitespace-normalised line, stopping at the next top-level
+# key (agy PR #16 FOLLOW-UP, round 2: `>-?`/`\|-?` missed the plain and `+`
+# forms). ponytail: explicit numeric indentation indicators (`>2-`) are not
+# matched -- no SKILL.md in this repo uses one; add if that changes.
 desc=$(printf '%s\n' "$fm" | awk '
-  /^description:[[:space:]]*>-?[[:space:]]*$/ { inblock = 1; next }
-  /^description:[[:space:]]*\|-?[[:space:]]*$/ { inblock = 1; next }
+  /^description:[[:space:]]*>[+-]?[[:space:]]*$/ { inblock = 1; next }
+  /^description:[[:space:]]*\|[+-]?[[:space:]]*$/ { inblock = 1; next }
   /^description:/ { sub(/^description:[[:space:]]*/, ""); print; next }
   inblock && /^[A-Za-z_-]+:/ { exit }
   inblock { sub(/^[[:space:]]+/, ""); printf "%s ", $0 }
