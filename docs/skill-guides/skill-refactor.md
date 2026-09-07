@@ -64,8 +64,11 @@ Progressive Disclosure의 원칙은 `SKILL.md`가 **관제탑**(단계와 포인
   `Read references/<file>.md when <조건>.` 포인터를 넣고, 단계 설명은 행동 지향
   한 줄로 압축한다.
 - `references/help.md`가 없는 스킬이면 이때 만든다 — 도움말은 항상 도달 가능해야 한다.
-- 검증: 100줄 이하인가, 모든 `references/` 파일이 `SKILL.md`에서 트리거되는가,
-  출력 형식이 여전히 도달 가능한가.
+- 검증: `sh <skill-dir>/lib/validate-refactor.sh <path>`를 돌린다. 줄 수,
+  frontmatter 온전성, 인용되지 않은/존재하지 않는 `references/` 파일, 출력 섹션
+  잔존 — 다섯 게이트를 `check<TAB>PASS|FAIL<TAB>detail` 행으로 찍고 하나라도
+  `FAIL`이면 non-zero 로 끝난다. 리포트의 `lines_before`/`lines_after`도 이
+  측정값에서 가져온다.
 
 **Step 4 — 보고.** 완료 리포트 템플릿으로 before/after 라인 수, 생성된 참조 파일 목록,
 검증 표를 낸다. 마지막 줄은 `[OK] refactor complete` 또는 `[FAIL] <이유>`와

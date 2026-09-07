@@ -46,6 +46,7 @@ Copy the rows `lib/validate-refactor.sh` printed in Step 3c verbatim:
 | Check              | Result    | Detail |
 |--------------------|-----------|--------|
 | line-count         | PASS/FAIL | <n> lines (limit 100) |
+| frontmatter        | PASS/FAIL | ... |
 | uncited-references | PASS/FAIL | ... |
 | orphan-references  | PASS/FAIL | ... |
 | output-block       | PASS/FAIL | ... |

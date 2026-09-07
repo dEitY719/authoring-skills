@@ -9,9 +9,17 @@
 #   line-count          SKILL.md is at or under the 100-line limit; the detail
 #                       carries the measured count, which is what the Step 4
 #                       report's lines_before= / lines_after= values come from
+#   frontmatter         the `---` block survived the rewrite intact and still
+#                       carries a non-empty name: and description:
 #   uncited-references  every references/*.md beside it is named in SKILL.md
 #   orphan-references   every references/*.md named in SKILL.md exists on disk
 #   output-block        SKILL.md still carries an Output/Report heading
+#
+# `frontmatter` deliberately checks structure, not naming policy: whether a
+# `name:` should be `foo:bar` or `foo-bar` depends on which world the skill
+# lives in, and that judgment stays with the model per
+# references/naming-convention.md. What this catches is the rewrite truncating
+# or dropping the block.
 #
 # exit: 0 every row PASS | 1 at least one FAIL | 2 bad usage or unreadable file
 #
@@ -55,7 +63,26 @@ else
   row line-count FAIL "$lines lines (limit 100)"
 fi
 
-# 2/3. The two directions of the SKILL.md <-> references/ link.
+# 2. The frontmatter block. `awk` walks it once and reports what is missing,
+# so a truncated rewrite cannot pass by having lost the whole block.
+fm=$(awk '
+  NR == 1 && $0 != "---" { print "no --- on line 1"; exit }
+  NR > 1 && $0 == "---" { closed = 1; exit }
+  NR > 1 && /^name:[[:space:]]*[^[:space:]]/ { name = 1 }
+  NR > 1 && /^description:[[:space:]]*([^[:space:]]|>-?[[:space:]]*$)/ { desc = 1 }
+  END {
+    if (!closed) print "frontmatter block is not closed"
+    else if (!name) print "no non-empty name:"
+    else if (!desc) print "no non-empty description:"
+  }
+' "$skill")
+if [ -n "$fm" ]; then
+  row frontmatter FAIL "$fm"
+else
+  row frontmatter PASS 'block closed, name: and description: present'
+fi
+
+# 3/4. The two directions of the SKILL.md <-> references/ link.
 uncited=''
 if [ -d "$refdir" ]; then
   for f in "$refdir"/*.md; do
@@ -87,13 +114,16 @@ else
   row orphan-references PASS 'every cited reference file exists'
 fi
 
-# 4. The output contract has to survive the rewrite. A heading is the cheapest
-# reliable marker; judging whether the block below it is still correct stays
-# with the model.
-if grep -qiE '^#+[[:space:]]+.*(output|report)' "$skill"; then
+# 5. The output contract has to survive the rewrite. The heading must *name*
+# the output section, not merely mention it in passing, so the word has to end
+# the heading (bar a qualifier): "## Output", "## Final Output",
+# "## Step 3: Output the Report" and "## Output Format" all pass, while
+# "## Report rationale" does not (codex PR #18 BLOCKER). Judging whether the
+# block below it is still correct stays with the model.
+if grep -qiE '^#+[[:space:]]+.*(output|report)([[:space:]]+(format|requirements|template|block))?[[:space:]]*$' "$skill"; then
   row output-block PASS 'Output/Report heading present'
 else
-  row output-block FAIL 'no Output/Report heading found'
+  row output-block FAIL 'no Output/Report section heading found'
 fi
 
 exit "$fails"
