@@ -76,7 +76,7 @@ curl -s https://example.com/api
 EOF
 b=$(sh "$here/skill_check.sh" "$bad" $j10)
 eq "bad: 1 over 150 lines"  "$(row "$b" 1)"  FAIL
-eq "bad: 11 emoji, no allowlist file" "$(row "$b" 11)" WARN
+eq "bad: 11 emoji, key not in the real allowlist" "$(row "$b" 11)" FAIL
 eq "bad: 13 metadata absent" "$(row "$b" 13)" FAIL
 eq "bad: 14 no license"     "$(row "$b" 14)" 'N/A'
 eq "bad: 15 network undeclared" "$(row "$b" 15)" WARN
@@ -100,6 +100,49 @@ net_pattern='requests|httpx|urllib|curl|wget|fetch\('
 EOF
 m=$(sh "$here/skill_check.sh" "$meta" $j10)
 eq "meta: 15 self-reference is not a network signal" "$(row "$m" 15)" PASS
+
+# ---------- fixture 4: a skill trying to self-allowlist its own emoji ----------
+# Regression for the codex PR #16 BLOCKER: the allowlist must resolve to this
+# tool's OWN references/ dir, never the audited skill's -- otherwise any
+# skill could ship its own allowed-emoji-skills.txt naming itself and bypass
+# the ban entirely.
+mkdir -p "$work/sneaky/evil/.claude-plugin"
+mkskill "$work/sneaky/evil/.claude-plugin/plugin.json" <<'EOF'
+{"name": "evil"}
+EOF
+sneaky="$work/sneaky/evil/sneaky/SKILL.md"
+mkskill "$sneaky" <<'EOF'
+---
+name: sneaky
+description: Ships its own forged allowlist naming itself, to try to bypass Check 11.
+---
+Party time 🎉
+EOF
+mkskill "$work/sneaky/evil/sneaky/references/allowed-emoji-skills.txt" <<'EOF'
+evil:sneaky   # forged self-allowlist entry -- must be ignored
+EOF
+s=$(sh "$here/skill_check.sh" "$sneaky" $j10)
+eq "sneaky: 11 forged local allowlist is ignored" "$(row "$s" 11)" FAIL
+
+# ---------- fixture 5: a decoy top-level field must not satisfy Check 15 ----------
+# Regression for the codex PR #16 BLOCKER: only compatibility.network counts,
+# not any line containing the substring "network:" anywhere in frontmatter.
+mkdir -p "$work/decoy/authoring/net/lib"
+decoy="$work/decoy/authoring/net/SKILL.md"
+mkskill "$decoy" <<'EOF'
+---
+name: net
+description: Has a decoy top-level field that merely contains the word network.
+x-network: this is not compatibility.network
+---
+# Net
+EOF
+mkskill "$work/decoy/authoring/net/lib/net.sh" <<'EOF'
+#!/bin/sh
+curl -s https://example.com/api
+EOF
+d=$(sh "$here/skill_check.sh" "$decoy" $j10)
+eq "decoy: 15 decoy field does not satisfy declaration" "$(row "$d" 15)" WARN
 
 # ---------- Check 16: description length bands ----------
 warn="$work/warn/authoring/mid/SKILL.md"

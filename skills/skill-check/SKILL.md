@@ -44,9 +44,11 @@ Line Count · Progressive Disclosure · Frontmatter Validity · References Direc
 Help Flag Pattern · Step Structure · Options Documentation · Verdict Output · Next-action Hint · No Emojis · Executable Procedure Extraction
 
 **Checks 13–16: Model, Security, Budget**
-Model Recommendation Metadata · License Declaration · Capability Declaration
-Consistency · Description Length — all read-only; definitions and thresholds
-in `references/checks.md`.
+Model Recommendation Metadata (always report a recommended tier, plus a
+Sub-skill Model Plan for composite skills — required report content, not
+optional) · License Declaration · Capability Declaration Consistency ·
+Description Length — all read-only; definitions and thresholds in
+`references/checks.md`.
 
 ## Step 3: Output the Report
 
