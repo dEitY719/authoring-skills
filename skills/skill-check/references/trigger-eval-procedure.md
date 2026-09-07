@@ -5,7 +5,11 @@ description from a short-and-broken one. This file is the missing half: how to
 measure whether a description still gets its skill invoked.
 
 Harness: `claude/tools/run-trigger-eval.sh` (manual, spends API budget, not
-wired into `mise run test`).
+wired into `mise run test`). **Not shipped in this repository** — it is the
+tool the upstream dotfiles monorepo this skill was split from used to produce
+the numbers below. The commands in "Running it" are illustrative of that
+tooling's shape, not runnable here as written; port the script (or an
+equivalent) before relying on this procedure in-repo.
 
 ## The contract
 
@@ -37,8 +41,8 @@ to fix:
 5/10, and only restoring the discriminator too returned it to 90%.
 
 Put the justification in a YAML comment **above** `description:`. The Check 16
-extractor (`tests/bats/skills/_fixtures/skill_description_length.sh`) starts at
-the `description:` key, so a comment there sits next to the value it explains
+extractor (`skills/skill-check/lib/skill_check.sh`) starts at the
+`description:` key, so a comment there sits next to the value it explains
 without counting toward the measured length. Re-measure after every rewrite —
 a reverted wording that has not been measured is a guess.
 
