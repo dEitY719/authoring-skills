@@ -1,6 +1,6 @@
 ---
 name: skill-create
-description: Create a skill, or improve and evaluate an existing one. Use to build one from scratch, edit or optimize it, run evals or benchmarks, tune a description for triggering accuracy, or on "스킬 만들어줘", "/authoring:skill-create". Authoring — authoring:skill-check audits.
+description: Create a skill, or improve and evaluate an existing one. Use on "스킬 만들어줘", "make me a skill", "/authoring:skill-create". Authoring — authoring:skill-check audits.
 metadata:
   model_recommendation:
     tier: sonnet
@@ -8,6 +8,8 @@ metadata:
     claude: prefer
     non_claude: advisory-only
 license: MIT
+compatibility:
+  network: required
 ---
 
 # Skill Creator
@@ -21,7 +23,7 @@ A skill for creating new skills and iteratively improving them. Figure out where
 ## Core Loop
 
 1. Decide what the skill should do
-2. Run the executable-first gate: deterministic, repetitive, parse/validate, scaffold, fallback, and aggregation flows belong in `lib/*.sh` or `lib/*.py`, not prose
+2. Run the executable-first gate (`references/skill-writing-guide.md`)
 3. Write a draft
 4. Run claude-with-access-to-the-skill on test prompts
 5. Evaluate results (qualitative + quantitative) with the user
@@ -45,9 +47,7 @@ Extract answers from conversation history first if the user says "turn this into
 ## Phase 2: Interview and Research
 
 Proactively ask about edge cases, input/output formats, example files, success criteria, and dependencies.
-Check available MCPs for research. Wait to write test prompts until ironed out. Before drafting, classify
-candidate helpers — file creation/conversion, repeated CLI calls, multi-step fallback, parsing/validation,
-calculation/aggregation, reproducible scaffolds — and leave prose for judgment, policy, and explanation.
+Check available MCPs for research. Wait to write test prompts until ironed out.
 
 ## Phase 3: Write the SKILL.md
 
@@ -96,5 +96,4 @@ Read `references/platform-instructions.md` when running in Claude.ai or Cowork.
 
 ## Reference Files
 Phases cite each `references/*.md` inline. Also: `references/schemas.md` (JSON for evals.json/
-grading.json), `references/local-patches.md` (this copy's local fixes and why it is not re-synced)
-and `agents/{grader,comparator,analyzer}.md` (assertion eval, blind A/B, why-one-won).
+grading.json) and `agents/{grader,comparator,analyzer}.md` (assertion eval, blind A/B, why-one-won).

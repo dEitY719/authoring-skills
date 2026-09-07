@@ -74,8 +74,7 @@ skill rather than the temporary probe. The score stays correct — the probe is
 counted wherever in the stream it appears — but an isolated
 `CLAUDE_CONFIG_DIR` still gives the cleanest signal.
 
-These three behaviors are local fixes to the vendored copy; see
-`references/local-patches.md`.
+These three behaviors are implemented in `scripts/run_eval.py`.
 
 ## Step 4: Apply the result
 

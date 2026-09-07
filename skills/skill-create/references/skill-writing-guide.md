@@ -30,14 +30,16 @@ markdown-only and use `lib/` when the step should be run, not merely read.
 Skills use a three-level loading system:
 
 1. **Metadata** (name + description) - Always in context (~100 words)
-2. **SKILL.md body** - In context whenever skill triggers (<500 lines ideal)
+2. **SKILL.md body** - In context whenever skill triggers
 3. **Bundled resources** - As needed (unlimited, scripts can execute without loading)
 
-These word counts are approximate and you can feel free to go longer if needed.
+This repo's own bar is stricter than the upstream default: `authoring:skill-check`
+Check 1 grades SKILL.md line count as PASS ≤ 100, WARN 101-150, FAIL > 150 (see
+`skills/skill-check/references/checks.md`). Write to that bar, not a looser one.
 
 **Key patterns:**
 
-- Keep SKILL.md under 500 lines; if approaching this limit, add hierarchy with pointers
+- Keep SKILL.md at or under 100 lines; push detail into `references/` well before you hit the limit
 - Reference files clearly from SKILL.md with guidance on when to read them
 - For large reference files (>300 lines), include a table of contents
 - Prefer executable helpers over prose when the procedure is deterministic, repetitive, or easier to verify in code

@@ -116,7 +116,7 @@ dEitY719/dotfiles#1412's fixes have since landed on `main`. `run_eval.py` no
 longer settles the whole query at the first tool block — `TriggerDetector`
 inspects every block and only settles a negative at end of stream — and errored
 runs now leave the trigger-rate denominator instead of scoring as "did not
-fire". Registry: `skills/skill-create/references/local-patches.md`.
+fire" (see `skills/skill-create/scripts/run_eval.py`).
 
 That removes the *severity* of causes 1–2 (a real trigger behind an installed
 twin now scores correctly) but not the need for isolation, and re-measurement

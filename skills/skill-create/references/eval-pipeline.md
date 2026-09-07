@@ -90,6 +90,12 @@ Once all runs are done:
 
 5. **Tell the user** the results are in their browser. Two tabs: "Outputs" for test case review and feedback, "Benchmark" for quantitative comparison.
 
+The viewer binds a `localhost` HTTP server (`eval-viewer/generate_review.py`) and its
+page fetches Google Fonts and the SheetJS bundle from public CDNs — this is why
+SKILL.md declares `compatibility.network: required`. `--static <output_path>` (see
+Cowork/headless note above) drops the local server but the written HTML still
+references the same CDN assets, so the CDN fetches are unavoidable either way.
+
 ## What the user sees in the viewer
 
 The "Outputs" tab shows one test case at a time:

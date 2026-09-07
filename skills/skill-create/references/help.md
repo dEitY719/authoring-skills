@@ -1,5 +1,10 @@
 /authoring:skill-create — Create new skills, modify and improve existing skills.
 
+| Option | Description | Default |
+|---|---|---|
+| `"<idea>"` | Seed topic for the new skill | interactive interview (Phase 1) |
+| `-h`, `--help`, `help` | Print this help and stop | — |
+
 Usage:
   /authoring:skill-create               # interactive — capture intent, draft, evaluate
   /authoring:skill-create "<idea>"      # seed with a short idea/topic
