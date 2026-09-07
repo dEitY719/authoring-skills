@@ -30,6 +30,12 @@
 # scope for this audit run -- that judgment call stays with the auditor; this
 # script only ever emits FAIL (key absent) or N/A (key present), never the
 # stale-entry WARN.
+# ponytail: $scan_files/$scripts are built via unquoted word-splitting, so a
+# path containing a space would break both. Every skill/file name in this
+# repo's marketplace convention is kebab-case with no spaces (naming-
+# convention.md), so this is accepted rather than reworked into a POSIX-sh
+# array substitute. Upgrade path if that convention ever breaks: switch to
+# NUL-delimited `find -print0` and a `while IFS= read -r -d ''` loop.
 
 set -eu
 
@@ -67,6 +73,12 @@ done
 
 dir=$(cd "$(dirname "$file")" && pwd)
 refdir="$dir/references"
+# This script's OWN install directory -- distinct from $dir, the directory of
+# whatever SKILL.md is being *audited*. The Check 11 allowlist is data this
+# tool owns and must be read from here, never from the audited skill's own
+# references/ (an audited skill self-allowlisting its own emoji would defeat
+# the check entirely -- codex PR #16 BLOCKER).
+tool_dir=$(cd "$(dirname "$0")" && pwd)
 
 # find_upward <start-dir> <name>... -- print the first <start-dir>/<name>
 # found while walking up parent directories, stopping at a `.git` dir or `/`.
@@ -108,9 +120,20 @@ if [ -d "$refdir" ]; then
     [ -e "$f" ] && scan_files="$scan_files $f"
   done
 fi
+# Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
+# BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
+# isn't guaranteed either (agy PR #16 BLOCKER). UTF-8 encodes the whole
+# U+1F000-U+1FFFF block -- a superset of this rubric's U+1F000-U+1FAFF, so
+# this over-matches by a few hundred rarely-used codepoints on purpose -- as
+# a 4-byte sequence with lead bytes F0 9F, and U+FE0F (variation selector) as
+# the fixed 3-byte sequence EF B8 8F. Byte matching, not character matching,
+# so LC_ALL=C keeps grep from trying (and failing) to validate multibyte
+# sequences under the caller's locale.
+emoji_lead=$(printf '\360\237')
+emoji_vs16=$(printf '\357\270\217')
 emoji_hits=0
 for f in $scan_files; do
-  c=$(grep -cP '[\x{1F000}-\x{1FAFF}\x{FE0F}]' "$f" 2>/dev/null || true)
+  c=$(LC_ALL=C grep -cF -e "$emoji_lead" -e "$emoji_vs16" "$f" 2>/dev/null || true)
   [ -n "$c" ] || c=0
   emoji_hits=$((emoji_hits + c))
 done
@@ -129,7 +152,7 @@ else
   else
     key="$skill_name"
   fi
-  allowlist="$refdir/allowed-emoji-skills.txt"
+  allowlist="$tool_dir/../references/allowed-emoji-skills.txt"
   if [ ! -f "$allowlist" ]; then
     r11=WARN; n11='allowlist file missing'
   elif grep -qE "^${key}([[:space:]]|#|\$)" "$allowlist" 2>/dev/null; then
@@ -192,16 +215,26 @@ scripts="$scripts $(find "$dir" -maxdepth 1 -type f \( -name '*.sh' -o -name '*.
 net_hit=0
 for s in $scripts; do
   [ -f "$s" ] || continue
-  # Exclude lines that assign a *_pattern= variable (this file's own
-  # net_pattern definition line included) -- a helper quoting the signal
-  # words as documentation, not calling them, must not self-trip.
-  grep -v '_pattern=' "$s" 2>/dev/null | grep -qE "$net_pattern" && net_hit=1
+  # Exclude lines that assign a *_pattern = variable, spaced or not (this
+  # file's own net_pattern definition line included) -- a helper quoting the
+  # signal words as documentation, not calling them, must not self-trip
+  # (agy PR #16 BLOCKER: the old exact-string '_pattern=' missed spaced
+  # variants like '_pattern =').
+  grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null | grep -qE "$net_pattern" && net_hit=1
 done
+# The compatibility: block only -- checking "network:" against the whole
+# frontmatter let an unrelated top-level field or prose mention falsely
+# satisfy the declaration (codex PR #16 BLOCKER).
+compat_block=$(printf '%s\n' "$fm" | awk '
+  /^compatibility:/ { inblock = 1; next }
+  inblock && /^[A-Za-z_-]+:/ { exit }
+  inblock { print }
+')
 if [ -z "$(printf '%s' "$scripts" | tr -d '[:space:]')" ]; then
   r15='N/A'; n15='skill ships no executable helpers'
 elif [ "$net_hit" -eq 0 ]; then
   r15=PASS; n15='no network signal in helpers'
-elif printf '%s\n' "$fm" | grep -q 'network:'; then
+elif printf '%s\n' "$compat_block" | grep -qE '^[[:space:]]*network:'; then
   r15=PASS; n15='network signal present, compatibility.network declared'
 else
   r15=WARN; n15='network signal present, compatibility.network not declared'
@@ -223,6 +256,7 @@ desc=$(printf '%s\n' "$fm" | awk '
 desc=$(printf '%s' "$desc" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
 case $desc in
   \"*\") desc=${desc#\"}; desc=${desc%\"} ;;
+  \'*\') desc=${desc#\'}; desc=${desc%\'} ;;
 esac
 if [ -z "$desc" ]; then
   r16='N/A'; n16='no description found in frontmatter'
