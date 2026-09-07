@@ -33,9 +33,8 @@ Skills use a three-level loading system:
 2. **SKILL.md body** - In context whenever skill triggers
 3. **Bundled resources** - As needed (unlimited, scripts can execute without loading)
 
-This repo's own bar is stricter than the upstream default: `authoring:skill-check`
-Check 1 grades SKILL.md line count as PASS ≤ 100, WARN 101-150, FAIL > 150 (see
-`skills/skill-check/references/checks.md`). Write to that bar, not a looser one.
+This repo's own bar is stricter than the upstream default — see `authoring:skill-check`
+Check 1 in `skills/skill-check/references/checks.md`. Write to that bar, not a looser one.
 
 **Key patterns:**
 
