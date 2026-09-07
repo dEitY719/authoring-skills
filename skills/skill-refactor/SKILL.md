@@ -69,10 +69,12 @@ After confirmation:
 **3c. Validate**
 
 Run `sh <skill-dir>/lib/validate-refactor.sh <path>`. It prints one
-`check<TAB>PASS|FAIL<TAB>detail` row per gate — line count, uncited and orphaned
-`references/` files, output block still present — and exits non-zero if any row
-is `FAIL`. Fix every `FAIL` and re-run. Feed the final rows into the Step 4
-validation table, and take `lines_after` from the `line-count` row's detail.
+`check<TAB>PASS|FAIL<TAB>detail` row per gate — line count, frontmatter intact,
+uncited and orphaned `references/` files, output block still present — and exits
+non-zero if any row is `FAIL`. Fix every `FAIL` and re-run. Feed the final rows
+into the Step 4 validation table, and take `lines_after` from the `line-count`
+row's detail. The helper checks that the frontmatter block survived, not what
+`name:` should say — that judgment stays with `references/naming-convention.md`.
 
 ## Step 4: Report
 
