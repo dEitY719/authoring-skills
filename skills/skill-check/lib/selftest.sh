@@ -22,6 +22,12 @@ note() { printf '%s\n' "$1" | awk -F'\t' -v id="$2" '$1 == id { print $3 }'; }
 verdict() { printf '%s\n' "$1" | awk -F'\t' '$1 == "score" { print $3 }'; }
 # mkskill <path> -- write stdin to <path>, creating its parent dir first.
 mkskill() { mkdir -p "$(dirname "$1")"; cat > "$1"; }
+# A real emoji glyph (U+1F389 PARTY POPPER) for the fixtures below, generated
+# at runtime via octal escapes so this SOURCE FILE carries no banned
+# codepoint itself -- the repo's emoji gate only allowlists
+# skills/skill-check/references/, not lib/ (codex PR #16 BLOCKER: a literal
+# emoji glyph here failed CI's "No emojis in tracked text" check).
+emoji=$(printf '\360\237\216\211')
 
 j10='PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS'
 
@@ -65,7 +71,7 @@ bad="$work/bad/authoring/messy/SKILL.md"
   echo "---"
   echo "name: messy"
   printf 'description: >-\n'
-  printf '  🎉 way over the four-hundred character budget, repeated padding %s to push it past four hundred characters entirely on purpose for this fixture\n' "$(printf 'padding %.0s' $(seq 1 40))"
+  printf '  %s way over the four-hundred character budget, repeated padding %s to push it past four hundred characters entirely on purpose for this fixture\n' "$emoji" "$(printf 'padding %.0s' $(seq 1 40))"
   echo "---"
   i=0
   while [ "$i" -lt 160 ]; do echo "line $i of filler prose to blow the line budget"; i=$((i + 1)); done
@@ -111,12 +117,12 @@ mkskill "$work/sneaky/evil/.claude-plugin/plugin.json" <<'EOF'
 {"name": "evil"}
 EOF
 sneaky="$work/sneaky/evil/sneaky/SKILL.md"
-mkskill "$sneaky" <<'EOF'
+mkskill "$sneaky" <<EOF
 ---
 name: sneaky
 description: Ships its own forged allowlist naming itself, to try to bypass Check 11.
 ---
-Party time 🎉
+Party time $emoji
 EOF
 mkskill "$work/sneaky/evil/sneaky/references/allowed-emoji-skills.txt" <<'EOF'
 evil:sneaky   # forged self-allowlist entry -- must be ignored
