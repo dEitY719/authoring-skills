@@ -3,14 +3,13 @@
 Usage:
   /authoring:skill-check [path/to/SKILL.md] [--recursive]
 
-Arguments:
-  [path]    Path to the SKILL.md file to audit (optional)
-            If omitted, searches for SKILL.md from the current directory
-
 Options:
-  --recursive   For composite skills, traverse the Sub-skill Model Plan deeper
-                than the default 1-depth (Check 12). Off by default.
-  help          Show this message
+
+| Option | Description | Default |
+|---|---|---|
+| `[path]` | SKILL.md to audit | search from the current directory |
+| `--recursive` | For composite skills, traverse the Check 13 Sub-skill Model Plan deeper than 1-depth | off (1-depth) |
+| `-h`, `--help`, `help` | Print this help and stop | — |
 
 Examples:
   /authoring:skill-check

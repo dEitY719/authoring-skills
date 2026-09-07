@@ -161,6 +161,15 @@ inputs/outputs, and a direct call pattern such as
 `bash skills/<name>/lib/<script>.sh` or
 `python skills/<name>/lib/<script>.py`.
 
+`authoring:skill-check` extracts its own six mechanical checks (1, 11, 13
+shape, 14, 15, 16) plus the score/verdict arithmetic this way:
+`skills/skill-check/lib/skill_check.sh` — input: a SKILL.md path, plus
+optionally the ten auditor-judged results (checks 2, 3, 4, 5, 6, 7, 8, 9, 10,
+12) in check-id order; output: one `check_id<TAB>result<TAB>note` row per
+decided check, and — only when all ten judgments are supplied — a final
+`score<TAB><pass>/<total><TAB><verdict>` row. Invoked from Step 2 as
+`bash skills/skill-check/lib/skill_check.sh path/to/SKILL.md`.
+
 ---
 
 ## Model Recommendation Check (13)
@@ -248,9 +257,10 @@ analysis, while `authoring:skill-check` audits a single SKILL.md.
 Skill descriptions are loaded into every session's `available_skills` listing,
 so their combined length is a per-session context cost. Codex/Kimi cap that
 listing at roughly 2% of context (~5,440 characters across **all** installed
-skills) — the reason `scripts/setup-skills-ssot.sh` needs a `.codex-allowlist`
-escape hatch. Check 16 keeps one description inside its share of that budget.
-Read-only — it reports the overage, never edits the file (audit-only invariant).
+skills); this repo's own CI (`.github/workflows/validate.yml`) enforces the
+same budget across every installed skill. Check 16 keeps one description
+inside its share of that budget. Read-only — it reports the overage, never
+edits the file (audit-only invariant).
 
 ### Check 16: Description Length
 Count the frontmatter `description` in **characters, not bytes** — Korean
@@ -279,16 +289,16 @@ text.
 - sister-skill cross-references (`Sister skills: ...`) → a Related Skills line
   in the SKILL.md body
 
-Executable mirror: `tests/bats/skills/_fixtures/skill_description_length.sh`
-(`skill_desc_extract` / `skill_desc_length` / `skill_desc_verdict`), pinned by
-`tests/bats/skills/skill_check_description_length.bats`. Keep the thresholds
-byte-identical between that fixture and the table above.
+Executable mirror: `skills/skill-check/lib/skill_check.sh` Check 16 (see Check
+12 above), self-tested by `skills/skill-check/lib/selftest.sh`. Keep the
+thresholds identical between that script and the table above.
 
 **This check measures length only.** A description can pass Check 16 and still
 have stopped triggering — that is the failure mode dEitY719/dotfiles#1411's
 diet risked and dEitY719/dotfiles#1417 had to measure separately. Trigger
 accuracy is out of scope for a read-only audit (it costs API budget per query),
-so it lives in a manual
-harness instead: `references/trigger-eval-procedure.md` →
-`claude/tools/run-trigger-eval.sh`. Run it when a description is shrunk, when a
-skill is renamed, or when a competing pair's boundary wording changes.
+so it lives in a manual harness instead:
+`references/trigger-eval-procedure.md` (the harness script that procedure
+describes is not shipped in this repo — see that file's note). Run it when a
+description is shrunk, when a skill is renamed, or when a competing pair's
+boundary wording changes.
