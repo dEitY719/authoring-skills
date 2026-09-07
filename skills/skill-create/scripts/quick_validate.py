@@ -84,13 +84,16 @@ def validate_skill(skill_path):
         if len(description) > 1024:
             return False, f"Description is too long ({len(description)} characters). Maximum is 1024 characters."
 
-    # Validate compatibility field if present (optional)
+    # Validate compatibility field if present (optional). Accepts either a
+    # free-text string or the structured mapping form already used elsewhere
+    # in this repo (e.g. `compatibility: {tools: ..., network: required}`).
     compatibility = frontmatter.get("compatibility", "")
     if compatibility:
-        if not isinstance(compatibility, str):
-            return False, f"Compatibility must be a string, got {type(compatibility).__name__}"
-        if len(compatibility) > 500:
-            return False, f"Compatibility is too long ({len(compatibility)} characters). Maximum is 500 characters."
+        if isinstance(compatibility, str):
+            if len(compatibility) > 500:
+                return False, f"Compatibility is too long ({len(compatibility)} characters). Maximum is 500 characters."
+        elif not isinstance(compatibility, dict):
+            return False, f"Compatibility must be a string or mapping, got {type(compatibility).__name__}"
 
     return True, "Skill is valid!"
 
