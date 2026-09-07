@@ -20,19 +20,21 @@ row() { printf '%s\n' "$1" | awk -F'\t' -v id="$2" '$1 == id { print $2 }'; }
 # note <output> <check-id> -> the note column of that check's row
 note() { printf '%s\n' "$1" | awk -F'\t' -v id="$2" '$1 == id { print $3 }'; }
 verdict() { printf '%s\n' "$1" | awk -F'\t' '$1 == "score" { print $3 }'; }
+# mkskill <path> -- write stdin to <path>, creating its parent dir first.
+mkskill() { mkdir -p "$(dirname "$1")"; cat > "$1"; }
 
 j10='PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS'
 
 # ---------- fixture 1: a clean skill, everything present ----------
-mkdir -p "$work/good/authoring/clean/references" "$work/good/.claude-plugin"
-cat > "$work/good/.claude-plugin/plugin.json" <<'EOF'
+mkdir -p "$work/good/authoring/clean/references"
+mkskill "$work/good/.claude-plugin/plugin.json" <<'EOF'
 {"name": "authoring"}
 EOF
-cat > "$work/good/LICENSE" <<'EOF'
+mkskill "$work/good/LICENSE" <<'EOF'
 MIT License
 EOF
 good="$work/good/authoring/clean/SKILL.md"
-cat > "$good" <<'EOF'
+mkskill "$good" <<'EOF'
 ---
 name: clean
 description: A short, unremarkable description well under the char budget.
@@ -67,8 +69,8 @@ bad="$work/bad/authoring/messy/SKILL.md"
   echo "---"
   i=0
   while [ "$i" -lt 160 ]; do echo "line $i of filler prose to blow the line budget"; i=$((i + 1)); done
-} > "$bad"
-cat > "$work/bad/authoring/messy/lib/net.sh" <<'EOF'
+} | mkskill "$bad"
+mkskill "$work/bad/authoring/messy/lib/net.sh" <<'EOF'
 #!/bin/sh
 curl -s https://example.com/api
 EOF
@@ -84,16 +86,15 @@ eq "bad: verdict"           "$(verdict "$b")" 'NEEDS WORK'
 # ---------- fixture 3: a helper that only quotes network words as text ----------
 # Regression for the self-reference false positive: a *_pattern= assignment
 # line containing the signal words as documentation must not trip Check 15.
-mkdir -p "$work/meta/authoring/tool/lib"
 meta="$work/meta/authoring/tool/SKILL.md"
-cat > "$meta" <<'EOF'
+mkskill "$meta" <<'EOF'
 ---
 name: tool
 description: Audits other skills; ships a helper that only documents signal words.
 ---
 # Tool
 EOF
-cat > "$work/meta/authoring/tool/lib/helper.sh" <<'EOF'
+mkskill "$work/meta/authoring/tool/lib/helper.sh" <<'EOF'
 #!/bin/sh
 net_pattern='requests|httpx|urllib|curl|wget|fetch\('
 EOF
@@ -101,7 +102,6 @@ m=$(sh "$here/skill_check.sh" "$meta" $j10)
 eq "meta: 15 self-reference is not a network signal" "$(row "$m" 15)" PASS
 
 # ---------- Check 16: description length bands ----------
-mkdir -p "$work/warn/authoring/mid"
 warn="$work/warn/authoring/mid/SKILL.md"
 {
   echo "---"
@@ -109,7 +109,7 @@ warn="$work/warn/authoring/mid/SKILL.md"
   printf 'description: >-\n'
   printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
   echo "---"
-} > "$warn"
+} | mkskill "$warn"
 w=$(sh "$here/skill_check.sh" "$warn" $j10)
 eq "warn: 16 in the 251-400 WARN band" "$(row "$w" 16)" WARN
 

@@ -52,9 +52,8 @@ esac
 
 j2='' j3='' j4='' j5='' j6='' j7='' j8='' j9='' j10='' j12=''
 if [ "$#" -eq 11 ]; then
-  j2=$2 j3=$3 j4=$4 j5=$5 j6=$6 j7=$7 j8=$8 j9=$9
-  shift 9
-  j10=$1 j12=$2
+  shift
+  j2=$1 j3=$2 j4=$3 j5=$4 j6=$5 j7=$6 j8=$7 j9=$8 j10=$9 j12=${10}
 elif [ "$#" -ne 1 ]; then
   echo "skill_check: pass the ten judgment results (j2 j3 j4 j5 j6 j7 j8 j9 j10 j12) or none" >&2
   exit 2
@@ -68,6 +67,21 @@ done
 
 dir=$(cd "$(dirname "$file")" && pwd)
 refdir="$dir/references"
+
+# find_upward <start-dir> <name>... -- print the first <start-dir>/<name>
+# found while walking up parent directories, stopping at a `.git` dir or `/`.
+# Shared by Check 11 (plugin.json) and Check 14 (LICENSE).
+find_upward() {
+  d=$1; shift
+  while :; do
+    for n in "$@"; do
+      [ -f "$d/$n" ] && { printf '%s\n' "$d/$n"; return; }
+    done
+    [ -d "$d/.git" ] && return
+    [ "$d" = / ] && return
+    d=$(dirname "$d")
+  done
+}
 
 # ---------- Check 1: Line Count ----------
 lines=$(wc -l < "$file" | tr -d ' ')
@@ -106,17 +120,7 @@ else
   # Resolve the allowlist key: <plugin>:<skill>, walking up for a plugin
   # manifest; falls back to the bare pre-split key when none is found
   # (checks.md "Allowlist key resolution").
-  manifest_dir=$dir
-  manifest=''
-  while :; do
-    if [ -f "$manifest_dir/.claude-plugin/plugin.json" ]; then
-      manifest="$manifest_dir/.claude-plugin/plugin.json"
-      break
-    fi
-    [ "$manifest_dir" = "/" ] && break
-    [ -d "$manifest_dir/.git" ] && break
-    manifest_dir=$(dirname "$manifest_dir")
-  done
+  manifest=$(find_upward "$dir" .claude-plugin/plugin.json)
   skill_name=$(awk -F': *' '/^name:/ { print $2; exit }' "$file" | tr -d '"' | tr ':' '-')
   [ -n "$skill_name" ] || skill_name=$(basename "$dir")
   if [ -n "$manifest" ]; then
@@ -166,16 +170,7 @@ fi
 if printf '%s\n' "$fm" | grep -qE '^license:'; then
   r14=PASS; n14='license declared in frontmatter'
 else
-  root=$dir
-  found=''
-  while :; do
-    for lic in LICENSE LICENSE.md LICENSE.txt; do
-      [ -f "$root/$lic" ] && { found="$root/$lic"; break 2; }
-    done
-    [ -d "$root/.git" ] && break
-    [ "$root" = "/" ] && break
-    root=$(dirname "$root")
-  done
+  found=$(find_upward "$dir" LICENSE LICENSE.md LICENSE.txt)
   if [ -n "$found" ]; then
     spdx=MIT
     grep -qi 'MIT License' "$found" 2>/dev/null || spdx='<SPDX>'
