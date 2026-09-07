@@ -29,13 +29,20 @@ current directory.
 
 ## Step 2: Run Sixteen Checks
 
-Run `bash skills/skill-check/lib/skill_check.sh <path>` first — it decides the
-six mechanical checks (1, 11, 13, 14, 15, 16). Read `references/checks.md` for
-all 16 check definitions and PASS/WARN/FAIL/N/A criteria, and judge the
-remaining ten (2, 3, 4, 5, 6, 7, 8, 9, 10, 12) yourself. Re-run the helper with
-those ten results appended, in check-id order, to get the combined
-score/verdict row. Audit-only — never stop on failure; report every check
-(`authoring:skill-check` is read-only and must produce a full report).
+Run the mechanical half first. `<skill-dir>` is this skill's own installed
+directory, never a path inside the repository being audited:
+
+```sh
+sh <skill-dir>/lib/skill_check.sh <path>
+```
+
+It decides the six mechanical checks (1, 11, 13, 14, 15, 16). Read
+`references/checks.md` for all 16 check definitions and PASS/WARN/FAIL/N/A
+criteria, and judge the remaining ten (2, 3, 4, 5, 6, 7, 8, 9, 10, 12)
+yourself. Re-run with those ten results appended, in check-id order, to get
+the combined score/verdict row. Audit-only — never stop on failure; report
+every check (`authoring:skill-check` is read-only and must produce a full
+report).
 
 **Checks 1–5: Structure**
 Line Count · Progressive Disclosure · Frontmatter Validity · References Directory · Output Report
