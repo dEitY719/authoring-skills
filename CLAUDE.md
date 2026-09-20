@@ -134,6 +134,18 @@ allowlist data behind it. A policy you cannot read is not a policy, so CI's
 emoji gate is passed `allow-emoji-paths: skills/skill-check/references/` for
 exactly that reason. Do not widen the allowlist; do not add emoji anywhere else.
 
+## Licensing: MIT everywhere except `skills/skill-create/`
+
+`skills/skill-create/` is a vendored derivative of Anthropic's Apache-2.0
+`skill-creator`, so it is governed by Apache-2.0, not by the repo-root MIT
+`LICENSE`. `skills/skill-create/LICENSE.txt` is the upstream license text that
+Apache-2.0 section 4(a) requires a redistributor to keep, and its copyright
+line names Anthropic, PBC. **Do not delete it as a redundant duplicate of the
+root `LICENSE`, and do not "align" that skill's `license: Apache-2.0`
+frontmatter with the MIT of its five siblings** — the two agree with each
+other, and both disagree with the root on purpose. Read the README's License
+section before touching either.
+
 ## Version bumps
 
 The version appears in seven manifests: `.claude-plugin/marketplace.json`,

@@ -7,7 +7,7 @@ metadata:
     reason: "new skill generation with interactive interview, draft, eval loop, and description optimization"
     claude: prefer
     non_claude: advisory-only
-license: MIT
+license: Apache-2.0
 compatibility:
   network: required
 ---

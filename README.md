@@ -194,5 +194,13 @@ This is part of Phase 2 of the dEitY719/dotfiles#1410 migration;
 
 ## License
 
-MIT. See [LICENSE](LICENSE). `skills/skill-create/` additionally carries its
-upstream `LICENSE.txt`.
+MIT. See [LICENSE](LICENSE) — with one carved-out exception.
+
+`skills/skill-create/` is a derivative of Anthropic's `skill-creator`, which
+upstream ships under Apache-2.0, so that directory stays under Apache-2.0: it
+keeps the upstream `skills/skill-create/LICENSE.txt` (Copyright 2026 Anthropic,
+PBC) and declares `license: Apache-2.0` in its `SKILL.md` frontmatter. The
+Provenance section above is the statement of changes Apache-2.0 section 4(b)
+requires. Everything else in this repo is MIT; the plugin manifests declare
+`"license": "MIT"` for the plugin as a whole, which is what a mixed-license
+distribution looks like.
