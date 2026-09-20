@@ -146,6 +146,12 @@ frontmatter with the MIT of its five siblings** — the two agree with each
 other, and both disagree with the root on purpose. Read the README's License
 section before touching either.
 
+CI enforces this rather than merely tolerating it: `validate.yml` declares the
+carve-out to the shared workflow as `license-exceptions`, which gates that one
+file against `Apache-2.0` while every other site must still agree on MIT. The
+declaration names the path, so moving or renaming that `SKILL.md` fails CI with
+"matched no file" until the declaration follows it.
+
 ## Version bumps
 
 The version appears in seven manifests: `.claude-plugin/marketplace.json`,
