@@ -48,9 +48,16 @@ After **both** issues exist (capture each returned number/URL), link them
 both ways:
 
 ```bash
-gh issue comment <REFACTOR_N> --repo "$TARGET_REPO" --body "Related (rule gap): #<DOCS_N>"
-gh issue comment <DOCS_N>     --repo "$TARGET_REPO" --body "Related (refactor): #<REFACTOR_N>"
+GH_HOST="$TARGET_HOST" gh issue comment <REFACTOR_N> --repo "$TARGET_REPO" --body "Related (rule gap): #<DOCS_N>"
+GH_HOST="$TARGET_HOST" gh issue comment <DOCS_N>     --repo "$TARGET_REPO" --body "Related (refactor): #<REFACTOR_N>"
 ```
+
+Both halves of Step 1's binding, every time. `--repo owner/repo` carries no
+host: a bare `gh` resolves that slug against gh CLI's own `gh repo set-default`
+rather than git's remote, so on a dual-host login (github.com plus a GHES
+instance) the comment lands on a stranger's issue #N with no error at all
+(dEitY719/dotfiles#1403). These are the only direct `gh` calls this skill makes
+— everything else goes through `gh-issue:create`, which binds its own host.
 
 If there is no rule gap, there is no docs issue and no cross-link — skip this
 entirely.

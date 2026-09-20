@@ -36,11 +36,11 @@ argument surface: `<command-family> <desired-convention> [remote]` plus
 
 `SKILL_DIR` = this file's directory. Parse `<command-family>` (e.g. `agy`),
 `<desired-convention>` (e.g. `dash-form`), optional `[remote]` (default
-`origin`). Resolve the target repo with
-`sh "${SKILL_DIR}/lib/resolve-repo.sh" "<remote>"` — it prints
-`TARGET_REPO=<owner>/<repo>` and fails with the `git remote -v` listing on a
-missing remote (`references/repo-resolution.md`). If the family is ambiguous or
-matches nothing, show the candidates and ask — no guess.
+`origin`). Resolve the target with `sh "${SKILL_DIR}/lib/resolve-repo.sh" "<remote>"`
+— it prints `TARGET_REPO=` and `TARGET_HOST=` from one URL, and fails with the
+`git remote -v` listing on a missing remote (`references/repo-resolution.md`). Every
+`gh` call below runs `GH_HOST="$TARGET_HOST" gh ... --repo "$TARGET_REPO"` (dEitY719/dotfiles#1403).
+If the family is ambiguous or matches nothing, show the candidates and ask — no guess.
 
 ## Step 2: Discover definitions + ALL reference points
 
@@ -80,8 +80,8 @@ Follow `references/issue-creation.md` — it names the prerequisite plugin
 (`gh-issue`, from `dEitY719/gh-issue-skills`). Create the `refactor` issue by
 `Skill(gh-issue:create, ...)` with explicit "refactor" intent so its classifier
 picks the `refactor` template. **Only if Step 3 found a rule gap**, also create
-a `docs` issue the same way, then cross-link both (`gh issue comment <A>
---body "Related: #<B>"` each way). Never call `gh issue create` directly here.
+a `docs` issue the same way, then cross-link both with the host-pinned
+`gh issue comment` pair that file spells out. Never call `gh issue create` here.
 
 ## Step 7: Report
 

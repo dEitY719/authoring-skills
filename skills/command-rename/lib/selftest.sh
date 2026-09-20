@@ -31,16 +31,43 @@ mkdir -p "$work/repo"
 (
   cd "$work/repo"
   git init -q .
-  git remote add origin git@github.com:dEitY719/authoring-skills.git
-  git remote add https https://github.com/dEitY719/other-repo.git
+  git remote add origin   git@github.com:dEitY719/authoring-skills.git
+  git remote add https    https://github.com/dEitY719/other-repo.git
+  # Repo and host come from ONE url, so a GHES remote must answer with its own
+  # host and not github.com -- the dEitY719/dotfiles#1403 misroute.
+  git remote add ghes     git@ghes.example.com:dEitY719/ghes-repo.git
+  git remote add ghesurl  https://ghes.example.com/dEitY719/ghes-repo.git
+  git remote add ghesport ssh://git@ghes.example.com:2222/dEitY719/ghes-repo.git
+  git remote add creds    https://user:token@github.com/dEitY719/cred-repo.git
+  # No host at all: a filesystem mirror. The old parse happily returned
+  # `mirrors/repo` for this, which nothing can safely target.
+  git remote add local    /srv/mirrors/repo.git
 )
 cd "$work/repo"
-eq "resolve-repo ssh url"   "$(sh "$here/resolve-repo.sh")"        "TARGET_REPO=dEitY719/authoring-skills"
-eq "resolve-repo https url" "$(sh "$here/resolve-repo.sh" https)"  "TARGET_REPO=dEitY719/other-repo"
+one() { sh "$here/resolve-repo.sh" "$@" | tr '\n' ' '; }
+eq "resolve-repo ssh url"      "$(one)"         "TARGET_REPO=dEitY719/authoring-skills TARGET_HOST=github.com "
+eq "resolve-repo https url"    "$(one https)"   "TARGET_REPO=dEitY719/other-repo TARGET_HOST=github.com "
+eq "resolve-repo ghes scp"     "$(one ghes)"    "TARGET_REPO=dEitY719/ghes-repo TARGET_HOST=ghes.example.com "
+eq "resolve-repo ghes https"   "$(one ghesurl)" "TARGET_REPO=dEitY719/ghes-repo TARGET_HOST=ghes.example.com "
+eq "resolve-repo ssh with port" "$(one ghesport)" "TARGET_REPO=dEitY719/ghes-repo TARGET_HOST=ghes.example.com "
+eq "resolve-repo strips credentials" "$(one creds)" "TARGET_REPO=dEitY719/cred-repo TARGET_HOST=github.com "
+# Fail closed rather than hand back a slug with no server to send it to.
+exits "resolve-repo hostless url"   1 sh "$here/resolve-repo.sh" local
 exits "resolve-repo missing remote" 1 sh "$here/resolve-repo.sh" nope
 
 cd "$work"
 exits "resolve-repo outside git" 1 sh "$here/resolve-repo.sh"
+cd "$work/repo"
+
+# Every gh call this skill documents must carry both halves of the binding.
+# `--repo` alone names no server (dEitY719/dotfiles#1403).
+refs=$here/../references
+bare=$(grep -n '^gh ' "$refs"/*.md | grep -v 'gh issue create' || true)
+eq "no bare gh call in references/" "$bare" ""
+eq "cross-link commands pin the host" \
+   "$(grep -c 'GH_HOST=.*gh issue comment .*--repo' "$refs/issue-creation.md")" "2"
+
+cd "$work"
 
 # ---------- discover-refs.sh ----------
 d=$work/dotfiles
