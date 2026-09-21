@@ -1,6 +1,6 @@
 {
   "name": "authoring",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Author and audit what an AI harness reads: SKILL.md files, shell scripts, help text, command names.",
   "author": {
     "name": "dEitY719",
