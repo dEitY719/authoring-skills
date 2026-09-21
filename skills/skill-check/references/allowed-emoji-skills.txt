@@ -22,7 +22,7 @@
 # --- format of the footer itself, not decoration (dEitY719/dotfiles#317 F-2,
 # --- PR #320, #367 wrapper).
 gh-setup:add-ai-metrics              # ai-metrics footer SSOT — 📊 👤 🤖 (dEitY719/dotfiles#317 F-2, PR #320, #367)
-gh-issue:create                      # ai-metrics footer 📊 👤 🤖 in references/create-cmd.md (dEitY719/dotfiles#847)
+gh-issue:issue-create                # ai-metrics footer 📊 👤 🤖 in references/metrics-helper.md (dEitY719/dotfiles#847; skill renamed create -> issue-create, gh-issue-skills 0520c85)
 gh-issue:discussion-create           # ai-metrics footer 📊 👤 🤖 mirrored from gh-issue:create (dEitY719/dotfiles#844)
 gh-pr:approve                        # ai-metrics footer 🤖 in references/ai-metrics.md (dEitY719/dotfiles#857)
 gh-pr:commit                         # ai-metrics footer 📊 🤖 in references/ai-metrics-comment.md (dEitY719/dotfiles#837)
