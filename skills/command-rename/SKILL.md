@@ -2,10 +2,11 @@
 name: command-rename
 description: >-
   Design a command-naming refactor and file the tracking issue(s) — never
-  touch code. Use on /authoring:command-rename, /authoring:command-rename,
-  "명령 네이밍 통일 이슈 만들어", "rename this command family". The rename
-  itself runs later via /gh-flow:issue.
+  touch code. Use on /authoring:command-rename, "명령 네이밍 통일 이슈 만들어",
+  "rename this command family". The rename itself runs later via /gh-flow:issue.
 allowed-tools: Bash, Read, Grep, Agent
+compatibility:
+  network: required
 metadata:
   model_recommendation:
     tier: sonnet
