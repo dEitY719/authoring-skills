@@ -29,7 +29,7 @@ in the conversation so gh-issue:issue-create's classifier lands on `refactor`:
   - References = the three SSOT doc paths.
 
 Do **not** recreate the refactor skeleton here — `gh-issue:issue-create` owns it, at
-`skills/create/references/templates/refactor.md` in the sibling repo
+`skills/issue-create/references/templates/refactor.md` in the sibling repo
 `dEitY719/gh-issue-skills`. It is a cross-repo dependency: if that plugin is not
 installed, say so and stop rather than improvising a skeleton.
 
