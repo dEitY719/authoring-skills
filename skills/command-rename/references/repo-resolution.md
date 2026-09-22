@@ -50,7 +50,7 @@ login (github.com plus a GHES instance) the two can disagree — `gh` then hits
 the wrong server with **no error**, which is how an OPEN issue comes back "not
 found" and how a comment lands on a stranger's issue #N. `references/issue-creation.md`'s
 cross-link is the only place this skill calls `gh` directly; everything else
-goes through `gh-issue:create`, which binds its own.
+goes through `gh-issue:issue-create`, which binds its own.
 
 ## Failure rule
 
@@ -66,7 +66,7 @@ silent-misroute state, so there is nothing safe to continue with.
 ## What to pass onward
 
 Store `TARGET_REPO` **and** `TARGET_HOST` for this skill's own `gh` calls, and
-prefix every one of them with `GH_HOST="$TARGET_HOST"`. `gh-issue:create` resolves
+prefix every one of them with `GH_HOST="$TARGET_HOST"`. `gh-issue:issue-create` resolves
 its own repo context from a remote **name** (e.g. `origin`), not `owner/repo` —
 pass the original `[remote]` argument (not `TARGET_REPO`) through to it as the
 `[remote]` positional in Step 6.

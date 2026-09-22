@@ -22,7 +22,7 @@ license: MIT
 
 From a target command family and a desired naming convention, design an
 old→new rename mapping, check it against the naming SSOT, flag any rule gap,
-and file the `refactor` (and gap-only `docs`) issue via `gh-issue:create`.
+and file the `refactor` (and gap-only `docs`) issue via `gh-issue:issue-create`.
 Design and file only — no code edits, no commits; the rename itself is a
 separate later `/gh-flow:issue` run.
 
@@ -75,11 +75,11 @@ user's explicit decision on backward-compat (deprecated shim per
 `command-design-pattern.md` §8 vs hard removal) and on any name collisions.
 List intentionally-dropped names. Never auto-decide these — confirm first.
 
-## Step 6: Create the issue(s) via gh-issue:create
+## Step 6: Create the issue(s) via gh-issue:issue-create
 
 Follow `references/issue-creation.md` — it names the prerequisite plugin
 (`gh-issue`, from `dEitY719/gh-issue-skills`). Create the `refactor` issue by
-`Skill(gh-issue:create, ...)` with explicit "refactor" intent so its classifier
+`Skill(gh-issue:issue-create, ...)` with explicit "refactor" intent so its classifier
 picks the `refactor` template. **Only if Step 3 found a rule gap**, also create
 a `docs` issue the same way, then cross-link both with the host-pinned
 `gh issue comment` pair that file spells out. Never call `gh issue create` here.
@@ -96,5 +96,5 @@ See `references/constraints.md`.
 
 ## Related Skills
 
-Issue creation is delegated to `gh-issue:create` (never `gh issue create`).
+Issue creation is delegated to `gh-issue:issue-create` (never `gh issue create`).
 The rename itself runs later via `/gh-flow:issue <refactor-issue-number>`.

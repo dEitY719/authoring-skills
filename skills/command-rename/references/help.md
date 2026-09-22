@@ -33,7 +33,7 @@ NOT rename anything or commit — the actual rename runs later via
 | Code | Meaning |
 |------|---------|
 | 0 | Issue(s) created; report printed with URLs. |
-| 1 | Precondition failure (not a git repo, remote not found, `gh auth` failure, or `gh-issue:create` failed). |
+| 1 | Precondition failure (not a git repo, remote not found, `gh auth` failure, or `gh-issue:issue-create` failed). |
 | 2 | Missing/invalid required argument (`<command-family>` or `<desired-convention>`). |
 
 ## Not in scope
