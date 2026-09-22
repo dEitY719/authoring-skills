@@ -301,7 +301,18 @@ else
   if [ "$len" -le 250 ]; then
     r16=PASS; n16="$len characters$degraded_note"
   elif [ "$len" -le 400 ]; then
-    r16=WARN; n16="$len characters (251-400 band, needs a justifying comment)$degraded_note"
+    # A 251-400 description is allowed only with a comment justifying the
+    # exception (checks.md's own rubric) -- so look for one before WARNing.
+    # Scoped to frontmatter lines that are pure comments (leading `#`, once
+    # leading space is stripped); a `description:` value can legitimately
+    # contain the word "check" and must never satisfy this by accident.
+    # Case-insensitive, and "check-16"/"check16" match alongside "check 16"
+    # since a comment author may drop the space or use a hyphen.
+    if printf '%s\n' "$fm" | grep -qiE '^[[:space:]]*#.*check[ -]?16'; then
+      r16=PASS; n16="$len characters (251-400 band, justified by comment)$degraded_note"
+    else
+      r16=WARN; n16="$len characters (251-400 band, needs a justifying comment)$degraded_note"
+    fi
   else
     r16=FAIL; n16="$len characters (over 400)$degraded_note"
   fi

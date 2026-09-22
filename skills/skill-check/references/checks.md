@@ -268,10 +268,17 @@ text.
 
 | Result | Criteria |
 |---|---|
-| PASS | <= 250 characters |
-| WARN | 251–400 characters — allowed, but the SKILL.md must carry a comment justifying the exception |
+| PASS | <= 250 characters, OR 251–400 with a justifying comment (see below) |
+| WARN | 251–400 characters with no justifying comment — add one, or shrink the description |
 | FAIL | > 400 characters — move the detail out (see below) |
 | N/A | no `description` in frontmatter (Check 3 already reports that as FAIL) |
+
+**Justifying comment**: a frontmatter line matching `#.*[Cc]heck[ -]?16` (a `#`
+comment mentioning "Check 16", case-insensitive, space or hyphen before the
+number) anywhere between the `---` delimiters — the sibling skills below put
+it right above `description:`. Once one is present the 251–400 band reports
+PASS with a note, not WARN; the check still measures length only, so a
+comment does not excuse going over 400.
 
 **Keep in the description** — it exists to make the skill trigger:
 - trigger phrases in both Korean and English
