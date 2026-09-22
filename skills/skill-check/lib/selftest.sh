@@ -160,7 +160,36 @@ warn="$work/warn/authoring/mid/SKILL.md"
   echo "---"
 } | mkskill "$warn"
 w=$(sh "$here/skill_check.sh" "$warn" $j10)
-eq "warn: 16 in the 251-400 WARN band" "$(row "$w" 16)" WARN
+eq "warn: 16 in the 251-400 WARN band, no justifying comment" "$(row "$w" 16)" WARN
+
+# Same band, but with a justifying comment above description: -- must clear
+# the WARN even though the length is unchanged (issue #28).
+justified="$work/justified/authoring/mid2/SKILL.md"
+{
+  echo "---"
+  echo "name: mid2"
+  echo "# Description is 300 chars, over check 16's 250-char band, on purpose."
+  printf 'description: >-\n'
+  printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
+  echo "---"
+} | mkskill "$justified"
+j=$(sh "$here/skill_check.sh" "$justified" $j10)
+eq "justified: 16 PASSes in the 251-400 band with a Check 16 comment" "$(row "$j" 16)" PASS
+
+# A comment that merely contains the word "check" (no "16") must NOT satisfy
+# it -- the match is scoped to "check 16"/"check-16", not any mention of
+# "check", so a decoy comment must not silence a real WARN.
+decoy16="$work/decoy16/authoring/mid3/SKILL.md"
+{
+  echo "---"
+  echo "name: mid3"
+  echo "# Check this description carefully before editing."
+  printf 'description: >-\n'
+  printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
+  echo "---"
+} | mkskill "$decoy16"
+d16=$(sh "$here/skill_check.sh" "$decoy16" $j10)
+eq "decoy16: a bare 'check' comment does not satisfy Check 16" "$(row "$d16" 16)" WARN
 
 # ---------- mechanical-only mode: no score row without all ten judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")
