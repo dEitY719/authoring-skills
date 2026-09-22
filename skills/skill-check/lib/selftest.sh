@@ -151,12 +151,16 @@ d=$(sh "$here/skill_check.sh" "$decoy" $j10)
 eq "decoy: 15 decoy field does not satisfy declaration" "$(row "$d" 15)" WARN
 
 # ---------- Check 16: description length bands ----------
+# Shared 300-char filler for the 251-400 WARN band, reused by all three
+# fixtures below instead of regenerating it per block.
+mid300=$(printf 'x%.0s' $(seq 1 300))
+
 warn="$work/warn/authoring/mid/SKILL.md"
 {
   echo "---"
   echo "name: mid"
   printf 'description: >-\n'
-  printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
+  printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$warn"
 w=$(sh "$here/skill_check.sh" "$warn" $j10)
@@ -170,7 +174,7 @@ justified="$work/justified/authoring/mid2/SKILL.md"
   echo "name: mid2"
   echo "# Description is 300 chars, over check 16's 250-char band, on purpose."
   printf 'description: >-\n'
-  printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
+  printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$justified"
 j=$(sh "$here/skill_check.sh" "$justified" $j10)
@@ -185,7 +189,7 @@ decoy16="$work/decoy16/authoring/mid3/SKILL.md"
   echo "name: mid3"
   echo "# Check this description carefully before editing."
   printf 'description: >-\n'
-  printf '  %s\n' "$(printf 'x%.0s' $(seq 1 300))"
+  printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$decoy16"
 d16=$(sh "$here/skill_check.sh" "$decoy16" $j10)
