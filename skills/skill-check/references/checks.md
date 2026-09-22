@@ -273,12 +273,17 @@ text.
 | FAIL | > 400 characters — move the detail out (see below) |
 | N/A | no `description` in frontmatter (Check 3 already reports that as FAIL) |
 
-**Justifying comment**: a frontmatter line matching `#.*[Cc]heck[ -]?16` (a `#`
-comment mentioning "Check 16", case-insensitive, space or hyphen before the
-number) anywhere between the `---` delimiters — the sibling skills below put
-it right above `description:`. Once one is present the 251–400 band reports
-PASS with a note, not WARN; the check still measures length only, so a
-comment does not excuse going over 400.
+**Justifying comment**: a frontmatter line matching
+`^[[:space:]]*#.*[Cc]heck[ -]?16([^0-9]|$)` (a `#` comment mentioning
+"Check 16", case-insensitive, space or hyphen before the number, and the
+`16` not immediately followed by another digit — so a workflow-run ID like
+"check-1601" or a section title like "Check 160" cannot false-match)
+anywhere between the `---` delimiters — the sibling skills below put it
+right above `description:`, but adjacency to `description:` is not
+required, the same "skim the whole frontmatter" tolerance Check 15 already
+gives a human auditor. Once one is present the 251–400 band reports PASS
+with a note, not WARN; the check still measures length only, so a comment
+does not excuse going over 400.
 
 **Keep in the description** — it exists to make the skill trigger:
 - trigger phrases in both Korean and English
