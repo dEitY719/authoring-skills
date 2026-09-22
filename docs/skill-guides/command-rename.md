@@ -46,7 +46,7 @@
 | — | `-h`, `--help`, `help` | — | `references/help.md` 를 그대로 출력하고 **중단**. API 호출 없음 |
 
 종료 코드는 `0` 이슈 생성 완료, `1` 사전조건 실패(git repo 아님 / remote 없음 /
-`gh auth` 실패 / `gh-issue:create` 실패), `2` 필수 인자 누락입니다.
+`gh auth` 실패 / `gh-issue:issue-create` 실패), `2` 필수 인자 누락입니다.
 
 ## 동작 단계 요약
 
@@ -75,7 +75,7 @@
    **두 가지는 반드시 사용자에게 묻습니다**: 이름별 하위 호환 정책(§8 deprecated
    shim vs hard removal)과 이름 충돌 해소 방법. 자동 결정 금지. 의도적으로
    삭제되는 이름은 "Removed / dropped" 절에 따로 나열합니다.
-6. **이슈 생성** (`references/issue-creation.md`) — `Skill(gh-issue:create, ...)`
+6. **이슈 생성** (`references/issue-creation.md`) — `Skill(gh-issue:issue-create, ...)`
    에 "refactor" 의도를 명시해 refactor 템플릿(TL;DR / 동기 / 범위 / Before-After /
    동작보존 / 리스크·롤백 / 검증 / References)이 잡히게 합니다. 3단계에서 rule gap
    을 찾았을 **때만** `docs` 이슈를 하나 더 만들고 `gh issue comment` 로 양방향

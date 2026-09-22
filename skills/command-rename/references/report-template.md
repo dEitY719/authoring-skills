@@ -24,7 +24,7 @@ Next: /gh-flow:issue <N>
 ## Failure
 
 ```
-[FAIL] <what failed> (e.g. gh-issue:create returned non-zero / remote not found)
+[FAIL] <what failed> (e.g. gh-issue:issue-create returned non-zero / remote not found)
 <the error line>
 ```
 
