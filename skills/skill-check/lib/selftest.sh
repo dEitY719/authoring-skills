@@ -195,6 +195,21 @@ decoy16="$work/decoy16/authoring/mid3/SKILL.md"
 d16=$(sh "$here/skill_check.sh" "$decoy16" $j10)
 eq "decoy16: a bare 'check' comment does not satisfy Check 16" "$(row "$d16" 16)" WARN
 
+# A trailing digit after "16" must not false-match (agy review, PR #29
+# FOLLOW-UP) -- a workflow-run ID like "check-1601" or a heading like
+# "Check 160 lines" is not a Check 16 justification.
+decoytrail="$work/decoytrail/authoring/mid4/SKILL.md"
+{
+  echo "---"
+  echo "name: mid4"
+  echo "# See workflow run check-1601 for why this failed once."
+  printf 'description: >-\n'
+  printf '  %s\n' "$mid300"
+  echo "---"
+} | mkskill "$decoytrail"
+dt=$(sh "$here/skill_check.sh" "$decoytrail" $j10)
+eq "decoytrail: 'check-1601' (trailing digit) does not satisfy Check 16" "$(row "$dt" 16)" WARN
+
 # ---------- mechanical-only mode: no score row without all ten judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")
 eq "solo: no score row" "$(printf '%s\n' "$solo" | grep -c '^score' || true)" 0
