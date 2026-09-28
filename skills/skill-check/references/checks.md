@@ -362,7 +362,8 @@ when any of these holds:
 
 - it is a default expansion, `${CLAUDE_PLUGIN_ROOT:-…}`;
 - the same code block (fence; a script file is one block) carries a guard,
-  `[ -n "${CLAUDE_PLUGIN_ROOT…` or `[ -z "${CLAUDE_PLUGIN_ROOT…`;
+  `[ -n "${CLAUDE_PLUGIN_ROOT…` or `[ -z "${CLAUDE_PLUGIN_ROOT…` (braces,
+  quotes and `[[` optional);
 - the same file tells other harnesses what to do — it contains
   `other harness`, `다른 하네스`, `그 외 하네스`, `elsewhere export`,
   `export CLAUDE_PLUGIN_ROOT=` or `HERMES_SKILL_DIR`.
