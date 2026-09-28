@@ -334,6 +334,10 @@ port_files=$(
 #     `name.ext`; `#anchor` dropped) and that, normalised as a string
 #     against the referencing file's own directory, climbs above the skill
 #     dir. Symlinks are never followed (issue #32 decision: deterministic).
+#     Also (issue #34): a skill-dir variable + `/../` path, resolved from the
+#     skill root and checked even inside fences; and, in references/, a `../`
+#     path whose file-relative target is missing but whose skill-root-relative
+#     target escapes.
 #   mode=root:   print `file:line` for every unprotected dollar-expansion of
 #     CLAUDE_PLUGIN_ROOT (braced or bare) that would execute -- inside a
 #     fence, on a non-comment script line, or in markdown prose only as a
@@ -348,6 +352,20 @@ port_files=$(
 port_scan() {
   # shellcheck disable=SC2086 # $port_files is word-split on purpose (see header ponytail)
   (cd "$dir" && awk -v mode="$1" '
+    # Only a path naming a file (`name.ext`, `#anchor` dropped) is a bundle
+    # dependency; a bare `../..` or `../../.git` in prose is shell talk.
+    function isfile(t) { sub(/#.*/, "", t); return t ~ /[^.\/]\.[A-Za-z0-9]+$/ }
+    # escapes <path> <depth> -- 1 if string-normalising <path> from a dir
+    # <depth> levels below the skill root ever climbs above the root.
+    function escapes(t, depth,   k, j, part) {
+      sub(/#.*/, "", t); k = split(t, part, "/")
+      for (j = 1; j <= k; j++) {
+        if (part[j] == "..") depth--
+        else if (part[j] != "." && part[j] != "") depth++
+        if (depth < 0) return 1
+      }
+      return 0
+    }
     function flush(   i) {
       for (i = 1; i <= nl; i++) {
         if (U[i]) {
@@ -363,6 +381,7 @@ port_scan() {
       if (mode == "root") flush()
       md = (FILENAME ~ /\.md$/); fence = 0; blk++
       n = split(FILENAME, seg, "/"); base = n - 1
+      dirname = FILENAME; sub(/\/?[^\/]*$/, "", dirname); if (dirname == "") dirname = "."
     }
     {
       line = $0
@@ -381,20 +400,28 @@ port_scan() {
         if (tolower(line) ~ /other harness|다른 하네스|그 외 하네스|elsewhere export|export claude_plugin_root=|hermes_skill_dir/) hint = 1
         next
       }
+      # A skill-dir variable is an executed path, checked even in a fence;
+      # its `../` is resolved against the skill root (issue #34 pattern 1).
+      rest = line
+      while (match(rest, /\$\{?(HERMES_|CLAUDE_)?SKILL_DIR(:-[^}]*)?\}?\/\.\.\/[^ \t)`"'"'"'<>,;|]*/)) {
+        tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+        sub(/^[^\/]*\//, "", tok)
+        if (isfile(tok) && escapes(tok, 0)) print FILENAME ":" FNR " -> " tok
+      }
       if (md && fence) next
       rest = line
       while (match(rest, /(^|[ \t(`"'"'"'=])\.\.\/[^ \t)`"'"'"'<>,;|]*/)) {
         tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
-        sub(/^[^.]/, "", tok); sub(/#.*/, "", tok)
-        # Only a path naming a file (`name.ext`) is a bundle dependency; a
-        # bare `../..` or `../../.git` in prose is shell talk, not a reference.
-        if (tok !~ /[^.\/]\.[A-Za-z0-9]+$/) continue
-        depth = base; k = split(tok, part, "/")
-        for (j = 1; j <= k; j++) {
-          if (part[j] == "..") depth--
-          else if (part[j] != "." && part[j] != "") depth++
-          if (depth < 0) { print FILENAME ":" FNR " -> " tok; break }
-        }
+        sub(/^[^.]/, "", tok)
+        if (!isfile(tok)) continue
+        if (escapes(tok, base)) print FILENAME ":" FNR " -> " tok
+        # references/ files often write paths relative to the skill root
+        # (issue #34 pattern 2): flag when the file-relative target is
+        # missing AND the root-relative one leaves the skill. Tokens carry
+        # no quote (the regex stops there), so single-quoting is safe.
+        else if (FILENAME ~ /^references\// && escapes(tok, 0) &&
+                 system("test -e '"'"'" dirname "/" tok "'"'"'") != 0)
+          print FILENAME ":" FNR " -> " tok
       }
     }
     END { if (mode == "root") { flush(); if (uses) print "USES" } }
