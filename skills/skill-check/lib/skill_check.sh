@@ -31,8 +31,8 @@
 # scope for this audit run -- that judgment call stays with the auditor; this
 # script only ever emits FAIL (key absent) or N/A (key present), never the
 # stale-entry WARN.
-# ponytail: $scan_files/$scripts are built via unquoted word-splitting, so a
-# path containing a space would break both. Every skill/file name in this
+# ponytail: $scan_files/$scripts/$port_files are built via unquoted word-splitting, so a
+# path containing a space would break them. Every skill/file name in this
 # repo's marketplace convention is kebab-case with no spaces (naming-
 # convention.md), so this is accepted rather than reworked into a POSIX-sh
 # array substitute. Upgrade path if that convention ever breaks: switch to
