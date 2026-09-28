@@ -274,7 +274,7 @@ eq "skilldirvar: 17 fenced \${SKILL_DIR}/../ WARNs" "$(row "$o" 17)" WARN
 p=$(port skilldirin <<EOF
 $fence
 python3 "\$SKILL_DIR/references/x.py"
-bash "\${CLAUDE_SKILL_DIR:-.}/lib/y.sh"
+bash "\${CLAUDE_SKILL_DIR:-\$HOME/s}/lib/y.sh"
 $fence
 EOF
 )
