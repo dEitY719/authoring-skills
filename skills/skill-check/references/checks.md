@@ -385,15 +385,24 @@ when any of these holds:
 | WARN | one or more unprotected uses — the note lists `file:line` |
 | N/A | no executing use of `CLAUDE_PLUGIN_ROOT` |
 
-Recommended pattern to quote in the report:
+Recommended pattern to quote in the report — tier 1 is Hermes' skill-relative
+dir, tier 2 the guarded plugin root, else `[FAIL]` (canonical shape:
+`dEitY719/harness-skills` `references/plugin-root.md`, tier-1 and Hermes rows):
 
 ```sh
-_root="${CLAUDE_PLUGIN_ROOT:-${HERMES_SKILL_DIR:+$HERMES_SKILL_DIR/../..}}"
-[ -n "$_root" ] && [ -f "$_root/lib/verify-html.sh" ] || { printf '[FAIL] plugin root unresolved — export CLAUDE_PLUGIN_ROOT=<plugin dir>\n' >&2; exit 1; }
+_s=""
+if [ -n "${HERMES_SKILL_DIR}" ]; then _s="${HERMES_SKILL_DIR}/lib/verify-html.sh"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then _s="$CLAUDE_PLUGIN_ROOT/skills/<skill>/lib/verify-html.sh"
+fi
+[ -n "$_s" ] && [ -f "$_s" ] || { printf '[FAIL] plugin root unresolved (tried: %s) — export HERMES_SKILL_DIR=<this skill dir> or CLAUDE_PLUGIN_ROOT=<plugin dir>\n' "${_s:-nothing}" >&2; exit 1; }
 ```
 
-Once Check 17 holds (the script is vendored into the skill), one
-skill-relative path off `${HERMES_SKILL_DIR}` is enough.
+Spell it exactly `${HERMES_SKILL_DIR}`: Hermes text-substitutes only that
+token into `SKILL.md`, so `$HERMES_SKILL_DIR` or `${HERMES_SKILL_DIR:+…}` is
+never replaced. It is the skill directory itself, so use it skill-relative —
+never `${HERMES_SKILL_DIR}/../..`, which points above a single-skill install
+(Check 17 WARNs on any file reached that way). The tier-1 arm needs the script vendored inside
+the skill (Check 17).
 
 Executable mirror for both: `skills/skill-check/lib/skill_check.sh` Checks
 17–18, self-tested by `skills/skill-check/lib/selftest.sh`. Keep the rules
