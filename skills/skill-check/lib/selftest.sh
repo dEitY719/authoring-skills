@@ -295,6 +295,27 @@ EOF
 o=$(sh "$here/skill_check.sh" "$p")
 eq "guarded: 18 [ -n ] guard in the same fence PASSes" "$(row "$o" 18)" PASS
 
+# The guard may be written without braces, or unquoted inside [[ ]].
+p=$(port guardedbare <<EOF
+$fence
+[ -n "\$CLAUDE_PLUGIN_ROOT" ] || exit 1
+bash "\$CLAUDE_PLUGIN_ROOT/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "guardedbare: 18 unbraced guard PASSes" "$(row "$o" 18)" PASS
+
+p=$(port guardedtest <<EOF
+$fence
+[[ -z \$CLAUDE_PLUGIN_ROOT ]] && exit 1
+bash "\$CLAUDE_PLUGIN_ROOT/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "guardedtest: 18 unquoted [[ ]] guard PASSes" "$(row "$o" 18)" PASS
+
 p=$(port hinted <<EOF
 On any other harness, export CLAUDE_PLUGIN_ROOT first.
 

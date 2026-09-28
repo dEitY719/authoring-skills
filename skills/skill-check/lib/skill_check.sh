@@ -377,7 +377,7 @@ port_scan() {
           if (md && !fence) U[nl] = (line ~ /(bash|sh|source|\.|python3?|node|exec)[ \t]+"?\$\{?CLAUDE_PLUGIN_ROOT/)
           else U[nl] = (md || line !~ /^[ \t]*#/)
         }
-        if (line ~ /\[ -[nz] "\$\{CLAUDE_PLUGIN_ROOT/) G[blk] = 1
+        if (line ~ /\[\[? -[nz] "?\$\{?CLAUDE_PLUGIN_ROOT/) G[blk] = 1
         if (tolower(line) ~ /other harness|다른 하네스|그 외 하네스|elsewhere export|export claude_plugin_root=|hermes_skill_dir/) hint = 1
         next
       }
