@@ -352,13 +352,13 @@ port_files=$(
 port_scan() {
   # shellcheck disable=SC2086 # $port_files is word-split on purpose (see header ponytail)
   (cd "$dir" && awk -v mode="$1" '
-    # Only a path naming a file (`name.ext`, `#anchor` dropped) is a bundle
-    # dependency; a bare `../..` or `../../.git` in prose is shell talk.
-    function isfile(t) { sub(/#.*/, "", t); return t ~ /[^.\/]\.[A-Za-z0-9]+$/ }
+    # Only a path naming a file (`name.ext`; callers drop `#anchor`) is a
+    # bundle dependency; a bare `../..` or `../../.git` in prose is shell talk.
+    function isfile(t) { return t ~ /[^.\/]\.[A-Za-z0-9]+$/ }
     # escapes <path> <depth> -- 1 if string-normalising <path> from a dir
     # <depth> levels below the skill root ever climbs above the root.
     function escapes(t, depth,   k, j, part) {
-      sub(/#.*/, "", t); k = split(t, part, "/")
+      k = split(t, part, "/")
       for (j = 1; j <= k; j++) {
         if (part[j] == "..") depth--
         else if (part[j] != "." && part[j] != "") depth++
@@ -381,7 +381,7 @@ port_scan() {
       if (mode == "root") flush()
       md = (FILENAME ~ /\.md$/); fence = 0; blk++
       n = split(FILENAME, seg, "/"); base = n - 1
-      dirname = FILENAME; sub(/\/?[^\/]*$/, "", dirname); if (dirname == "") dirname = "."
+      dirname = FILENAME; sub(/\/[^\/]*$/, "", dirname)
     }
     {
       line = $0
@@ -405,23 +405,25 @@ port_scan() {
       rest = line
       while (match(rest, /\$\{?(HERMES_|CLAUDE_)?SKILL_DIR(:-[^}]*)?\}?\/\.\.\/[^ \t)`"'"'"'<>,;|]*/)) {
         tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
-        sub(/^[^\/]*\//, "", tok)
+        sub(/^[^\/]*\//, "", tok); sub(/#.*/, "", tok)
         if (isfile(tok) && escapes(tok, 0)) print FILENAME ":" FNR " -> " tok
       }
       if (md && fence) next
       rest = line
       while (match(rest, /(^|[ \t(`"'"'"'=])\.\.\/[^ \t)`"'"'"'<>,;|]*/)) {
         tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
-        sub(/^[^.]/, "", tok)
+        sub(/^[^.]/, "", tok); sub(/#.*/, "", tok)
         if (!isfile(tok)) continue
         if (escapes(tok, base)) print FILENAME ":" FNR " -> " tok
         # references/ files often write paths relative to the skill root
         # (issue #34 pattern 2): flag when the file-relative target is
-        # missing AND the root-relative one leaves the skill. Tokens carry
-        # no quote (the regex stops there), so single-quoting is safe.
-        else if (FILENAME ~ /^references\// && escapes(tok, 0) &&
-                 system("test -e '"'"'" dirname "/" tok "'"'"'") != 0)
-          print FILENAME ":" FNR " -> " tok
+        # missing AND the root-relative one leaves the skill. getline < 0
+        # means unopenable -- an existence test without forking a shell.
+        else if (FILENAME ~ /^references\// && escapes(tok, 0)) {
+          p = dirname "/" tok
+          if ((getline _x < p) < 0) print FILENAME ":" FNR " -> " tok
+          close(p)
+        }
       }
     }
     END { if (mode == "root") { flush(); if (uses) print "USES" } }
