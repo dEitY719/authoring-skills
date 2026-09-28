@@ -313,6 +313,119 @@ else
   fi
 fi
 
+# ---------- shared scan set for Checks 17, 18 ----------
+# SKILL.md plus every text file under references/, lib/, scripts/ -- the
+# bundle a single-skill install (Hermes tap, `npx skills add`) copies.
+# Self-test/fixture files are excluded as in Check 15: they spell out `../`
+# and CLAUDE_PLUGIN_ROOT as synthetic examples, not as the skill's own
+# runtime surface. Paths are printed relative to the skill dir.
+port_files=$(
+  cd "$dir" && {
+    echo SKILL.md
+    for d in references lib scripts; do
+      [ -d "$d" ] && find "$d" -type f ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
+    done
+  } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
+)
+
+# port_scan <mode> -- one awk pass over $port_files, run from $dir.
+#   mode=escape: print `file:line -> path` for every `../` token (after a
+#     `(`, backtick, quote, `=` or whitespace) that names a file (ends in
+#     `name.ext`; `#anchor` dropped) and that, normalised as a string
+#     against the referencing file's own directory, climbs above the skill
+#     dir. Symlinks are never followed (issue #32 decision: deterministic).
+#   mode=root:   print `file:line` for every unprotected dollar-expansion of
+#     CLAUDE_PLUGIN_ROOT (braced or bare) that would execute -- inside a
+#     fence, on a non-comment script line, or in markdown prose only as a
+#     command (`bash "<expansion>/..."`) -- then `USES` if any exists.
+#     (Worded without a literal expansion so this script does not audit
+#     itself.)
+# Markdown fences (``` / ~~~) are skipped by escape mode (illustrative
+# examples) and are the "code block" unit for root mode's guard rule; a
+# non-.md file is one block. The other-harness hint counts anywhere in the
+# same file -- sibling skills put it in the prose paragraph or section
+# around the fence, rarely in the same blank-line paragraph.
+port_scan() {
+  # shellcheck disable=SC2086 # $port_files is word-split on purpose (see header ponytail)
+  (cd "$dir" && awk -v mode="$1" '
+    function flush(   i) {
+      for (i = 1; i <= nl; i++) {
+        if (U[i]) {
+          uses = 1
+          if (L[i] ~ /\$\{CLAUDE_PLUGIN_ROOT:-/) continue
+          if (G[B[i]] || hint) continue
+          print FN[i] ":" LN[i]
+        }
+      }
+      nl = 0; hint = 0; split("", G); split("", U)
+    }
+    FNR == 1 {
+      if (mode == "root") flush()
+      md = (FILENAME ~ /\.md$/); fence = 0; blk++
+      n = split(FILENAME, seg, "/"); base = n - 1
+    }
+    {
+      line = $0
+      if (md && line ~ /^[[:space:]]*(```|~~~)/) { fence = !fence; blk++; next }
+      if (mode == "root") {
+        nl++; L[nl] = line; B[nl] = blk; FN[nl] = FILENAME; LN[nl] = FNR
+        # A "use" is an expansion that would execute: any in a fence or a
+        # non-comment script line; in markdown prose only a command
+        # invocation (`bash "$..."`), not a sentence naming the variable.
+        U[nl] = 0
+        if (line ~ /\$\{?CLAUDE_PLUGIN_ROOT/) {
+          if (md && !fence) U[nl] = (line ~ /(bash|sh|source|\.|python3?|node|exec)[ \t]+"?\$\{?CLAUDE_PLUGIN_ROOT/)
+          else U[nl] = (md || line !~ /^[ \t]*#/)
+        }
+        if (line ~ /\[ -[nz] "\$\{CLAUDE_PLUGIN_ROOT/) G[blk] = 1
+        if (tolower(line) ~ /other harness|다른 하네스|그 외 하네스|elsewhere export|export claude_plugin_root=|hermes_skill_dir/) hint = 1
+        next
+      }
+      if (md && fence) next
+      rest = line
+      while (match(rest, /(^|[ \t(`"'"'"'=])\.\.\/[^ \t)`"'"'"'<>,;|]*/)) {
+        tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+        sub(/^[^.]/, "", tok); sub(/#.*/, "", tok)
+        # Only a path naming a file (`name.ext`) is a bundle dependency; a
+        # bare `../..` or `../../.git` in prose is shell talk, not a reference.
+        if (tok !~ /[^.\/]\.[A-Za-z0-9]+$/) continue
+        depth = base; k = split(tok, part, "/")
+        for (j = 1; j <= k; j++) {
+          if (part[j] == "..") depth--
+          else if (part[j] != "." && part[j] != "") depth++
+          if (depth < 0) { print FILENAME ":" FNR " -> " tok; break }
+        }
+      }
+    }
+    END { if (mode == "root") { flush(); if (uses) print "USES" } }
+  ' $port_files)
+}
+
+# summarize <hits> -- first five hits joined by "; ", plus "(+N more)".
+summarize() {
+  printf '%s\n' "$1" | awk 'NF { n++; if (n <= 5) s = s (n > 1 ? "; " : "") $0 }
+    END { if (n > 5) s = s " (+" n - 5 " more)"; print s }'
+}
+
+# ---------- Check 17: Bundle Self-containment ----------
+esc=$(port_scan escape)
+if [ -z "$esc" ]; then
+  r17=PASS; n17='no relative path escapes the skill dir'
+else
+  r17=WARN; n17="$(printf '%s\n' "$esc" | grep -c .) path(s) outside the skill dir: $(summarize "$esc")"
+fi
+
+# ---------- Check 18: Plugin-root Fallback ----------
+roots=$(port_scan root)
+case $roots in
+  '') r18='N/A'; n18='no CLAUDE_PLUGIN_ROOT expansion' ;;
+  USES) r18=PASS; n18='every CLAUDE_PLUGIN_ROOT use has a fallback' ;;
+  *)
+    unprot=$(printf '%s\n' "$roots" | grep -v '^USES$')
+    r18=WARN; n18="$(printf '%s\n' "$unprot" | grep -c .) CLAUDE_PLUGIN_ROOT use(s) with no fallback: $(summarize "$unprot")"
+    ;;
+esac
+
 # ---------- Report ----------
 pass=0 fail=0 na=0
 out() {
@@ -342,10 +455,12 @@ out 13 "$r13" "$n13"
 out 14 "$r14" "$n14"
 out 15 "$r15" "$n15"
 out 16 "$r16" "$n16"
+out 17 "$r17" "$n17"
+out 18 "$r18" "$n18"
 
 [ -n "$j2" ] || exit 0
 
-total=$((16 - na))
+total=$((18 - na))
 if [ "$total" -le 0 ]; then
   verdict='N/A'
 elif [ "$pass" -eq "$total" ]; then

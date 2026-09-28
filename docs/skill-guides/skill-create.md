@@ -25,7 +25,7 @@
 
 **쓰지 않을 때**
 
-- **점검만 하고 싶을 때** → `/authoring:skill-check`. 16개 항목 감사이고 **읽기 전용**이다.
+- **점검만 하고 싶을 때** → `/authoring:skill-check`. 18개 항목 감사이고 **읽기 전용**이다.
 - **100줄을 넘긴 `SKILL.md`를 줄이고 싶을 때** → `/authoring:skill-refactor`.
   기존 파일을 `references/`로 쪼개는 전용 도구다. 다만 이 스킬의 Phase 8은 그
   리팩터링을 스스로 호출한다.

@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "Authoring",
     "shortDescription": "Author and audit skills, scripts, and command names",
-    "longDescription": "Authoring bundles the six skills that keep an agent harness's own source material in shape: skill-create builds a SKILL.md through an interview, draft, and eval loop; skill-check audits one against sixteen structure, UX, security, and context-budget criteria; skill-refactor shrinks an over-long one under 100 lines by extracting references/; sh-check audits a shell script against ten quality criteria; ux-guidelines replaces raw echo/printf/ANSI in shell help text with semantic ux_lib calls; and command-rename designs a naming refactor and files the tracking issue without touching code. Three of them audit, three of them write, and each says which is which before it starts.",
+    "longDescription": "Authoring bundles the six skills that keep an agent harness's own source material in shape: skill-create builds a SKILL.md through an interview, draft, and eval loop; skill-check audits one against eighteen structure, UX, security, context-budget, and portability criteria; skill-refactor shrinks an over-long one under 100 lines by extracting references/; sh-check audits a shell script against ten quality criteria; ux-guidelines replaces raw echo/printf/ANSI in shell help text with semantic ux_lib calls; and command-rename designs a naming refactor and files the tracking issue without touching code. Three of them audit, three of them write, and each says which is which before it starts.",
     "developerName": "dEitY719",
     "category": "Developer Tools",
     "capabilities": [

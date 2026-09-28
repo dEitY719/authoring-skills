@@ -8,7 +8,7 @@ reading its `SKILL.md`, then follow it. Do not load all six.
 | Skill | Read | Use when |
 |-------|------|----------|
 | `skill-create` | `@./skills/skill-create/SKILL.md` | Building a new skill from an idea, or improving and evaluating an existing one — interview, draft, eval loop, description tuning, packaging. |
-| `skill-check` | `@./skills/skill-check/SKILL.md` | Auditing one `SKILL.md` against 16 structure, UX, model, security, and context-budget checks. Read-only. |
+| `skill-check` | `@./skills/skill-check/SKILL.md` | Auditing one `SKILL.md` against 18 structure, UX, model, security, context-budget, and portability checks. Read-only. |
 | `skill-refactor` | `@./skills/skill-refactor/SKILL.md` | A `SKILL.md` is over 100 lines and its detail needs extracting into `references/`. |
 | `sh-check` | `@./skills/sh-check/SKILL.md` | Auditing a `*.sh` file against 10 shell quality criteria. Read-only. |
 | `ux-guidelines` | `@./skills/ux-guidelines/SKILL.md` | Shell help text uses raw `echo`/`printf`/ANSI and should use semantic `ux_lib` calls instead. |

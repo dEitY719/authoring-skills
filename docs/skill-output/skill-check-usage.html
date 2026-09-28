@@ -230,7 +230,7 @@
     <div class="eyebrow">authoring · skill output</div>
     <h1>skill-check</h1>
     <p class="summary">
-      <code>SKILL.md</code> 파일 하나를 받아 16개 항목의 감사 리포트를 생성합니다.
+      <code>SKILL.md</code> 파일 하나를 받아 18개 항목의 감사 리포트를 생성합니다.
     </p>
     <div class="badge-row">
       <span class="pill pill--audit">
@@ -301,15 +301,15 @@
   <section>
     <h2><span class="num">03</span>결과</h2>
     <p class="lede">
-      Score: <strong>11/15 checks passed</strong> (4 warnings, 0 fails, 1 N/A) ·
+      Score: <strong>12/16 checks passed</strong> (4 warnings, 0 fails, 2 N/A) ·
       Verdict: <strong style="color:var(--warn)">NEEDS WORK</strong>
     </p>
 
     <div class="score-grid">
       <div class="stat stat--ok">
         <span class="label">PASS</span>
-        <div class="value">11</div>
-        <div class="sub">1–7, 9–11, 13</div>
+        <div class="value">12</div>
+        <div class="sub">1–7, 9–11, 13, 17</div>
       </div>
       <div class="stat stat--warn">
         <span class="label">WARN</span>
@@ -323,21 +323,21 @@
       </div>
       <div class="stat stat--na">
         <span class="label">N/A</span>
-        <div class="value">1</div>
-        <div class="sub">15</div>
+        <div class="value">2</div>
+        <div class="sub">15 · 18</div>
       </div>
     </div>
 
-    <div class="bar" role="img" aria-label="PASS 11, WARN 4, N/A 1">
-      <span class="b-pass" style="width:68.75%"></span>
-      <span class="b-warn" style="width:25%"></span>
-      <span class="b-na" style="width:6.25%"></span>
+    <div class="bar" role="img" aria-label="PASS 12, WARN 4, N/A 2">
+      <span class="b-pass" style="width:66.67%"></span>
+      <span class="b-warn" style="width:22.22%"></span>
+      <span class="b-na" style="width:11.11%"></span>
     </div>
     <div class="bar-legend">
-      <span><i style="background:var(--ok)"></i>PASS 11</span>
+      <span><i style="background:var(--ok)"></i>PASS 12</span>
       <span><i style="background:var(--warn)"></i>WARN 4</span>
       <span><i style="background:var(--fail)"></i>FAIL 0</span>
-      <span><i style="background:#c6cad2"></i>N/A 1</span>
+      <span><i style="background:#c6cad2"></i>N/A 2</span>
     </div>
 
     <div class="table-scroll" style="margin-top:22px">
@@ -348,8 +348,8 @@
         <tbody>
           <tr>
             <td><span class="verdict v-pass">PASS</span></td>
-            <td class="count">11</td>
-            <td>1–7, 9–11, 13</td>
+            <td class="count">12</td>
+            <td>1–7, 9–11, 13, 17</td>
           </tr>
           <tr>
             <td><span class="verdict v-warn">WARN</span></td>
@@ -363,8 +363,8 @@
           </tr>
           <tr>
             <td><span class="verdict v-na">N/A</span></td>
-            <td class="count">1</td>
-            <td>15 Capability Declaration Consistency (실행 헬퍼 없음)</td>
+            <td class="count">2</td>
+            <td>15 Capability Declaration Consistency (실행 헬퍼 없음) · 18 Plugin-root Fallback (<code>CLAUDE_PLUGIN_ROOT</code> 미사용)</td>
           </tr>
         </tbody>
       </table>

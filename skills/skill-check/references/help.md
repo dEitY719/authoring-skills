@@ -17,7 +17,7 @@ Examples:
   /authoring:skill-check skills/my-composite-skill/SKILL.md --recursive
   /authoring:skill-check help
 
-Checks run (16 total):
+Checks run (18 total):
   Structure (1-5):    Line Count, Progressive Disclosure, Frontmatter Validity,
                       References Directory Usage, Output Report Defined
   UX Quality (6-12):  Help Flag Pattern, Step Structure, Options Documentation,
@@ -29,3 +29,5 @@ Checks run (16 total):
                       (read-only policy alignment; pre-empts security scanners)
   Budget (16):        Description Length (PASS <=250 chars / WARN 251-400 /
                       FAIL >400; characters not bytes)
+  Portability (17-18): Bundle Self-containment, Plugin-root Fallback
+                      (WARN-only: runs outside Claude Code's full-plugin install)

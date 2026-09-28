@@ -210,6 +210,121 @@ decoytrail="$work/decoytrail/authoring/mid4/SKILL.md"
 dt=$(sh "$here/skill_check.sh" "$decoytrail" $j10)
 eq "decoytrail: 'check-1601' (trailing digit) does not satisfy Check 16" "$(row "$dt" 16)" WARN
 
+# ---------- Checks 17-18: portability ----------
+# port <name> -- write stdin as a minimal SKILL.md at $work/port/<name>/, and
+# print its path. Extra bundle files are written by the caller afterwards.
+port() {
+  p="$work/port/$1/SKILL.md"
+  { printf -- '---\nname: %s\ndescription: Portability fixture.\n---\n' "$1"; cat; } | mkskill "$p"
+  printf '%s\n' "$p"
+}
+fence='```'
+
+p=$(port escape <<'EOF'
+Run `bash ../../../lib/x.sh` first.
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "escape: 17 path outside the skill dir WARNs" "$(row "$o" 17)" WARN
+case $(note "$o" 17) in
+  *'SKILL.md:5 -> ../../../lib/x.sh'*) ok "escape: 17 note names file:line -> path" ;;
+  *) no "escape: 17 note names file:line -> path" "$(note "$o" 17)" ;;
+esac
+eq "escape: 18 no plugin-root use" "$(row "$o" 18)" 'N/A'
+
+# A reference file may climb back to its own skill root -- still inside.
+p=$(port inside <<'EOF'
+See [a](references/a.md).
+EOF
+)
+mkskill "$work/port/inside/references/a.md" <<'EOF'
+Back to [the entry](../SKILL.md) and [b](./b.md).
+EOF
+o=$(sh "$here/skill_check.sh" "$p")
+eq "inside: 17 in-skill references PASS" "$(row "$o" 17)" PASS
+
+# ... but one level more from references/ leaves it: depth is per-file.
+mkskill "$work/port/inside/references/c.md" <<'EOF'
+Sibling: [x](../../other/references/x.md).
+EOF
+o=$(sh "$here/skill_check.sh" "$p")
+eq "inside: 17 a ref file's ../../ escapes" "$(row "$o" 17)" WARN
+
+p=$(port fenced <<EOF
+Example of what not to do:
+$fence
+bash ../../../lib/x.sh
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "fenced: 17 ../ inside a code fence is an example" "$(row "$o" 17)" PASS
+
+p=$(port bareroot <<EOF
+$fence
+bash "\${CLAUDE_PLUGIN_ROOT}/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "bareroot: 18 unguarded plugin root WARNs" "$(row "$o" 18)" WARN
+
+p=$(port inlineroot <<'EOF'
+Verify with `bash "${CLAUDE_PLUGIN_ROOT}/lib/x.sh" out.html`.
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "inlineroot: 18 an inline prose command counts too" "$(row "$o" 18)" WARN
+
+p=$(port defaulted <<EOF
+$fence
+bash "\${CLAUDE_PLUGIN_ROOT:-\$HOME/p}/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "defaulted: 18 :- default expansion PASSes" "$(row "$o" 18)" PASS
+
+p=$(port guarded <<EOF
+$fence
+[ -n "\${CLAUDE_PLUGIN_ROOT:-}" ] || exit 1
+bash "\$CLAUDE_PLUGIN_ROOT/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "guarded: 18 [ -n ] guard in the same fence PASSes" "$(row "$o" 18)" PASS
+
+p=$(port hinted <<EOF
+On any other harness, export CLAUDE_PLUGIN_ROOT first.
+
+$fence
+bash "\$CLAUDE_PLUGIN_ROOT/lib/x.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "hinted: 18 other-harness hint in the file PASSes" "$(row "$o" 18)" PASS
+
+p=$(port prose <<'EOF'
+Claude Code sets `$CLAUDE_PLUGIN_ROOT`; this skill never reads it.
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "prose: 18 naming the variable in prose is not a use" "$(row "$o" 18)" 'N/A'
+
+# ---------- count drift guard ----------
+# checks.md defines the checks; every place that states their count must
+# agree with it (SKILL.md description, help.md, the score denominator).
+skill_dir=$(cd "$here/.." && pwd)
+n_defined=$(grep -cE '^### Check [0-9]+:' "$skill_dir/references/checks.md")
+n_skill=$(sed -nE 's/.*against ([0-9]+) structure.*/\1/p' "$skill_dir/SKILL.md")
+n_help=$(sed -nE 's/.*Checks run \(([0-9]+) total\).*/\1/p' "$skill_dir/references/help.md")
+n_score=$(sed -nE 's/^total=\$\(\(([0-9]+) - na\)\)$/\1/p' "$here/skill_check.sh")
+eq "drift: SKILL.md description count = checks.md" "$n_skill" "$n_defined"
+eq "drift: help.md count = checks.md" "$n_help" "$n_defined"
+eq "drift: score denominator = checks.md" "$n_score" "$n_defined"
+
 # ---------- mechanical-only mode: no score row without all ten judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")
 eq "solo: no score row" "$(printf '%s\n' "$solo" | grep -c '^score' || true)" 0
