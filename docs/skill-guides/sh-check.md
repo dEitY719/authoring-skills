@@ -18,7 +18,7 @@ PASS/WARN/FAIL/N-A 표 · Score · Verdict · Next Actions 로 구성된 **감�
 
 | 대상 파일 | 담당 스킬 | 비고 |
 |-----------|-----------|------|
-| `SKILL.md` | `/authoring:skill-check` | 스킬 구조·설명 예산 16개 검사. sh-check 의 거울상 |
+| `SKILL.md` | `/authoring:skill-check` | 스킬 구조·설명 예산·이식성 18개 검사. sh-check 의 거울상 |
 | `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | `/harness:ai-context check` | AI 컨텍스트 문서 전용 |
 | `*.sh` 의 help 텍스트를 **실제로 고쳐야** 할 때 | `/authoring:ux-guidelines` | raw `echo`/`printf`/ANSI 를 `ux_header`·`ux_section`·`ux_bullet` 같은 semantic `ux_lib` 호출로 치환 |
 

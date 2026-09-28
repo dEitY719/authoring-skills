@@ -1,7 +1,7 @@
 ---
 name: skill-check
 description: >-
-  Audit a SKILL.md against 16 structure/UX/security/budget checks. Use when
+  Audit a SKILL.md against 18 structure/UX/security/budget checks. Use when
   the user says "check my skill", "audit my skill", "스킬 점검해줘",
   "/authoring:skill-check". Do NOT use for AGENTS.md/CLAUDE.md/GEMINI.md — use
   harness:ai-context instead.
@@ -10,7 +10,7 @@ compatibility:
 metadata:
   model_recommendation:
     tier: sonnet
-    reason: "16-criteria SKILL.md audit across four reference files; judgment on WARN/FAIL boundaries and sub-skill tier planning"
+    reason: "18-criteria SKILL.md audit across four reference files; judgment on WARN/FAIL boundaries and sub-skill tier planning"
     claude: prefer
     non_claude: advisory-only
 license: MIT
@@ -27,7 +27,7 @@ If the argument is `-h`, `--help`, or `help`, read `references/help.md` and outp
 If the user specifies a path, use it. Otherwise search for SKILL.md from the
 current directory.
 
-## Step 2: Run Sixteen Checks
+## Step 2: Run Eighteen Checks
 
 Run the mechanical half first. `<skill-dir>` is this skill's own installed
 directory, never a path inside the repository being audited:
@@ -36,8 +36,8 @@ directory, never a path inside the repository being audited:
 sh <skill-dir>/lib/skill_check.sh <path>
 ```
 
-It decides the six mechanical checks (1, 11, 13, 14, 15, 16). Read
-`references/checks.md` for all 16 check definitions and PASS/WARN/FAIL/N/A
+It decides the eight mechanical checks (1, 11, 13, 14, 15, 16, 17, 18). Read
+`references/checks.md` for all 18 check definitions and PASS/WARN/FAIL/N/A
 criteria, and judge the remaining ten (2, 3, 4, 5, 6, 7, 8, 9, 10, 12)
 yourself. Re-run with those ten results appended, in check-id order, to get
 the combined score/verdict row. Audit-only — never stop on failure; report
@@ -56,6 +56,10 @@ Sub-skill Model Plan for composite skills — required report content, not
 optional) · License Declaration · Capability Declaration Consistency ·
 Description Length — all read-only; definitions and thresholds in
 `references/checks.md`.
+
+**Checks 17–18: Portability** (WARN-only)
+Bundle Self-containment · Plugin-root Fallback — does the skill still run
+when another harness installs just this one directory.
 
 ## Step 3: Output the Report
 

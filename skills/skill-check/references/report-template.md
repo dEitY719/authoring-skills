@@ -44,9 +44,15 @@ References dir: <exists / missing>
 |----|------------------------------|--------|--------------------------------------------|
 | 16 | Description Length           | FAIL   | 668 chars > 400 — move flag detail to references/help.md |
 
+### Portability Checks
+| #  | Check                        | Result | Notes                                      |
+|----|------------------------------|--------|--------------------------------------------|
+| 17 | Bundle Self-containment      | WARN   | 1 path(s) outside the skill dir: references/a.md:4 -> ../../../lib/x.sh |
+| 18 | Plugin-root Fallback         | N/A    | no CLAUDE_PLUGIN_ROOT expansion            |
+
 Recommended tier: haiku — read-only audit, bounded output (declared: none yet)
 
-Score: 6/13 checks passed (5 warnings, 2 fails, 1 N/A)
+Score: 6/16 checks passed (7 warnings, 3 fails, 2 N/A)
 Verdict: NEEDS WORK — fix FAIL items before shipping
 
 ## Sub-skill Model Plan
@@ -81,7 +87,7 @@ Run /authoring:skill-check again after fixes to verify.
 Rules:
 - Only include WARN and FAIL items in Issues & Improvements section
 - Quote actual lines from the file when describing problems
-- Score denominator excludes N/A checks (16 checks total, minus any N/A)
+- Score denominator excludes N/A checks (18 checks total, minus any N/A)
 - Check 16 always reports the measured character count in Notes, so the
   overage is actionable without re-running a measurement
 - The "Model Recommendation Check" table row + "Recommended tier" line are

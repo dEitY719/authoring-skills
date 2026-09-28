@@ -11,7 +11,7 @@ Three of them audit and never write; three of them rewrite and say so first.
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | `skill-create` | `/authoring:skill-create ["<idea>"]` | Builds a skill through eight phases — capture intent, interview, draft, run and evaluate test cases, improve, tune the description for triggering accuracy, package, then gate on `skill-check`. |
-| `skill-check` | `/authoring:skill-check [path/to/SKILL.md] [--recursive]` | Audits one `SKILL.md` against 16 checks across structure, UX quality, model-tier metadata, security declarations, and the context budget. Reports PASS/WARN/FAIL/N-A for every one. Read-only. |
+| `skill-check` | `/authoring:skill-check [path/to/SKILL.md] [--recursive]` | Audits one `SKILL.md` against 18 checks across structure, UX quality, model-tier metadata, security declarations, the context budget, and cross-harness portability. Reports PASS/WARN/FAIL/N-A for every one. Read-only. |
 | `skill-refactor` | `/authoring:skill-refactor [path/to/SKILL.md]` | Shrinks an over-long `SKILL.md` under 100 lines by extracting detail into `references/`. Presents the plan and waits for confirmation before writing. |
 | `sh-check` | `/authoring:sh-check [path/to/script.sh]` | Audits a `*.sh` file against 10 criteria — POSIX hygiene, interactive guard, section anatomy, naming, zsh compat, help flag, `ux_lib` usage, input validation, verdict output, next-action hint. Read-only. |
 | `ux-guidelines` | `/authoring:ux-guidelines [target]` | Replaces raw `echo`/`printf`/ANSI in shell functions and help text with semantic `ux_lib` calls (`ux_header`, `ux_section`, `ux_bullet`). Single-function or bulk-sweep mode. |
@@ -20,7 +20,7 @@ Three of them audit and never write; three of them rewrite and say so first.
 ### Visual guides and worked examples (GitHub Pages)
 
 - `skill-create` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-create.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-create-usage.html) (한 문장짜리 아이디어 → 검증·패키징된 스킬)
-- `skill-check` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-check.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-check-usage.html) (SKILL.md → 16개 항목 감사 리포트)
+- `skill-check` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-check.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-check-usage.html) (SKILL.md → 18개 항목 감사 리포트)
 - `skill-refactor` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/skill-refactor.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/skill-refactor-usage.html) (100줄 초과 SKILL.md → 100줄 이하 + references/)
 - `sh-check` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/sh-check.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/sh-check-usage.html) (셸 스크립트 → 10개 기준 감사 리포트)
 - `ux-guidelines` — [visual guide](https://deity719.github.io/authoring-skills/skill-guides/ux-guidelines.html) · [usage example](https://deity719.github.io/authoring-skills/skill-output/ux-guidelines-usage.html) (raw echo 스크립트 → ux_lib 스크립트)

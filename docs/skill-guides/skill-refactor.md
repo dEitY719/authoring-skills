@@ -26,7 +26,7 @@ Progressive Disclosure의 원칙은 `SKILL.md`가 **관제탑**(단계와 포인
 
 - **새 스킬을 처음부터 만들 때** → `/authoring:skill-create`. 이 스킬은 이미 있는
   파일을 다시 쓰는 도구이지, 없는 스킬을 만들어내지 않는다.
-- **점검만 하고 싶을 때** → `/authoring:skill-check` (읽기 전용, 16개 항목 감사).
+- **점검만 하고 싶을 때** → `/authoring:skill-check` (읽기 전용, 18개 항목 감사).
 - **`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`** 같은 AI 컨텍스트 문서. 대상이 아니다.
   `SKILL.md` 전용이다. 셸 스크립트는 `/authoring:sh-check`.
 - 이미 100줄 이하이고 구조가 멀쩡한 스킬. 이 경우 Step 1에서 "통과"를 알리고

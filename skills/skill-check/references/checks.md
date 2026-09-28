@@ -1,6 +1,6 @@
 # Skill Quality Checks
 
-Sixteen checks, each rated PASS / WARN / FAIL / N/A.
+Eighteen checks, each rated PASS / WARN / FAIL / N/A.
 
 ---
 
@@ -161,8 +161,8 @@ inputs/outputs, and a direct call pattern such as
 `bash skills/<name>/lib/<script>.sh` or
 `python skills/<name>/lib/<script>.py`.
 
-`authoring:skill-check` extracts its own six mechanical checks (1, 11, 13
-shape, 14, 15, 16) plus the score/verdict arithmetic this way:
+`authoring:skill-check` extracts its own eight mechanical checks (1, 11, 13
+shape, 14, 15, 16, 17, 18) plus the score/verdict arithmetic this way:
 `skills/skill-check/lib/skill_check.sh` — usage, the full I/O contract, and
 exit codes are documented in that script's own header. Invoked from Step 2.
 
@@ -310,3 +310,79 @@ so it lives in a manual harness instead:
 describes is not shipped in this repo — see that file's note). Run it when a
 description is shrunk, when a skill is renamed, or when a competing pair's
 boundary wording changes.
+
+---
+
+## Portability Checks (17–18)
+
+Claude Code installs a whole plugin, so every skill below works there today.
+Other harnesses do not: a Hermes Agent GitHub tap or `npx skills add` copies
+**one skill directory**, and Hermes substitutes only `${HERMES_SKILL_DIR}` /
+`${HERMES_SESSION_ID}` — never `CLAUDE_PLUGIN_ROOT` (dEitY719/authoring-skills#32,
+dEitY719/dotfiles#1829). Both checks are therefore **WARN-only** — a
+Claude-Code-only skill must never FAIL for it — and read-only.
+
+Scan set for both: `SKILL.md` plus every text file under `references/`,
+`lib/`, `scripts/`, minus self-test/fixture files (`*selftest*`,
+`*selfcheck*`, `test_*`, `*_test.*`) exactly as Check 15 excludes them.
+
+### Check 17: Bundle Self-containment
+Extract every relative path token starting with `../` (after a `(`, backtick,
+quote, `=` or whitespace — markdown link targets, quoted/backticked paths,
+`source`/`.`/`bash`/`sh` arguments) that **names a file** (`name.ext`;
+a `#anchor` is dropped). Normalise it as a string against the referencing
+file's own directory — symlinks are never followed, so the result is the
+same on every install. A path that climbs above the skill directory is a
+violation.
+
+| Result | Criteria |
+|---|---|
+| PASS | no path escapes the skill directory |
+| WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`) |
+
+Not violations: anything inside a markdown code fence (``` / ~~~ —
+illustrative examples), `http(s)://` URLs, and bare directory talk such as
+`../..` or `../../.git` (no file named). A link to a repo-wide doc
+(`../../../docs/…`) is not a runtime dependency but still breaks after a
+single-skill install, so it WARNs the same.
+
+**How to fix** (report's Next Actions):
+- shared script → vendor it into the skill (`lib/vendor/`, the pattern already
+  in use), with CI proving the copy has not drifted from its source;
+- another skill's `references/` → move the needed part into this skill's own
+  `references/`, or refer by name ("see `<plugin>:<skill>`, section X")
+  instead of by path.
+
+### Check 18: Plugin-root Fallback
+Find every dollar-expansion of `CLAUDE_PLUGIN_ROOT` (braced or bare) that
+would execute: inside a code fence, on a non-comment line of a script, or in
+markdown prose only as a command (`` `bash "${CLAUDE_PLUGIN_ROOT}/…"` ``) — a
+sentence that merely names the variable is not a use. A use is **protected**
+when any of these holds:
+
+- it is a default expansion, `${CLAUDE_PLUGIN_ROOT:-…}`;
+- the same code block (fence; a script file is one block) carries a guard,
+  `[ -n "${CLAUDE_PLUGIN_ROOT…` or `[ -z "${CLAUDE_PLUGIN_ROOT…`;
+- the same file tells other harnesses what to do — it contains
+  `other harness`, `다른 하네스`, `그 외 하네스`, `elsewhere export`,
+  `export CLAUDE_PLUGIN_ROOT=` or `HERMES_SKILL_DIR`.
+
+| Result | Criteria |
+|---|---|
+| PASS | every use is protected |
+| WARN | one or more unprotected uses — the note lists `file:line` |
+| N/A | no executing use of `CLAUDE_PLUGIN_ROOT` |
+
+Recommended pattern to quote in the report:
+
+```sh
+_root="${CLAUDE_PLUGIN_ROOT:-${HERMES_SKILL_DIR:+$HERMES_SKILL_DIR/../..}}"
+[ -n "$_root" ] && [ -f "$_root/lib/verify-html.sh" ] || { printf '[FAIL] plugin root unresolved — export CLAUDE_PLUGIN_ROOT=<plugin dir>\n' >&2; exit 1; }
+```
+
+Once Check 17 holds (the script is vendored into the skill), one
+skill-relative path off `${HERMES_SKILL_DIR}` is enough.
+
+Executable mirror for both: `skills/skill-check/lib/skill_check.sh` Checks
+17–18, self-tested by `skills/skill-check/lib/selftest.sh`. Keep the rules
+identical between that script and this section.

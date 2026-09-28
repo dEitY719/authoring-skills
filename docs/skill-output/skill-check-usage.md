@@ -1,6 +1,6 @@
 # skill-check 사용 결과
 
-> **한 줄 요약** — `SKILL.md` 파일 하나를 받아 16개 항목의 감사 리포트를 생성합니다.
+> **한 줄 요약** — `SKILL.md` 파일 하나를 받아 18개 항목의 감사 리포트를 생성합니다.
 
 ```
 SKILL.md  ──▶  /authoring:skill-check  ──▶  감사 리포트 (PASS/WARN/FAIL/N-A)
@@ -20,14 +20,14 @@ SKILL.md  ──▶  /authoring:skill-check  ──▶  감사 리포트 (PASS/W
 
 ## 3. 결과
 
-Score: 11/15 checks passed (4 warnings, 0 fails, 1 N/A) · Verdict: NEEDS WORK
+Score: 12/16 checks passed (4 warnings, 0 fails, 2 N/A) · Verdict: NEEDS WORK
 
 | 판정 | 개수 | 해당 검사 |
 |---|---|---|
-| PASS | 11 | 1–7, 9–11, 13 |
+| PASS | 12 | 1–7, 9–11, 13, 17 |
 | WARN | 4 | 8 Options Documentation · 12 Executable Procedure Extraction · 14 License Declaration · 16 Description Length |
 | FAIL | 0 | — |
-| N/A | 1 | 15 Capability Declaration Consistency (실행 헬퍼 없음) |
+| N/A | 2 | 15 Capability Declaration Consistency (실행 헬퍼 없음) · 18 Plugin-root Fallback (`CLAUDE_PLUGIN_ROOT` 미사용) |
 
 리포트 발췌:
 ```

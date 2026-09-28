@@ -13,7 +13,7 @@ files, shell scripts, help text, command names:
 | Skill | Role |
 |-------|------|
 | `skill-create` | Build a new SKILL.md through interview, draft, eval loop, description tuning, and packaging. |
-| `skill-check` | Audit one SKILL.md against 16 structure, UX, model, security, and context-budget checks. Read-only. |
+| `skill-check` | Audit one SKILL.md against 18 structure, UX, model, security, context-budget, and portability checks. Read-only. |
 | `skill-refactor` | Shrink an over-long SKILL.md under 100 lines by extracting detail into `references/`. |
 | `sh-check` | Audit a `*.sh` file against 10 PASS/WARN/FAIL/N-A criteria. Read-only. |
 | `ux-guidelines` | Replace raw `echo`/`printf`/ANSI in shell help text with semantic `ux_lib` calls. |

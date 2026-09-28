@@ -214,7 +214,7 @@
     <div class="eyebrow">authoring · skill guide</div>
     <h1>skill-check</h1>
     <p class="summary">
-      <code>SKILL.md</code> 파일 하나를 16개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
+      <code>SKILL.md</code> 파일 하나를 18개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
     </p>
     <div class="badge-row">
       <span class="pill pill--audit">
@@ -224,7 +224,7 @@
         감사 전용
       </span>
       <span class="pill">read-only · 파일을 쓰지 않는다</span>
-      <span class="pill">16 checks</span>
+      <span class="pill">18 checks</span>
     </div>
   </div>
 </header>
@@ -235,7 +235,7 @@
     <h2><span class="num">01</span>한 줄 요약</h2>
     <div class="card">
       <p>
-        <code>SKILL.md</code> 파일 하나를 16개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
+        <code>SKILL.md</code> 파일 하나를 18개 기준으로 감사해 <strong>감사 리포트(문서)</strong> 를 만들어 낸다.
       </p>
       <p>
         대상 파일을 고치지 않는다 — 산출물은 수정된 스킬이 아니라
@@ -358,8 +358,8 @@
           경로가 주어지면 그 파일, 아니면 현재 디렉터리에서 탐색.
         </li>
         <li>
-          <span class="step-title">Step 2: Run Sixteen Checks</span> —
-          <code>references/checks.md</code> 의 16개 정의를 읽고 검사마다
+          <span class="step-title">Step 2: Run Eighteen Checks</span> —
+          <code>references/checks.md</code> 의 18개 정의를 읽고 검사마다
           <span class="verdict v-pass">PASS</span>
           <span class="verdict v-warn">WARN</span>
           <span class="verdict v-fail">FAIL</span>
@@ -373,7 +373,7 @@
       </ol>
     </div>
 
-    <p class="lede" style="margin:26px 0 10px">16개 검사 그룹</p>
+    <p class="lede" style="margin:26px 0 10px">18개 검사 그룹</p>
     <div class="table-scroll">
       <table>
         <thead>
@@ -404,6 +404,11 @@
             <td><strong>Context Budget</strong></td>
             <td><code>16</code></td>
             <td>Description Length</td>
+          </tr>
+          <tr>
+            <td><strong>Portability</strong></td>
+            <td><code>17–18</code></td>
+            <td>Bundle Self-containment · Plugin-root Fallback (WARN 전용 — 다른 하네스가 스킬 디렉터리 하나만 설치해도 실행되는가)</td>
           </tr>
         </tbody>
       </table>
@@ -443,10 +448,10 @@
       </li>
       <li class="n-accent">
         <span class="note-title">첫 실패에서 멈추지 않는다</span>
-        16개 전부를 판정해 전체 리포트를 낸다.
+        18개 전부를 판정해 전체 리포트를 낸다.
       </li>
       <li>
-        <span class="note-title">Score 분모에서 N/A 는 제외한다 (16 − N/A 개수)</span>
+        <span class="note-title">Score 분모에서 N/A 는 제외한다 (18 − N/A 개수)</span>
         Verdict 는 전원 <span class="verdict v-pass">PASS</span> → <strong>EXCELLENT</strong>,
         80% 이상이며 <span class="verdict v-fail">FAIL</span> 없음 → <strong>GOOD</strong>,
         60% 이상이거나 <span class="verdict v-fail">FAIL</span> 존재 → <strong>NEEDS WORK</strong>,

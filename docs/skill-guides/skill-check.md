@@ -2,7 +2,7 @@
 
 ## 한 줄 요약
 
-`SKILL.md` 파일 하나를 16개 기준으로 감사해 **감사 리포트(문서)** 를 만들어 낸다.
+`SKILL.md` 파일 하나를 18개 기준으로 감사해 **감사 리포트(문서)** 를 만들어 낸다.
 대상 파일을 고치지 않는다 — 산출물은 수정된 스킬이 아니라 PASS / WARN / FAIL / N/A
 판정표와 Score, Verdict, Next Actions 로 이루어진 리포트 한 벌이다.
 
@@ -53,11 +53,11 @@ SKILL.md 가 정의한 실제 흐름은 Help 분기 + 3단계다.
 
 1. **Help** — 인자가 `help` 이면 `references/help.md` 를 그대로 출력하고 종료.
 2. **Step 1: Locate the File** — 경로가 주어지면 그 파일, 아니면 현재 디렉터리에서 탐색.
-3. **Step 2: Run Sixteen Checks** — `references/checks.md` 의 16개 정의를 읽고
+3. **Step 2: Run Eighteen Checks** — `references/checks.md` 의 18개 정의를 읽고
    검사마다 PASS/WARN/FAIL/N/A 를 하나씩 배정한다.
 4. **Step 3: Output the Report** — `references/report-template.md` 의 형식 그대로 출력.
 
-16개 검사 그룹:
+18개 검사 그룹:
 
 | 그룹 | 번호 | 항목 |
 |---|---|---|
@@ -66,6 +66,7 @@ SKILL.md 가 정의한 실제 흐름은 Help 분기 + 3단계다.
 | Model | 13 | Model Recommendation Metadata (`metadata.model_recommendation` tier/reason/compatibility) |
 | Security & Policy | 14–15 | License Declaration · Capability Declaration Consistency |
 | Context Budget | 16 | Description Length |
+| Portability | 17–18 | Bundle Self-containment · Plugin-root Fallback (WARN 전용 — 다른 하네스가 스킬 디렉터리 하나만 설치해도 실행되는가) |
 
 보조 참조 파일: 티어 판정 기준은 `references/model-recommendation.md`(rubric SSOT),
 공급자별 모델 ID 는 `references/model-tier-map.md`, `name:` 표기 판정은
@@ -77,8 +78,8 @@ SKILL.md 가 정의한 실제 흐름은 Help 분기 + 3단계다.
 - **read-only 계약.** 티어를 추천만 하고 모델을 전환하지 않으며, 파일을 쓰지 않는다.
   Check 13·14·15 모두 정책 격차를 지적할 뿐 파일을 고치지 않는다. 실제 기입은
   `skill-refactor` 의 몫이다.
-- **첫 실패에서 멈추지 않는다.** 16개 전부를 판정해 전체 리포트를 낸다.
-- **Score 분모에서 N/A 는 제외**한다(16 − N/A 개수). Verdict 는 전원 PASS →
+- **첫 실패에서 멈추지 않는다.** 18개 전부를 판정해 전체 리포트를 낸다.
+- **Score 분모에서 N/A 는 제외**한다(18 − N/A 개수). Verdict 는 전원 PASS →
   `EXCELLENT`, 80% 이상이며 FAIL 없음 → `GOOD`, 60% 이상이거나 FAIL 존재 →
   `NEEDS WORK`, 60% 미만 → `POOR`.
 - **Issues & Improvements 에는 WARN 과 FAIL 만** 싣고, 문제를 설명할 때는 대상 파일의
