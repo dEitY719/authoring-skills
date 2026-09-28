@@ -333,14 +333,25 @@ quote, `=` or whitespace — markdown link targets, quoted/backticked paths,
 a `#anchor` is dropped). Normalise it as a string against the referencing
 file's own directory — symlinks are never followed, so the result is the
 same on every install. A path that climbs above the skill directory is a
-violation.
+violation. Two more forms are extracted the same way (dEitY719/authoring-skills#34):
+
+- **Skill-dir variable** — `$SKILL_DIR/../…`, `$HERMES_SKILL_DIR/../…`,
+  `$CLAUDE_SKILL_DIR/../…` (bare, braced, or `${X:-…}`). The variable is the
+  skill directory, so the rest is normalised from the skill root. This is an
+  executed path, not an example: it is checked **inside code fences too**.
+- **Skill-root-relative `../` in `references/`** — many reference files write
+  paths relative to the skill root, as `SKILL.md` does. A `../` path there is
+  also a violation when the file-relative target **does not exist** and the
+  skill-root-relative target escapes. The existence test only looks inside
+  the skill directory, so it stays deterministic; an existing file-relative
+  target (`../SKILL.md` from `references/a.md`) is never flagged.
 
 | Result | Criteria |
 |---|---|
 | PASS | no path escapes the skill directory |
 | WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`) |
 
-Not violations: anything inside a markdown code fence (``` / ~~~ —
+Not violations: plain `../` paths inside a markdown code fence (``` / ~~~ —
 illustrative examples), `http(s)://` URLs, and bare directory talk such as
 `../..` or `../../.git` (no file named). A link to a repo-wide doc
 (`../../../docs/…`) is not a runtime dependency but still breaks after a

@@ -260,6 +260,50 @@ EOF
 o=$(sh "$here/skill_check.sh" "$p")
 eq "fenced: 17 ../ inside a code fence is an example" "$(row "$o" 17)" PASS
 
+# A skill-dir variable names an executed path, so `${SKILL_DIR}/../` counts
+# even inside a fence (issue #34 pattern 1).
+p=$(port skilldirvar <<EOF
+$fence
+python3 "\${SKILL_DIR}/../other/x.py"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "skilldirvar: 17 fenced \${SKILL_DIR}/../ WARNs" "$(row "$o" 17)" WARN
+
+p=$(port skilldirin <<EOF
+$fence
+python3 "\$SKILL_DIR/references/x.py"
+bash "\${CLAUDE_SKILL_DIR:-.}/lib/y.sh"
+$fence
+EOF
+)
+o=$(sh "$here/skill_check.sh" "$p")
+eq "skilldirin: 17 \$SKILL_DIR path inside the skill PASSes" "$(row "$o" 17)" PASS
+
+# A references/ file written relative to the skill root (issue #34
+# pattern 2): the file-relative target is missing and the root-relative one
+# escapes -> WARN. `../SKILL.md` exists file-relative -> still PASS.
+p=$(port rootrel <<'EOF'
+See [a](references/a.md).
+EOF
+)
+mkskill "$work/port/rootrel/references/a.md" <<'EOF'
+Paths below are relative to the skill root. See [y](../other/references/y.md).
+EOF
+o=$(sh "$here/skill_check.sh" "$p")
+eq "rootrel: 17 root-relative ../ in references/ WARNs" "$(row "$o" 17)" WARN
+
+p=$(port filerel <<'EOF'
+See [a](references/a.md).
+EOF
+)
+mkskill "$work/port/filerel/references/a.md" <<'EOF'
+Back to [the entry](../SKILL.md).
+EOF
+o=$(sh "$here/skill_check.sh" "$p")
+eq "filerel: 17 existing file-relative ../SKILL.md PASSes" "$(row "$o" 17)" PASS
+
 p=$(port bareroot <<EOF
 $fence
 bash "\${CLAUDE_PLUGIN_ROOT}/lib/x.sh"
