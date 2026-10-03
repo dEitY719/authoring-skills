@@ -124,7 +124,8 @@ fi
 # not a literal, `-` when the function has no such return. next-* judge the last
 # argument of each return as Check 10 does: NEXT is command-shaped when it is a
 # known command prefix or a hyphenated member of its family (`gh-flow prune 1`,
-# issue #41), a /plugin:skill name, or `-` for a terminal state.
+# issue #41), a /plugin:skill name, or `-` for a terminal state; a leading
+# `cd <arg> && ` is stripped and the rest judged the same way (issue #47).
 # The opening brace may sit on the definition line, on the next line, or the
 # whole body may be a one-liner, so the definition is recognised by `name()`
 # alone and the remainder of that same line is scanned as body.
@@ -154,8 +155,10 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" '
   }
   function judge(v) {
     n++
-    if (v == "") blank++
-    else if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
+    if (v == "") { blank++; return }
+    # `cd <arg> && rest` is judged by rest (issue #47).
+    while (v ~ /^cd [^ ;&|]+ && /) sub(/^cd [^ ;&|]+ && /, "", v)
+    if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
   }
   # One fixed-line return: count its state, judge its NEXT.
   function verdict(line,   s, v, k, m, i, vs) {

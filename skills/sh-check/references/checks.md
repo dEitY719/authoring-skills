@@ -285,7 +285,10 @@ Command-shaped means one of:
 
 - a known command prefix: `gwt `, `git `, `gh `, `ps `, or a hyphenated member of that family (`gh-flow `, #41);
 - a skill invocation: `/plugin:skill`;
-- `-` — the terminal-state marker.
+- `-` — the terminal-state marker;
+- any of the above behind `cd <arg> && ` (`cd $_wt && gwt teardown`, #47) — the part after `&&` is judged by the same rule, so `cd X && review it` stays WARN.
+
+Prose that merely contains a command (`review 'x', then gh-flow prune 1`, `inspect $_dir`) stays WARN by design.
 
 **Terminal states use `-`, never a blank.** A state with no logical next step
 (gwt's `clean`) returns `-` so the column stays aligned and the reader can tell
