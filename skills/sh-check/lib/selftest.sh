@@ -197,6 +197,50 @@ vf=$(sh "$here/sh_check.sh" "$vfree")
 eq "vfree: prose verdict is FAIL" "$(row "$vf" 9)" FAIL
 eq "vfree: no NEXT anywhere is FAIL" "$(row "$vf" 10)" FAIL
 
+# Network is opt-in (issue #42): a gh/curl/wget call inside a fixed-line verdict
+# function is WARN unless an enclosing if/case names the opt-in flag.
+# net_fixture <path> <body-lines> -- vpass with extra lines before the case.
+net_fixture() {
+  cat > "$1" <<EOF
+#!/bin/sh
+# Priority: dirty > ahead > clean
+_vt_compute_status() {
+$2
+    case "\$_state" in
+        dirty) printf '%s\\n%s\\n%s\\n' "dirty" "2h" "gh pr view 1" ;;
+        *)     printf '%s\\n%s\\n%s\\n' "clean" "-" "-" ;;
+    esac
+}
+_vt_render() { out=\$(_vt_compute_status); ux_info "\$out"; }
+EOF
+}
+net_fixture "$work/vnet.sh" '    _pr=$(gh pr view "$1" --json state)'
+vn=$(sh "$here/sh_check.sh" "$work/vnet.sh")
+eq "vnet: an ungated gh call in the verdict is WARN" "$(row "$vn" 9)" WARN
+eq "vnet: the note names the function" \
+  "$(printf '%s\n' "$vn" | awk -F'\t' '$1 == 9 { print $3 }')" \
+  'missing: network opt-in (_vt_compute_status)'
+net_fixture "$work/vcurl.sh" '    command -v curl >/dev/null && curl -s https://x'
+eq "vcurl: curl after && is a call too" "$(row "$(sh "$here/sh_check.sh" "$work/vcurl.sh")" 9)" WARN
+net_fixture "$work/vgate.sh" '    if [ "$_remote" = 1 ]; then
+        _pr=$(gh pr view "$1" --json state)
+    fi'
+eq "vgate: a gh call behind if \$_remote is PASS" "$(row "$(sh "$here/sh_check.sh" "$work/vgate.sh")" 9)" PASS
+net_fixture "$work/velse.sh" '    if [ "$_remote" = 1 ]; then
+        :
+    else
+        wget -q https://x
+    fi'
+eq "velse: the else of the opt-in branch is not gated" "$(row "$(sh "$here/sh_check.sh" "$work/velse.sh")" 9)" WARN
+net_fixture "$work/varm.sh" '    case "$1" in
+        --remote) _pr=$(gh pr view "$2") ;;
+    esac'
+eq "varm: a gh call in a --remote case arm is PASS" "$(row "$(sh "$here/sh_check.sh" "$work/varm.sh")" 9)" PASS
+net_fixture "$work/vprobe.sh" '    command -v gh >/dev/null 2>&1 || return 1
+    # gh pr view is only named in this comment'
+eq "vprobe: command -v gh, a comment and a gh NEXT string are not calls" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/vprobe.sh")" 9)" PASS
+
 # ---------- regressions: PR #12 review ----------
 # Two guards inside one function must not cover a second, unguarded one.
 skew=$work/dotfiles/shell-common/functions/skew.sh

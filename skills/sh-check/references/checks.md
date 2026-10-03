@@ -252,16 +252,25 @@ PASS conditions — each one is a signal `lib/sh_check.sh` greps for:
    `$(...)` by another function that renders it; it never prints the row itself.
 4. **Documented first-match priority** — a comment orders the states as
    `a > b > c`, so the first matching state wins and the order is reviewable.
+5. **Network is opt-in** — the default verdict uses local signals only; a
+   network-backed state (PR state) is computed only behind an explicit flag
+   such as gwt's `--remote`. The helper flags a `gh`/`curl`/`wget` call in
+   command position inside a fixed-line verdict function unless the call line,
+   an enclosing `if`/`elif`, or its `case` arm names an opt-in token
+   (`remote|network|online`); the `else` of such a branch is not gated. A
+   `"gh pr view 1"` NEXT string, `command -v gh` and comments are not calls.
+   gwt passes as-is: `_gwt_compute_status` takes the PR state as an argument
+   and its own `gh` calls live in `_gwt_remote_pr_states`, which the caller
+   runs only under `--remote` (issue #42).
 
-One more rule of the contract is not greppable and is the auditor's note in
-Next Actions, not a row change: **network is opt-in**. The default verdict uses
-local signals only; a network-backed state (PR state) is computed only behind an
-explicit flag such as gwt's `--remote`.
+The opt-in test is a name match on the condition, not data flow: a call gated
+on an unconventionally named flag lands in WARN, never FAIL — widen `opt_in`
+in `lib/sh_check.sh` when a real flag name keeps landing there.
 
 | Result | When |
 |--------|------|
-| PASS | All four signals present |
-| WARN | Fixed-line return (2 or 3 lines), but a signal is missing — the note lists which (e.g. `missing: state case`) |
+| PASS | All five signals present |
+| WARN | Fixed-line return (2 or 3 lines), but a signal is missing — the note lists which (e.g. `missing: state case`, `missing: network opt-in (<fn>)`) |
 | FAIL | A status/verdict function with no fixed-line return — a free-form prose verdict ("looks good") |
 | N/A  | File defines no status/verdict function |
 
