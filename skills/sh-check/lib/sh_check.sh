@@ -263,7 +263,8 @@ fi
 # ---------- Check 10: Next-action Hint ----------
 # NEXT is the last argument of each fixed-line printf; a "$var" there resolves
 # to that variable's non-empty "..." assignments. Command-shaped means a known
-# command prefix, a /plugin:skill name, or `-` for a terminal state.
+# command prefix or a hyphenated member of its family (`gh-flow prune 1`, issue
+# #41), a /plugin:skill name, or `-` for a terminal state.
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
 next_cmds='gwt|git|gh|ps'
@@ -283,7 +284,7 @@ nx=$(awk -v cmds="$next_cmds" '
   function judge(v) {
     n++
     if (v == "") blank++
-    else if (v == "-" || v ~ ("^(" cmds ") ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
+    else if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
   }
   /printf[ \t]+.%s\\n%s\\n/ && match($0, /"[^"]*"[ \t;]*$/) {
     v = substr($0, RSTART + 1, RLENGTH - 1); sub(/"[ \t;]*$/, "", v)

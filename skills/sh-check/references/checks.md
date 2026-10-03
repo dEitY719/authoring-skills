@@ -274,7 +274,7 @@ there is resolved through that variable's non-empty `var="..."` assignments.
 
 Command-shaped means one of:
 
-- a known command prefix: `gwt `, `git `, `gh `, `ps `;
+- a known command prefix: `gwt `, `git `, `gh `, `ps `, or a hyphenated member of that family (`gh-flow `, #41);
 - a skill invocation: `/plugin:skill`;
 - `-` — the terminal-state marker.
 
