@@ -213,16 +213,33 @@ grep -nE 'Unknown option|Missing argument|Required' "$FILE"
 
 **What to look for**
 A status/diagnostic function (name contains `status` or `verdict`) computes a
-fixed-line verdict and hands rendering to a separate caller. The gwt contract:
+fixed-line verdict and hands rendering to a separate caller. The gwt contract,
+excerpted verbatim from `dEitY719/dotfiles@89c2763`
+`shell-common/functions/git_worktree.sh`:
 
 ```sh
-# Priority (first match wins):
+# Output (3 lines):
+#   <state>        — one of: prunable|locked|dirty|pr-open|pr-merged|
+#                     pr-closed|merged|ahead|stale|clean
+#   <age>          — short human-readable, e.g. "5m"/"2h"/"5d"/"3w"/"-"
+#   <next-action>  — single-line hint, e.g. "gwt teardown"
+#
+# Priority order matches issue #285 §A:
 #   prunable > locked > dirty > pr-state > merged > ahead > stale > clean
 _gwt_compute_status() {
     ...
+    case "$_pr_state" in
+        OPEN)
+            printf '%s\n%s\n%s\n' "pr-open" "$_age" "gh pr view ${_pr_num}"
+    ...
     printf '%s\n%s\n%s\n' "ahead" "$_age" "git push -u origin ${_branch}"
+    ...
+    printf '%s\n%s\n%s\n' "clean" "$_age" "-"
 }
-_gwt_emit_row() { _out=$(_gwt_compute_status "$_path" ...); ... }
+
+# caller (_gwt_emit_row) renders one PATH/BRANCH/STATE/AGE/NEXT table row
+_verdict_out=$(_gwt_compute_status "$_path" "$_branch" "$_is_main" \
+                                    "$_pr_state" "$_pr_num")
 ```
 
 PASS conditions — each one is a signal `lib/sh_check.sh` greps for:
@@ -274,7 +291,8 @@ Command-shaped means one of:
 
 Command shape is a prefix heuristic, so anything it cannot confirm is WARN,
 never FAIL: a false FAIL would mark down the reference implementation itself. gwt
-itself scores WARN here — its `dirty` NEXT is `commit or stash`.
+itself scores WARN here — its `dirty` NEXT is `commit or stash`, which
+`lib/sh_check.sh` reports as `1 of 11 NEXT value(s) not a command`.
 
 ---
 
