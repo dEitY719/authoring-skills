@@ -6,7 +6,9 @@
 #   3 Section Anatomy, 8 Input Validation -- each PASS | WARN | FAIL | N/A.
 #   Pass both or none.
 #
-# stdout: check<TAB>result<TAB>note, one row per decided check, ascending id.
+# stdout: check<TAB>result<TAB>note, one row per decided check, ascending id;
+#         then fn<TAB>function<TAB>vocab<TAB>next-ok/next-n<TAB>result, one row
+#         per function returning a fixed-line verdict (none -> no fn rows).
 #         With the two judgments it also emits every row plus a final
 #         score<TAB><pass>/<effective-total><TAB><VERDICT>
 #         computed per references/report-template.md "Verdict Computation".
@@ -111,15 +113,58 @@ else
   r2=FAIL; n2='sourced file with no interactive guard'
 fi
 
-# One pass over the file yields, per function definition:
-#   name<TAB>needs-guard<TAB>has-emulate-guard
+# Two passes over the file. The first collects every non-empty var="..."
+# assignment, so a "$var" NEXT can be resolved; the second yields, per function
+# definition:
+#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank
+# vocab is the number of distinct literal states (first printf argument) among
+# the function's fixed-line printf '%s\n%s\n...' returns, `?` when a state is
+# not a literal, `-` when the function has no such return. next-* judge the last
+# argument of each return as Check 10 does: NEXT is command-shaped when it is a
+# known command prefix or a hyphenated member of its family (`gh-flow prune 1`,
+# issue #41), a /plugin:skill name, or `-` for a terminal state.
 # The opening brace may sit on the definition line, on the next line, or the
 # whole body may be a one-liner, so the definition is recognised by `name()`
 # alone and the remainder of that same line is scanned as body.
-FUNCS=$(awk '
-  function flush() {
-    if (cur != "") printf "%s\t%d\t%d\n", cur, needs, guarded
+# ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
+# Decisions); widen next_cmds when a real command keeps landing in WARN.
+next_cmds='gwt|git|gh|ps'
+FUNCS=$(awk -v cmds="$next_cmds" '
+  FNR == NR {
+    t = $0
+    while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
+      a = substr(t, RSTART, RLENGTH); t = substr(t, RSTART + RLENGTH)
+      k = a; sub(/=.*/, "", k); v = a; sub(/^[^=]*="/, "", v); sub(/"$/, "", v)
+      val[k] = val[k] SUBSEP v
+    }
+    next
+  }
+  function flush(   voc) {
+    voc = nfixed == 0 ? "-" : (dyn ? "?" : nvoc)
+    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank
     cur = ""
+  }
+  function judge(v) {
+    n++
+    if (v == "") blank++
+    else if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
+  }
+  # One fixed-line return: count its state, judge its NEXT.
+  function verdict(line,   s, v, k, m, i, vs) {
+    nfixed++
+    s = line; sub(/.*printf[ \t]+.%s\\n%s\\n[^ \t]*[ \t]+/, "", s)
+    if (match(s, /^"[^"$]*"/)) {
+      s = substr(s, 2, RLENGTH - 2)
+      if (!((cur, s) in seen)) { seen[cur, s] = 1; nvoc++ }
+    } else dyn = 1
+    if (!match(line, /"[^"]*"[ \t;]*$/)) return
+    v = substr(line, RSTART + 1, RLENGTH - 1); sub(/"[ \t;]*$/, "", v)
+    if (v ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) {
+      k = v; gsub(/[${}]/, "", k)
+      m = split(substr(val[k], 2), vs, SUBSEP)
+      if (m == 0) n++
+      for (i = 1; i <= m; i++) judge(vs[i])
+    } else judge(v)
   }
   # checks.md Check 5 requires the guard for `local`, arrays *and* `set -x`,
   # so all three mark the function -- zsh traces and word-splits every one of
@@ -130,6 +175,7 @@ FUNCS=$(awk '
     if (line ~ /(^|[^A-Za-z_])[A-Za-z_][A-Za-z0-9_]*\+?=\(/) needs = 1
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
+    if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
   }
   # The body ends at the brace that closes it. Without this the lines after a
   # function -- a comment mentioning `emulate -L sh`, or top-level code -- were
@@ -149,6 +195,7 @@ FUNCS=$(awk '
     sub(/[ \t]*\(\).*/, "", cur)
     needs = 0
     guarded = 0
+    nfixed = 0; nvoc = 0; dyn = 0; n = 0; ok = 0; blank = 0
     opened = 0
     depth = 0
     body($0)
@@ -157,7 +204,7 @@ FUNCS=$(awk '
   }
   cur != "" { body($0); track($0) }
   END { flush() }
-' "$file" 2>/dev/null || true)
+' "$file" "$file" 2>/dev/null || true)
 
 # ---------- Check 4: Naming Convention ----------
 funcs=$(printf '%s\n' "$FUNCS" | cut -f1 | grep -v '^$' || true)
@@ -261,42 +308,14 @@ else
 fi
 
 # ---------- Check 10: Next-action Hint ----------
-# NEXT is the last argument of each fixed-line printf; a "$var" there resolves
-# to that variable's non-empty "..." assignments. Command-shaped means a known
-# command prefix or a hyphenated member of its family (`gh-flow prune 1`, issue
-# #41), a /plugin:skill name, or `-` for a terminal state.
-# ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
-# Decisions); widen next_cmds when a real command keeps landing in WARN.
-next_cmds='gwt|git|gh|ps'
+# NEXT is the last argument of each fixed-line printf, judged per function in
+# the FUNCS pass above; here the per-function counts are summed.
 if [ -z "$vfn" ]; then
   r10='N/A'; n10='no status/verdict function'
 else
-nx=$(awk -v cmds="$next_cmds" '
-  FNR == NR {
-    t = $0
-    while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
-      a = substr(t, RSTART, RLENGTH); t = substr(t, RSTART + RLENGTH)
-      k = a; sub(/=.*/, "", k); v = a; sub(/^[^=]*="/, "", v); sub(/"$/, "", v)
-      val[k] = val[k] SUBSEP v
-    }
-    next
-  }
-  function judge(v) {
-    n++
-    if (v == "") blank++
-    else if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
-  }
-  /printf[ \t]+.%s\\n%s\\n/ && match($0, /"[^"]*"[ \t;]*$/) {
-    v = substr($0, RSTART + 1, RLENGTH - 1); sub(/"[ \t;]*$/, "", v)
-    if (v ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) {
-      k = v; gsub(/[${}]/, "", k)
-      m = split(substr(val[k], 2), vs, SUBSEP)
-      if (m == 0) n++
-      for (i = 1; i <= m; i++) judge(vs[i])
-    } else judge(v)
-  }
-  END { printf "%d %d %d\n", n, ok, blank }
-' "$file" "$file" 2>/dev/null || echo '0 0 0')
+nx=$(printf '%s\n' "$FUNCS" | awk -F'\t' '
+  { n += $5; ok += $6; blank += $7 }
+  END { printf "%d %d %d\n", n, ok, blank }')
 set -- $nx
 nx_n=$1 nx_ok=$2 nx_blank=$3
 if [ "$nx_n" -eq 0 ]; then
@@ -333,6 +352,16 @@ out 7 "$r7" "$n7"
 out 8 "$j8" 'auditor judgment'
 out 9 "$r9" "$n9"
 out 10 "$r10" "$n10"
+
+# Per-verdict-function table (issue #39): one row per function with a
+# fixed-line return, so a large file cannot bury its status function's quality
+# in the file score. Informational only -- it never enters the score.
+printf '%s\n' "$FUNCS" | awk -F'\t' -v OFS='\t' '
+  $4 == "" || $4 == "-" { next }
+  {
+    r = $5 == 0 ? "FAIL" : ($4 == "?" || $7 > 0 || $6 < $5) ? "WARN" : "PASS"
+    print "fn", $1, $4, $6 "/" $5, r
+  }'
 
 [ -n "$j3" ] || exit 0
 
