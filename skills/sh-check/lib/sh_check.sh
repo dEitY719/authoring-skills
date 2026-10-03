@@ -157,7 +157,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" '
     n++
     if (v == "") { blank++; return }
     # `cd <arg> && rest` is judged by rest (issue #47).
-    while (v ~ /^cd [^ ;&|]+ && /) sub(/^cd [^ ;&|]+ && /, "", v)
+    while (sub(/^cd [^ ;&|]+ && /, "", v)) ;
     if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
   }
   # One fixed-line return: count its state, judge its NEXT.
