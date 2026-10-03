@@ -78,7 +78,9 @@ case $shebang in '#!'*) [ -x "$file" ] || sourced=1 ;; *) sourced=1 ;; esac
 # ---------- Check 1: Shebang + POSIX Hygiene ----------
 case $shebang in
   '#!'*)
-    bashisms=$(count '\[\[|&>')
+    # A POSIX class (`[[:space:]]`) opens with `[[` too: drop every `[:name:]`
+    # before counting, so only a real `[[ ]]` or `&>` is a bashism (issue #46).
+    bashisms=$(sed -E 's/\[:[[:alpha:]]+:\]//g' "$file" | grep -cE -e '\[\[|&>' || true)
     if printf '%s' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?sh$'; then
       if [ "$bashisms" -eq 0 ]; then
         r1=PASS; n1='#!/bin/sh, POSIX-only syntax'

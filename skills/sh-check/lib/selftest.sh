@@ -75,6 +75,24 @@ eq "bad: 6 no help flag"                 "$(row "$b" 6)" FAIL
 eq "bad: 7 raw echo only"                "$(row "$b" 7)" FAIL
 eq "bad: verdict"                        "$(verdict "$b")" POOR
 
+# ---------- Check 1: POSIX character classes are not [[ ]] (issue #46) ----------
+cls=$work/dotfiles/shell-common/functions/cls.sh
+cat > "$cls" <<'EOF'
+#!/bin/sh
+_gitdir() { sed -n 's/^gitdir:[[:space:]]*//p' "$1" | tr -d '[[:cntrl:]]'; }
+EOF
+eq "class: [[:space:]] alone is POSIX" "$(row "$(sh "$here/sh_check.sh" "$cls" PASS PASS)" 1)" PASS
+printf '%s\n' '[[ -n "$1" ]] && echo hi' >> "$cls"
+eq "class: real [[ ]] still FAILs in shell-common" \
+  "$(row "$(sh "$here/sh_check.sh" "$cls" PASS PASS)" 1)" FAIL
+mixed=$work/mixed.sh
+printf '#!/bin/sh\ncase $x in *[[:digit:]]*) ;; esac\n[[ $x = [[:alpha:]]* ]]\n' > "$mixed"
+eq "class: [[ ]] wrapping a class still WARNs" \
+  "$(row "$(sh "$here/sh_check.sh" "$mixed" PASS PASS)" 1)" WARN
+printf '#!/bin/sh\nfoo [[:upper:]] &>/dev/null\n' > "$mixed"
+eq "class: &> next to a class still WARNs" \
+  "$(row "$(sh "$here/sh_check.sh" "$mixed" PASS PASS)" 1)" WARN
+
 # ---------- N/A rows leave the denominator ----------
 plain=$work/plain.sh
 printf '#!/bin/sh\nexit 0\n' > "$plain"

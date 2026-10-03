@@ -22,7 +22,7 @@ Class: sourced fragment
 ### Structure Checks
 | # | Check                  | Result | Notes                                              |
 |---|------------------------|--------|----------------------------------------------------|
-| 1 | Shebang + POSIX        | FAIL   | shell-common file uses 1 bash-only construct(s)    |
+| 1 | Shebang + POSIX        | PASS   | #!/bin/sh, POSIX-only syntax                       |
 | 2 | Interactive Guard      | PASS   | guard within the first 10 lines                    |
 | 3 | Section Anatomy        | PASS   | auditor judgment                                   |
 | 4 | Naming Convention      | PASS   | 54 function(s), all snake_case                     |
@@ -42,20 +42,16 @@ Class: sourced fragment
 |-----------------------|-------------|-------|--------|
 | _gwt_compute_status   | 10          | 10/11 | WARN   |
 
-Score: 6/10 checks passed (3 warnings, 0 N/A)
-Verdict: NEEDS WORK — one POSIX FAIL plus zsh-guard and raw-output gaps
+Score: 7/10 checks passed (3 warnings, 0 N/A)
+Verdict: NEEDS WORK — zsh-guard, raw-output and NEXT-hint gaps
 
 ### Next Actions
-1. [FAIL #1] The one hit is line 196:
-     sed -n 's/^gitdir:[[:space:]]*//p' "$1"
-   `[[:space:]]` is a POSIX bracket class, not `[[ ]]` — confirm by eye
-   before changing anything.
-2. [WARN #5] Open each of the 24 functions that need the guard and lack it
+1. [WARN #5] Open each of the 24 functions that need the guard and lack it
    with:
      [ -n "${ZSH_VERSION-}" ] && emulate -L sh
-3. [WARN #7] Route the 52 raw echo/printf lines through ux_info / ux_bullet /
+2. [WARN #7] Route the 52 raw echo/printf lines through ux_info / ux_bullet /
    ux_error.
-4. [WARN #10] Make the `dirty` NEXT a command:
+3. [WARN #10] Make the `dirty` NEXT a command:
      printf '%s\n%s\n%s\n' "dirty" "$_age" "commit or stash"
 Run /authoring:sh-check again after fix to verify.
 ```
