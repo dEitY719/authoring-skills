@@ -116,7 +116,7 @@ fi
 # Two passes over the file. The first collects every non-empty var="..."
 # assignment, so a "$var" NEXT can be resolved; the second yields, per function
 # definition:
-#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank
+#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net
 # vocab is the number of distinct literal states (first printf argument) among
 # the function's fixed-line printf '%s\n%s\n...' returns, `?` when a state is
 # not a literal, `-` when the function has no such return. next-* judge the last
@@ -126,10 +126,16 @@ fi
 # The opening brace may sit on the definition line, on the next line, or the
 # whole body may be a one-liner, so the definition is recognised by `name()`
 # alone and the remainder of that same line is scanned as body.
+# net counts gh/curl/wget calls in command position that no enclosing if/elif
+# or case arm gates on an opt-in token (issue #42): `"gh pr view 1"` as a NEXT
+# string, `command -v gh` and comments are not calls.
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
+# ponytail: opt-in is a name match on the condition (remote|network|online),
+# not data flow -- widen opt_in when a real flag name keeps landing in WARN.
 next_cmds='gwt|git|gh|ps'
-FUNCS=$(awk -v cmds="$next_cmds" '
+opt_in='remote|network|online'
+FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" '
   FNR == NR {
     t = $0
     while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
@@ -141,7 +147,7 @@ FUNCS=$(awk -v cmds="$next_cmds" '
   }
   function flush(   voc) {
     voc = nfixed == 0 ? "-" : (dyn ? "?" : nvoc)
-    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank
+    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net
     cur = ""
   }
   function judge(v) {
@@ -176,6 +182,22 @@ FUNCS=$(awk -v cmds="$next_cmds" '
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
+    network(line)
+  }
+  # gate[1..gd] mirrors the open if/fi stack, arm the current case arm; each
+  # holds whether its condition names an opt-in token.
+  function network(line,   t, tok, i, gated) {
+    t = line; sub(/(^|[ \t])#.*/, "", t)
+    tok = t ~ opt
+    if (t ~ /(^|[;&|[:space:]])if[ \t]/) gate[++gd] = tok
+    else if (gd && t ~ /(^|[;&|[:space:]])elif[ \t]/) gate[gd] = tok
+    else if (gd && t ~ /(^|[;&|[:space:]])else([ \t;]|$)/) gate[gd] = 0
+    if (t ~ /^[ \t]*[^ \t($="\047][^ \t=()]*\)/) arm = tok
+    gated = tok || arm
+    for (i = 1; i <= gd; i++) if (gate[i]) gated = 1
+    if (!gated && t ~ /(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)/) net++
+    if (t ~ /;;/) arm = 0
+    if (gd && t ~ /(^|[;&[:space:]])fi([ \t;]|$)/) gd--
   }
   # The body ends at the brace that closes it. Without this the lines after a
   # function -- a comment mentioning `emulate -L sh`, or top-level code -- were
@@ -196,6 +218,7 @@ FUNCS=$(awk -v cmds="$next_cmds" '
     needs = 0
     guarded = 0
     nfixed = 0; nvoc = 0; dyn = 0; n = 0; ok = 0; blank = 0
+    net = 0; gd = 0; arm = 0
     opened = 0
     depth = 0
     body($0)
@@ -287,7 +310,8 @@ fi
 # The gwt contract (checks.md Check 9): a *status/*verdict function returns
 # fixed lines via printf '%s\n%s\n%s\n' (state / age / next), switches on a
 # state vocabulary with `case`, is rendered by a separate caller through
-# $(...), and documents its first-match priority as `a > b > c`.
+# $(...), documents its first-match priority as `a > b > c`, and calls the
+# network only behind an opt-in flag (FUNCS column 8).
 vfn=$(printf '%s\n' "$funcs" | grep -E 'status|verdict' | head -1 || true)
 lines2="printf '%s\\\\n%s\\\\n"
 if [ -z "$vfn" ]; then
@@ -300,6 +324,9 @@ else
   has 'case "?\$\{?[A-Za-z0-9_]*(state|status|verdict)' || missing="$missing, state case"
   has '\$\([A-Za-z0-9_]*(status|verdict)' || missing="$missing, separate renderer"
   has '^[[:space:]]*#.*[a-z-]+ > [a-z-]+ > [a-z-]+' || missing="$missing, priority comment"
+  # Network is opt-in: an ungated call in a fixed-line verdict function.
+  netfns=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$4 != "" && $4 != "-" && $8 > 0 { s = s sep $1; sep = ", " } END { print s }')
+  [ -z "$netfns" ] || missing="$missing, network opt-in ($netfns)"
   if [ -z "$missing" ]; then
     r9=PASS; n9='3-line verdict, state case, split render'
   else
