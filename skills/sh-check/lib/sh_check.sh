@@ -1,13 +1,13 @@
 #!/bin/sh
 # sh_check.sh -- the mechanical half of authoring:sh-check.
 #
-# Usage: sh_check.sh <script-path> [c3 c8 c9 c10]
-#   c3/c8/c9/c10 are the auditor's own calls for the four checks no grep can
-#   decide -- 3 Section Anatomy, 8 Input Validation, 9 Verdict Output,
-#   10 Next-action Hint -- each PASS | WARN | FAIL | N/A. Pass all four or none.
+# Usage: sh_check.sh <script-path> [c3 c8]
+#   c3/c8 are the auditor's own calls for the two checks no grep can decide --
+#   3 Section Anatomy, 8 Input Validation -- each PASS | WARN | FAIL | N/A.
+#   Pass both or none.
 #
 # stdout: check<TAB>result<TAB>note, one row per decided check, ascending id.
-#         With the four judgments it also emits every row plus a final
+#         With the two judgments it also emits every row plus a final
 #         score<TAB><pass>/<effective-total><TAB><VERDICT>
 #         computed per references/report-template.md "Verdict Computation".
 # exit:   0 report written | 2 bad usage or unreadable file
@@ -20,7 +20,7 @@ file=${1:-}
 
 case $file in
   -h|--help|help)
-    echo "usage: sh_check.sh <script-path> [c3 c8 c9 c10]"
+    echo "usage: sh_check.sh <script-path> [c3 c8]"
     exit 0
     ;;
   '')
@@ -31,14 +31,14 @@ esac
 
 [ -r "$file" ] || { echo "sh_check: cannot read '$file'" >&2; exit 2; }
 
-j3='' j8='' j9='' j10=''
-if [ "$#" -eq 5 ]; then
-  j3=$2 j8=$3 j9=$4 j10=$5
+j3='' j8=''
+if [ "$#" -eq 3 ]; then
+  j3=$2 j8=$3
 elif [ "$#" -ne 1 ]; then
-  echo "sh_check: pass the four judgment results (c3 c8 c9 c10) or none" >&2
+  echo "sh_check: pass the two judgment results (c3 c8) or none" >&2
   exit 2
 fi
-for j in "$j3" "$j8" "$j9" "$j10"; do
+for j in "$j3" "$j8"; do
   case $j in
     ''|PASS|WARN|FAIL|N/A) ;;
     *) echo "sh_check: judgment must be PASS|WARN|FAIL|N/A, got '$j'" >&2; exit 2 ;;
@@ -236,6 +236,74 @@ else
   r7='N/A'; n7='no user-facing output'
 fi
 
+# ---------- Check 9: Verdict Output ----------
+# The gwt contract (checks.md Check 9): a *status/*verdict function returns
+# fixed lines via printf '%s\n%s\n%s\n' (state / age / next), switches on a
+# state vocabulary with `case`, is rendered by a separate caller through
+# $(...), and documents its first-match priority as `a > b > c`.
+vfn=$(printf '%s\n' "$funcs" | grep -E 'status|verdict' | head -1 || true)
+lines2="printf '%s\\\\n%s\\\\n"
+missing=''
+has "${lines2}%s\\\\n'" || missing="$missing, 3-line return"
+has 'case "?\$\{?[A-Za-z0-9_]*(state|status|verdict)' || missing="$missing, state case"
+has '\$\([A-Za-z0-9_]*(status|verdict)' || missing="$missing, separate renderer"
+has '^[[:space:]]*#.*[a-z-]+ > [a-z-]+ > [a-z-]+' || missing="$missing, priority comment"
+if [ -z "$vfn" ]; then
+  r9='N/A'; n9='no status/verdict function'
+elif ! has "$lines2"; then
+  r9=FAIL; n9="$vfn returns no fixed-line verdict"
+elif [ -z "$missing" ]; then
+  r9=PASS; n9='3-line verdict, state case, split render'
+else
+  r9=WARN; n9="missing:${missing#,}"
+fi
+
+# ---------- Check 10: Next-action Hint ----------
+# NEXT is the last argument of each fixed-line printf; a "$var" there resolves
+# to that variable's non-empty "..." assignments. Command-shaped means a known
+# command prefix, a /plugin:skill name, or `-` for a terminal state.
+# ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
+# Decisions); widen next_cmds when a real command keeps landing in WARN.
+next_cmds='gwt|git|gh|ps'
+nx=$(awk -v cmds="$next_cmds" '
+  FNR == NR {
+    t = $0
+    while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
+      a = substr(t, RSTART, RLENGTH); t = substr(t, RSTART + RLENGTH)
+      k = a; sub(/=.*/, "", k); v = a; sub(/^[^=]*="/, "", v); sub(/"$/, "", v)
+      val[k] = val[k] SUBSEP v
+    }
+    next
+  }
+  function judge(v) {
+    n++
+    if (v == "") blank++
+    else if (v == "-" || v ~ ("^(" cmds ") ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
+  }
+  /printf[ \t]+.%s\\n%s\\n/ && match($0, /"[^"]*"[ \t;]*$/) {
+    v = substr($0, RSTART + 1, RLENGTH - 1); sub(/"[ \t;]*$/, "", v)
+    if (v ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) {
+      k = v; gsub(/[${}]/, "", k)
+      m = split(substr(val[k], 2), vs, SUBSEP)
+      if (m == 0) n++
+      for (i = 1; i <= m; i++) judge(vs[i])
+    } else judge(v)
+  }
+  END { printf "%d %d %d\n", n, ok, blank }
+' "$file" "$file" 2>/dev/null || echo '0 0 0')
+set -- $nx
+if [ -z "$vfn" ]; then
+  r10='N/A'; n10='no status/verdict function'
+elif [ "$1" -eq 0 ]; then
+  r10=FAIL; n10='verdict returns no next value'
+elif [ "$3" -gt 0 ]; then
+  r10=WARN; n10="$3 blank NEXT, use - for terminal states"
+elif [ "$2" -eq "$1" ]; then
+  r10=PASS; n10="all $1 NEXT value(s) command-shaped"
+else
+  r10=WARN; n10="$(($1 - $2)) of $1 NEXT value(s) not a command"
+fi
+
 # ---------- Report ----------
 pass=0 fail=0 na=0
 out() {
@@ -257,8 +325,8 @@ out 5 "$r5" "$n5"
 out 6 "$r6" "$n6"
 out 7 "$r7" "$n7"
 out 8 "$j8" 'auditor judgment'
-out 9 "$j9" 'auditor judgment'
-out 10 "$j10" 'auditor judgment'
+out 9 "$r9" "$n9"
+out 10 "$r10" "$n10"
 
 [ -n "$j3" ] || exit 0
 

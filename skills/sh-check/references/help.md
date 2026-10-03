@@ -24,8 +24,8 @@ What it checks (10 criteria):
     6. Help Flag                 — -h/--help → structured help, return 0
     7. UX Lib Usage              — ux_header/ux_info/ux_error/ux_success
     8. Input Validation          — required args, mutex flags, unknown opts
-    9. Verdict Output            — explicit state + structured key:value
-   10. Next-action Hint          — success output points to next command
+    9. Verdict Output            — printf 3-line state/age/next + state case
+   10. Next-action Hint          — NEXT is a runnable command, `-` if terminal
 
 Each check reports PASS / WARN / FAIL / N/A.
 
@@ -35,8 +35,8 @@ Examples:
   /authoring:sh-check
   /authoring:sh-check help
 
-Checks 1, 2, 4, 5, 6 and 7 are decided by lib/sh_check.sh, which also computes
-the score and verdict; 3, 8, 9 and 10 are the auditor's judgment.
+Checks 1, 2, 4, 5, 6, 7, 9 and 10 are decided by lib/sh_check.sh, which also
+computes the score and verdict; 3 and 8 are the auditor's judgment.
 
 Output:
   - Two tables (Structure, UX Quality) with results + notes
