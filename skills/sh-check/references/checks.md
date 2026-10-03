@@ -294,6 +294,25 @@ never FAIL: a false FAIL would mark down the reference implementation itself. gw
 itself scores WARN here — its `dirty` NEXT is `commit or stash`, which
 `lib/sh_check.sh` reports as `1 of 11 NEXT value(s) not a command`.
 
+### Per-function verdict table (checks 9 and 10)
+
+A file score buries one status function among dozens — gwt is 2627 lines and
+54 functions. So `lib/sh_check.sh` also prints, before the `score` row, one
+`fn<TAB>function<TAB>vocab<TAB>next-ok/next-n<TAB>result` row per function
+that returns a fixed-line `printf '%s\n%s\n...'` verdict, using the same
+function boundaries as Check 5:
+
+- **vocab** — distinct literal states (the first printf argument); `?` when a
+  state is not a literal (`"$_state"`).
+- **next** — command-shaped NEXT values over all NEXT values, judged as in
+  Check 10.
+- **result** — FAIL when no NEXT is found, WARN on a `?` vocab or any
+  unconfirmed NEXT, else PASS.
+
+gwt prints `fn  _gwt_compute_status  10  10/11  WARN`. A file with no such
+function prints no `fn` rows. The table is informational; checks 9 and 10 and
+the score are computed as above.
+
 ---
 
 ## Scoring

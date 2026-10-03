@@ -37,6 +37,11 @@ Class: sourced fragment
 | 9 | Verdict Output         | PASS   | 3-line verdict, state case, split render           |
 |10 | Next-action Hint       | WARN   | 1 of 11 NEXT value(s) not a command                |
 
+### Verdict Functions
+| Function              | State vocab | NEXT  | Result |
+|-----------------------|-------------|-------|--------|
+| _gwt_compute_status   | 10          | 10/11 | WARN   |
+
 Score: 6/10 checks passed (3 warnings, 0 N/A)
 Verdict: NEEDS WORK — one POSIX FAIL plus zsh-guard and raw-output gaps
 
@@ -91,6 +96,12 @@ em-dash and a one-line summary tailored to the dominant issue class
 ## Output Rules
 
 - Tables MUST use the columns shown above (`#`, `Check`, `Result`, `Notes`).
+- The Verdict Functions table renders the helper's
+  `fn<TAB>function<TAB>vocab<TAB>next-ok/next-n<TAB>result` rows, one per
+  function with a fixed-line verdict return. No `fn` rows → omit the table
+  (checks 9 and 10 are then N/A or FAIL as usual). It is informational: it
+  never changes the score, and its WARN/FAIL rows need no extra Next Actions
+  bullet beyond the ones for checks 9 and 10.
 - Result column values: `PASS` / `WARN` / `FAIL` / `N/A` (uppercase).
 - Notes column: `lib/sh_check.sh`'s note verbatim for the rows it decides;
   for the two judged rows (3, 8), ≤ 40 chars.

@@ -18,6 +18,8 @@ eq() {
 row() { printf '%s\n' "$1" | awk -F'\t' -v id="$2" '$1 == id { print $2 }'; }
 # verdict <output> -> the verdict column of the score row
 verdict() { printf '%s\n' "$1" | awk -F'\t' '$1 == "score" { print $3 }'; }
+# fnrows <output> -> the per-verdict-function table rows, tag dropped
+fnrows() { printf '%s\n' "$1" | awk -F'\t' -v OFS=' ' '$1 == "fn" { $1 = ""; print substr($0, 2) }'; }
 
 # ---------- fixture 1: a clean sourced shell-common function ----------
 mkdir -p "$work/dotfiles/shell-common/functions"
@@ -51,6 +53,7 @@ eq "good: 7 ux lib"       "$(row "$g" 7)" PASS
 eq "good: 9 no verdict fn" "$(row "$g" 9)" 'N/A'
 eq "good: 10 no verdict fn" "$(row "$g" 10)" 'N/A'
 eq "good: verdict"        "$(verdict "$g")" EXCELLENT
+eq "good: no verdict function, no fn table" "$(fnrows "$g")" ''
 
 # ---------- fixture 2: a shell-common file breaking every mechanical rule ----------
 bad=$work/dotfiles/shell-common/functions/bad.sh
@@ -141,6 +144,21 @@ eq "vlook: a lookalike prefix is still WARN" "$(row "$(sh "$here/sh_check.sh" "$
 eq "vprose: prose NEXT is WARN, not FAIL" "$(row "$(sh "$here/sh_check.sh" "$vprose")" 10)" WARN
 eq "vblank: blank NEXT is WARN" "$(row "$(sh "$here/sh_check.sh" "$vblank")" 10)" WARN
 
+# ---------- per-verdict-function table (issue #39) ----------
+vt=$(sh "$here/sh_check.sh" "$vpass" PASS PASS)
+eq "vpass: fn row counts vocab and NEXT" "$(fnrows "$vt")" '_vt_compute_status 3 3/3 PASS'
+eq "vpass: fn table sits right before the score row" \
+  "$(printf '%s\n' "$vt" | tail -2 | cut -f1 | tr '\n' ' ')" 'fn score '
+eq "vprose: a prose NEXT makes the fn row WARN" \
+  "$(fnrows "$(sh "$here/sh_check.sh" "$vprose")")" '_vt_compute_status 3 2/3 WARN'
+two=$work/two.sh
+verdict_fixture "$two" 'gwt teardown' "_vt_verdict() {
+    [ -n \"\$1\" ] && printf '%s\\n%s\\n%s\\n' \"done\" \"-\" \"gwt prune\"
+    printf '%s\\n%s\\n%s\\n' \"done\" \"-\" \"-\"
+}"
+eq "two: every verdict function gets a row, repeated states counted once" "$(fnrows "$(sh "$here/sh_check.sh" "$two")")" \
+  "$(printf '%s\n%s' '_vt_compute_status 3 3/3 PASS' '_vt_verdict 1 2/2 PASS')"
+
 # A "$var" NEXT resolves to the variable's assignments (the _gh_flow_verdict shape).
 vvar=$work/vvar.sh
 cat > "$vvar" <<'EOF'
@@ -157,6 +175,8 @@ _vv_show() { v=$(_vv_verdict); ux_info "$v"; }
 EOF
 eq "vvar: a \$var NEXT resolves through its assignments" \
   "$(row "$(sh "$here/sh_check.sh" "$vvar")" 10)" PASS
+eq "vvar: a dynamic state is vocab ? and WARN" \
+  "$(fnrows "$(sh "$here/sh_check.sh" "$vvar")")" '_vv_verdict ? 2/2 WARN'
 
 # Structure without a fixed vocabulary is WARN (Error Cases).
 nocase=$work/nocase.sh
