@@ -243,19 +243,21 @@ fi
 # $(...), and documents its first-match priority as `a > b > c`.
 vfn=$(printf '%s\n' "$funcs" | grep -E 'status|verdict' | head -1 || true)
 lines2="printf '%s\\\\n%s\\\\n"
-missing=''
-has "${lines2}%s\\\\n'" || missing="$missing, 3-line return"
-has 'case "?\$\{?[A-Za-z0-9_]*(state|status|verdict)' || missing="$missing, state case"
-has '\$\([A-Za-z0-9_]*(status|verdict)' || missing="$missing, separate renderer"
-has '^[[:space:]]*#.*[a-z-]+ > [a-z-]+ > [a-z-]+' || missing="$missing, priority comment"
 if [ -z "$vfn" ]; then
   r9='N/A'; n9='no status/verdict function'
 elif ! has "$lines2"; then
   r9=FAIL; n9="$vfn returns no fixed-line verdict"
-elif [ -z "$missing" ]; then
-  r9=PASS; n9='3-line verdict, state case, split render'
 else
-  r9=WARN; n9="missing:${missing#,}"
+  missing=''
+  has "${lines2}%s\\\\n'" || missing="$missing, 3-line return"
+  has 'case "?\$\{?[A-Za-z0-9_]*(state|status|verdict)' || missing="$missing, state case"
+  has '\$\([A-Za-z0-9_]*(status|verdict)' || missing="$missing, separate renderer"
+  has '^[[:space:]]*#.*[a-z-]+ > [a-z-]+ > [a-z-]+' || missing="$missing, priority comment"
+  if [ -z "$missing" ]; then
+    r9=PASS; n9='3-line verdict, state case, split render'
+  else
+    r9=WARN; n9="missing:${missing#,}"
+  fi
 fi
 
 # ---------- Check 10: Next-action Hint ----------
@@ -265,6 +267,9 @@ fi
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
 next_cmds='gwt|git|gh|ps'
+if [ -z "$vfn" ]; then
+  r10='N/A'; n10='no status/verdict function'
+else
 nx=$(awk -v cmds="$next_cmds" '
   FNR == NR {
     t = $0
@@ -292,16 +297,16 @@ nx=$(awk -v cmds="$next_cmds" '
   END { printf "%d %d %d\n", n, ok, blank }
 ' "$file" "$file" 2>/dev/null || echo '0 0 0')
 set -- $nx
-if [ -z "$vfn" ]; then
-  r10='N/A'; n10='no status/verdict function'
-elif [ "$1" -eq 0 ]; then
+nx_n=$1 nx_ok=$2 nx_blank=$3
+if [ "$nx_n" -eq 0 ]; then
   r10=FAIL; n10='verdict returns no next value'
-elif [ "$3" -gt 0 ]; then
-  r10=WARN; n10="$3 blank NEXT, use - for terminal states"
-elif [ "$2" -eq "$1" ]; then
-  r10=PASS; n10="all $1 NEXT value(s) command-shaped"
+elif [ "$nx_blank" -gt 0 ]; then
+  r10=WARN; n10="$nx_blank blank NEXT, use - for terminal states"
+elif [ "$nx_ok" -eq "$nx_n" ]; then
+  r10=PASS; n10="all $nx_n NEXT value(s) command-shaped"
 else
-  r10=WARN; n10="$(($1 - $2)) of $1 NEXT value(s) not a command"
+  r10=WARN; n10="$((nx_n - nx_ok)) of $nx_n NEXT value(s) not a command"
+fi
 fi
 
 # ---------- Report ----------
