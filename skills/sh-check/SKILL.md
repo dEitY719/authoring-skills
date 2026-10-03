@@ -9,7 +9,7 @@ compatibility:
 metadata:
   model_recommendation:
     tier: haiku
-    reason: "audit-only shell script linter; lib/sh_check.sh decides the mechanical checks, the model judges four and renders the report; bounded output"
+    reason: "audit-only shell script linter; lib/sh_check.sh decides the mechanical checks, the model judges two and renders the report; bounded output"
     claude: prefer
     non_claude: advisory-only
 license: MIT
@@ -44,15 +44,15 @@ sh <skill-dir>/lib/sh_check.sh path/to/script.sh
 ```
 
 It classifies the target file (sourced fragment vs executable script) and
-prints `check<TAB>result<TAB>note` for checks 1, 2, 4, 5, 6 and 7.
+prints `check<TAB>result<TAB>note` for checks 1, 2, 4, 5, 6, 7, 9 and 10.
 
 Read `references/checks.md` for the criteria behind those rows and judge the
-four the helper leaves to you — 3 Section Anatomy, 8 Input Validation,
-9 Verdict Output, 10 Next-action Hint. Then re-run with your four calls to get
-every row plus the score and verdict:
+two the helper leaves to you — 3 Section Anatomy, 8 Input Validation. Do not
+override rows 9 and 10. Then re-run with your two calls to get every row plus
+the score and verdict:
 
 ```sh
-sh <skill-dir>/lib/sh_check.sh path/to/script.sh <c3> <c8> <c9> <c10>
+sh <skill-dir>/lib/sh_check.sh path/to/script.sh <c3> <c8>
 ```
 
 The trailing `score<TAB><pass>/<effective-total><TAB><verdict>` row is the
