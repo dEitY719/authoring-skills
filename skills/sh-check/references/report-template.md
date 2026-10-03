@@ -2,19 +2,16 @@
 
 Use this exact format when outputting the audit report.
 
-The example below is real output, not an idealized one. It renders
-`lib/sh_check.sh` run on gwt (`dEitY719/dotfiles@89c2763`
-`shell-common/functions/git_worktree.sh`) with the auditor's calls `PASS PASS`
-for checks 3 and 8. Reproduce it with the file saved under a path that still
-contains `shell-common/functions/` (the helper classifies by location):
+The example below is real output: `lib/sh_check.sh` run on gwt with the
+auditor's calls `PASS PASS` for checks 3 and 8. Reproduce it with the file
+saved under a path that still contains `shell-common/functions/` (the helper
+classifies by location):
 
 ```sh
 gh api 'repos/dEitY719/dotfiles/contents/shell-common/functions/git_worktree.sh?ref=89c276329ca4b2cd5be657b74b79602bc36364e9' \
   --jq .content | base64 -d > <dir>/shell-common/functions/git_worktree.sh
 sh lib/sh_check.sh <dir>/shell-common/functions/git_worktree.sh PASS PASS
 ```
-
-Even the reference implementation of Checks 9 and 10 does not score 10/10.
 
 ```
 ## authoring:sh-check Report
