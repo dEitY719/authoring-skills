@@ -128,12 +128,16 @@ vpass=$work/vpass.sh;   verdict_fixture "$vpass" 'gwt teardown'
 vprose=$work/vprose.sh; verdict_fixture "$vprose" 'commit or stash'
 vblank=$work/vblank.sh; verdict_fixture "$vblank" ''
 vskill=$work/vskill.sh; verdict_fixture "$vskill" '/gh-pr:create'
+vfam=$work/vfam.sh;     verdict_fixture "$vfam" 'gh-flow prune 1'
+vlook=$work/vlook.sh;   verdict_fixture "$vlook" 'ghost-town 1'
 v=$(sh "$here/sh_check.sh" "$vpass")
 eq "vpass: 9 gwt contract" "$(row "$v" 9)" PASS
 eq "vpass: 10 command-shaped NEXT, - for terminal" "$(row "$v" 10)" PASS
 eq "vpass: 9/10 rows are deterministic" "$(sh "$here/sh_check.sh" "$vpass" | tail -2)" \
   "$(printf '%s\n' "$v" | tail -2)"
 eq "vskill: a /plugin:skill NEXT is a command" "$(row "$(sh "$here/sh_check.sh" "$vskill")" 10)" PASS
+eq "vfam: a gh-flow family NEXT is a command (issue #41)" "$(row "$(sh "$here/sh_check.sh" "$vfam")" 10)" PASS
+eq "vlook: a lookalike prefix is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vlook")" 10)" WARN
 eq "vprose: prose NEXT is WARN, not FAIL" "$(row "$(sh "$here/sh_check.sh" "$vprose")" 10)" WARN
 eq "vblank: blank NEXT is WARN" "$(row "$(sh "$here/sh_check.sh" "$vblank")" 10)" WARN
 
