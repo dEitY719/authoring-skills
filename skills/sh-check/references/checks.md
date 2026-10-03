@@ -40,7 +40,7 @@ from, `dEitY719/dotfiles`). A repo without one simply never trips the
 **Grep hints**
 ```sh
 head -1 "$FILE"                    # shebang
-grep -nE '\[\[|&>/dev/null' "$FILE"   # bashisms
+sed -E 's/\[:[[:alpha:]]+:\]//g' "$FILE" | grep -nE '\[\[|&>'   # bashisms; drops POSIX classes like [[:space:]] first
 ```
 
 ### Check 2 — Interactive Guard
