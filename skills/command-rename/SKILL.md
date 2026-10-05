@@ -47,12 +47,10 @@ If the family is ambiguous or matches nothing, show the candidates and ask — n
 
 Run `sh "${SKILL_DIR}/lib/discover-refs.sh" <command-family> [root]` — it
 sweeps every category and emits `category<TAB>file<TAB>line<TAB>text` per hit.
-The sweep is **dotfiles-scoped by design** (its category paths exist only in
-the `dEitY719/dotfiles` checkout), so `[root]` defaults to `$DOTFILES_ROOT`,
-else `$HOME/dotfiles`; Step 1's `TARGET_REPO` is an `owner/repo` slug for
-*issue filing*, never a sweep root. Pass `[root]` to scan another checkout.
-Read `references/discovery.md` for the categories, the git-family exception,
-and the judgment the sweep cannot make.
+The sweep is **dotfiles-scoped**: `[root]` defaults to `$DOTFILES_ROOT`, else
+`$HOME/dotfiles`, never Step 1's `TARGET_REPO`. Read `references/discovery.md`
+for the root rule, the categories, the git-family exception, and the judgment
+the sweep cannot make.
 
 ## Step 3: Compare against SSOT + detect rule gap
 
@@ -92,6 +90,7 @@ an `[OK]`/`[FAIL]` verdict, and a `Next:` hint pointing at
 
 ## Constraints
 
+**Stop-on-error policy** — Steps run in order; any failure (helper non-zero, `gh-issue:issue-create` error) stops with `[FAIL] <step>` — no partial issue batch is retried silently.
 See `references/constraints.md`.
 
 ## Related Skills

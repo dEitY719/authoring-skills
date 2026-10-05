@@ -27,6 +27,8 @@ If the argument is `-h`, `--help`, or `help`, read `references/help.md` and outp
 One optional path to the target SKILL.md, plus the help flags. No others —
 the option table lives in `references/help.md`.
 
+**Stop-on-error policy** — Never write files before Step 2 confirmation. If `validate-refactor.sh` still reports FAIL after one fix pass, stop and report `[FAIL] <row>`.
+
 ## Step 1: Analyze
 
 Read the target SKILL.md completely. Also read `references/plan-and-report-templates.md`
