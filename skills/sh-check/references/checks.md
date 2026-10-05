@@ -29,18 +29,24 @@ from, `dEitY719/dotfiles`). A repo without one simply never trips the
 - POSIX-portable syntax throughout: `[ ]` not `[[ ]]`, `>/dev/null 2>&1`
   not `&>/dev/null`, `local var=""` not `declare`, no `function name()`.
 - For `shell-common/` files: must be `#!/bin/sh` (POSIX-only enforced).
+- Exception: a top-level `shell-common/tools/custom/*.sh` is an executed bash
+  entrypoint and must be exactly `#!/bin/bash` (`#!/bin/sh` there is FAIL —
+  the dotfiles shebang hook rejects it). Subdirectories such as
+  `tools/custom/lib/*.sh` are source-only and keep `#!/bin/sh`. SSOT: dotfiles
+  `git/config/hook-config.sh` (`DOTFILES_HOOKS_SHEBANG_SHELL_COMMON_CUSTOM`),
+  classified by `custom_tool_class` in `git/hooks/checks/shared.sh`.
 
 | Result | When |
 |--------|------|
-| PASS | `#!/bin/sh` shebang + POSIX-only syntax detected |
+| PASS | `#!/bin/sh` shebang + POSIX-only syntax detected, or a `tools/custom/*.sh` entrypoint with `#!/bin/bash` |
 | WARN | Shebang correct but `[[ ]]` or `&>` used in non-bash branch |
-| FAIL | Missing shebang, or shell-common file uses bash-only syntax |
+| FAIL | Missing shebang, shell-common file uses bash-only syntax, or a `tools/custom/*.sh` entrypoint is not `#!/bin/bash` |
 | N/A  | File is sourced fragment with no shebang AND lives outside shell-common (rare) |
 
 **Grep hints**
 ```sh
 head -1 "$FILE"                    # shebang
-sed -E 's/\[:[[:alpha:]]+:\]//g' "$FILE" | grep -nE '\[\[|&>'   # bashisms; drops POSIX classes like [[:space:]] first
+sed -E 's/\\\[//g; s/\[:[[:alpha:]]+:\]//g' "$FILE" | grep -nE '\[\[|&>'   # bashisms; drops escaped \[ (regex literals) and POSIX classes like [[:space:]] first
 ```
 
 ### Check 2 — Interactive Guard

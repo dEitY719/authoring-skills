@@ -93,6 +93,30 @@ printf '#!/bin/sh\nfoo [[:upper:]] &>/dev/null\n' > "$mixed"
 eq "class: &> next to a class still WARNs" \
   "$(row "$(sh "$here/sh_check.sh" "$mixed" PASS PASS)" 1)" WARN
 
+# ---------- Check 1: an escaped \[[ in a sed regex is not [[ ]] (dotfiles#1883) ----------
+esc=$work/dotfiles/shell-common/functions/esc.sh
+cat > "$esc" <<'EOF'
+#!/bin/sh
+_strip() { sed 's/^\[[^]]*\]//' "$1"; }
+EOF
+eq "escape: sed \\[[ alone is POSIX" "$(row "$(sh "$here/sh_check.sh" "$esc" PASS PASS)" 1)" PASS
+printf '%s\n' '[[ -n "$1" ]] && echo hi' >> "$esc"
+eq "escape: real [[ ]] still FAILs in shell-common" \
+  "$(row "$(sh "$here/sh_check.sh" "$esc" PASS PASS)" 1)" FAIL
+
+# ---------- Check 1: tools/custom entrypoints are #!/bin/bash (dotfiles#1883) ----------
+mkdir -p "$work/dotfiles/shell-common/tools/custom/lib"
+entry=$work/dotfiles/shell-common/tools/custom/demo.sh
+printf '#!/bin/bash\n[[ -n "$1" ]] && echo hi\n' > "$entry"
+eq "custom: bash entrypoint PASSes" "$(row "$(sh "$here/sh_check.sh" "$entry" PASS PASS)" 1)" PASS
+printf '#!/bin/sh\nexit 0\n' > "$entry"
+eq "custom: sh entrypoint FAILs" "$(row "$(sh "$here/sh_check.sh" "$entry" PASS PASS)" 1)" FAIL
+clib=$work/dotfiles/shell-common/tools/custom/lib/util.sh
+printf '#!/bin/sh\nexit 0\n' > "$clib"
+eq "custom: sh lib PASSes" "$(row "$(sh "$here/sh_check.sh" "$clib" PASS PASS)" 1)" PASS
+printf '#!/bin/bash\nexit 0\n' > "$clib"
+eq "custom: bash lib FAILs" "$(row "$(sh "$here/sh_check.sh" "$clib" PASS PASS)" 1)" FAIL
+
 # ---------- N/A rows leave the denominator ----------
 plain=$work/plain.sh
 printf '#!/bin/sh\nexit 0\n' > "$plain"
