@@ -56,6 +56,16 @@ case $file in
   */shell-common/*) in_common=1 ;;
   *)                in_common=0 ;;
 esac
+# A top-level shell-common/tools/custom/*.sh is an executed bash entrypoint,
+# never sourced: its expected shebang is #!/bin/bash, and #!/bin/sh is rejected
+# by the dotfiles shebang hook (SSOT: dotfiles git/config/hook-config.sh
+# DOTFILES_HOOKS_SHEBANG_SHELL_COMMON_CUSTOM). Subdirectories (lib/ etc.) are
+# source-only and keep the shell-common #!/bin/sh rule.
+custom_entry=0
+case $file in
+  */shell-common/tools/custom/*/*) ;;
+  */shell-common/tools/custom/*.sh) custom_entry=1 ;;
+esac
 case $file in
   */bash/*|*/zsh/*) shell_specific=1 ;;
   *)                shell_specific=0 ;;
@@ -80,8 +90,16 @@ case $shebang in
   '#!'*)
     # A POSIX class (`[[:space:]]`) opens with `[[` too: drop every `[:name:]`
     # before counting, so only a real `[[ ]]` or `&>` is a bashism (issue #46).
-    bashisms=$(sed -E 's/\[:[[:alpha:]]+:\]//g' "$file" | grep -cE -e '\[\[|&>' || true)
-    if printf '%s' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?sh$'; then
+    # An escaped `\[` (a literal bracket in a sed/grep regex such as
+    # `s/^\[[^]]*\]//`) is dropped too: it never opens a `[[ ]]` test.
+    bashisms=$(sed -E 's/\\\[//g; s/\[:[[:alpha:]]+:\]//g' "$file" | grep -cE -e '\[\[|&>' || true)
+    if [ "$custom_entry" -eq 1 ]; then
+      if [ "$shebang" = '#!/bin/bash' ]; then
+        r1=PASS; n1='tools/custom entrypoint, #!/bin/bash as the hook expects'
+      else
+        r1=FAIL; n1='tools/custom entrypoint must be #!/bin/bash'
+      fi
+    elif printf '%s' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?sh$'; then
       if [ "$bashisms" -eq 0 ]; then
         r1=PASS; n1='#!/bin/sh, POSIX-only syntax'
       elif [ "$in_common" -eq 1 ]; then
