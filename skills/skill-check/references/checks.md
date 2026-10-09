@@ -18,7 +18,12 @@ FAIL — large reference content embedded directly in SKILL.md
 ### Check 3: Frontmatter Validity
 Look for: `name` present, `description` present, only known attributes present.
 Known attributes: `name`, `description`, `allowed-tools`, `compatibility`,
-`metadata`, `user-invocable`, `argument-hint`, `disable-model-invocation`, `license`.
+`metadata`, `user-invocable`, `argument-hint`, `disable-model-invocation`, `license`,
+`allowed_domains`.
+**`allowed_domains`**: a list of literal hostnames (no wildcards, no URLs) that
+scopes the skill's outbound network access; it pairs with
+`compatibility.network: required`. Security scanners read it from frontmatter,
+so never recommend moving it into body prose.
 **Naming**: read `references/naming-convention.md` — `category:action` colon
 form is the SSOT convention and reports as PASS, not WARN. Folder/name
 kebab-vs-colon mismatch is also PASS when folder is the kebab form of the
