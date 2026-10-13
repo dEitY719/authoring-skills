@@ -20,13 +20,15 @@
 #       skip, and the reason in snapshot_ref. repo mode and --snapshot need
 #       --tmp: a directory the caller made with mktemp and deletes afterwards.
 #       repo mode with --snapshot clones a fork's parent, the issue target;
-#       without it no gh call is made and target_source is origin.
+#       without it no networked gh call is made and target_source is origin.
 #   skill_scan.sh parse-url <git-url>    print host<TAB>owner/repo
 #   skill_scan.sh key <SKILL.md>         print the dedup key <plugin>:<skill>
 #
 # exit: 0 ok | 2 usage, bad argument, unresolvable skill | 3 git failure
 # Network: `git fetch`/`git clone` and `gh repo view` against the audited
-# repos' own remotes. Set SKILL_CHECK_GH to substitute the gh binary (tests).
+# repos' own remotes. Set SKILL_CHECK_GH to substitute the gh binary and
+# SKILL_CHECK_SSH_CONFIG to read an ssh config file instead of ~/.ssh/config
+# (tests). parse_url asks gh only for a local token (`gh auth token`).
 #
 # shortcut: paths with spaces or tabs break the TSV rows and the word-split
 # loops below; marketplace repos use kebab-case paths. Switch to NUL-delimited
@@ -60,11 +62,16 @@ parse_url() {
   p=${p%/}; p=${p%.git}
   case $h in ''|*/*) return 1 ;; esac
   # An ssh host alias (git@github.com-work:o/r) names a Host block, not a
-  # server gh knows: resolve it to its HostName.
+  # server gh knows: resolve it to its HostName. A host gh already knows stays
+  # as is -- its HostName may be a transport detour (ssh.github.com:443), not
+  # the API host (issue #91).
   case $1 in
     http://*|https://*) ;;
-    *) a=$(ssh -G "$h" 2>/dev/null | awk '$1 == "hostname" { print $2; exit }') || a=
-       [ -z "$a" ] || h=$a ;;
+    *) if [ "$h" != github.com ] && ! "$GH" auth token --hostname "$h" >/dev/null 2>&1; then
+         a=$(ssh ${SKILL_CHECK_SSH_CONFIG:+-F "$SKILL_CHECK_SSH_CONFIG"} -G "$h" 2>/dev/null |
+           awk '$1 == "hostname" { print $2; exit }') || a=
+         [ -z "$a" ] || h=$a
+       fi ;;
   esac
   case $p in */*/*|/*|*/) return 1 ;; ?*/?*) ;; *) return 1 ;; esac
   printf '%s\t%s\n' "$h" "$p"

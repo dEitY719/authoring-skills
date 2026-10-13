@@ -565,6 +565,11 @@ fi_sh="$here/file_issue.sh"
 # always fails, so a fetch from a fake remote fails fast instead of dialing out.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_SSH_COMMAND=false
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
+# parse_url reads this ssh config, not ~/.ssh/config, and asks this gh which
+# hosts it is logged in to (only ghe.known.example), so no developer setup leaks in.
+printf 'Host github.com\n  HostName ssh.github.com\n  Port 443\nHost github.com-work\n  HostName github.com\nHost ghe.known.example\n  HostName ssh.ghe.known.example\n' > "$work/ssh_config"
+printf '#!/bin/sh\n[ "$*" = "auth token --hostname ghe.known.example" ]\n' > "$work/gh-hosts"; chmod +x "$work/gh-hosts"
+export SKILL_CHECK_SSH_CONFIG="$work/ssh_config" SKILL_CHECK_GH="$work/gh-hosts"
 # rc <cmd...> -- exit status of a command, never tripping set -e.
 rc() { "$@" >/dev/null 2>&1 && echo 0 || echo $?; }
 # repo <dir> [remote url]... -- git repo with one commit holding skills/s/SKILL.md.
@@ -587,6 +592,10 @@ col() { printf '%s\n' "$1" | awk -F'\t' -v c="$2" 'NR == 1 { print $c }'; }
 eq "scan: parse git@ form" "$(sh "$scan" parse-url git@ghe.example.com:o/r.git)" "$(printf 'ghe.example.com\to/r')"
 eq "scan: parse ssh:// form" "$(sh "$scan" parse-url ssh://git@ghe.example.com:2222/o/r)" "$(printf 'ghe.example.com\to/r')"
 eq "scan: parse https form" "$(sh "$scan" parse-url https://example.com/o/r.git)" "$(printf 'example.com\to/r')"
+# issue #91: HostName replaces only an alias, never a host gh already knows.
+eq "scan: github.com kept despite HostName ssh.github.com" "$(sh "$scan" parse-url git@github.com:o/r.git)" "$(printf 'github.com\to/r')"
+eq "scan: ssh alias resolves to its HostName" "$(sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+eq "scan: gh-logged-in host kept despite HostName" "$(sh "$scan" parse-url ssh://git@ghe.known.example/o/r)" "$(printf 'ghe.known.example\to/r')"
 eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
 
 # ---------- issue target: upstream first, origin fallback, none ----------
