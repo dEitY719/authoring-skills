@@ -239,6 +239,8 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # synthetic examples, not the skill's own runtime surface.
 # -mindepth 1: a skill dir itself named e.g. `tests` must not prune its own root.
 # -H: $dir is a logical path, often a symlinked skill dir; plain find would not enter it.
+# Only that root is dereferenced; links inside the skill stay unfollowed (issue #32).
+# selftest.sh runs Check 15 on this very skill: keep URLs and signal words out of comments here.
 scripts=$(find -H "$dir" -mindepth 1 \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
   -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)
