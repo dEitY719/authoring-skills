@@ -1,16 +1,19 @@
 #!/bin/sh
 # skill_check.sh -- the mechanical half of authoring:skill-check.
 #
-# Usage: skill_check.sh <SKILL.md-path> [j2 j3 j4 j5 j6 j7 j8 j9 j10 j12]
-#   j2..j12 are the auditor's own calls for the ten checks no grep can decide
-#   -- 2 Progressive Disclosure, 3 Frontmatter Validity (naming judgment),
-#   4 References Directory Usage, 5 Output Report Defined, 6 Help Flag Pattern
-#   (verbatim-ness), 7 Step Structure, 8 Options Documentation, 9 Verdict
-#   Output, 10 Next-action Hint, 12 Executable Procedure Extraction -- each
-#   PASS | WARN | FAIL | N/A, in that check-id order. Pass all ten or none.
+# Usage: skill_check.sh <SKILL.md-path> [j2 j3 j4 j5 j6 j7 j8 j9 j10 j12 j19]
+#   j2..j19 are the auditor's own calls for the eleven checks no grep can
+#   decide -- 2 Progressive Disclosure, 3 Frontmatter Validity (naming
+#   judgment), 4 References Directory Usage, 5 Output Report Defined, 6 Help
+#   Flag Pattern (verbatim-ness), 7 Step Structure, 8 Options Documentation,
+#   9 Verdict Output, 10 Next-action Hint, 12 Executable Procedure
+#   Extraction, 19 Credential-to-Network Flow -- each PASS | WARN | FAIL |
+#   N/A (19 is WARN-only: PASS | WARN | N/A), in that check-id order. Pass
+#   all eleven or none. The pre-Check-19 ten-result form is rejected (exit 2)
+#   rather than silently shifting each result onto the wrong check.
 #
 # stdout: check<TAB>result<TAB>note, one row per decided check, ascending id.
-#         With the ten judgments it also emits every row plus a final
+#         With the eleven judgments it also emits every row plus a final
 #         score<TAB><pass>/<effective-total><TAB><VERDICT>
 #         computed per references/report-template.md verdict thresholds.
 # exit:   0 report written | 2 bad usage or unreadable file
@@ -46,7 +49,7 @@ file=${1:-}
 
 case $file in
   -h|--help|help)
-    echo "usage: skill_check.sh <SKILL.md-path> [j2 j3 j4 j5 j6 j7 j8 j9 j10 j12]"
+    echo "usage: skill_check.sh <SKILL.md-path> [j2 j3 j4 j5 j6 j7 j8 j9 j10 j12 j19]"
     exit 0
     ;;
   '')
@@ -57,20 +60,24 @@ esac
 
 [ -r "$file" ] || { echo "skill_check: cannot read '$file'" >&2; exit 2; }
 
-j2='' j3='' j4='' j5='' j6='' j7='' j8='' j9='' j10='' j12=''
-if [ "$#" -eq 11 ]; then
+j2='' j3='' j4='' j5='' j6='' j7='' j8='' j9='' j10='' j12='' j19=''
+if [ "$#" -eq 12 ]; then
   shift
-  j2=$1 j3=$2 j4=$3 j5=$4 j6=$5 j7=$6 j8=$7 j9=$8 j10=$9 j12=${10}
+  j2=$1 j3=$2 j4=$3 j5=$4 j6=$5 j7=$6 j8=$7 j9=$8 j10=$9 j12=${10} j19=${11}
+elif [ "$#" -eq 11 ]; then
+  echo "skill_check: got ten judgment results -- the pre-Check-19 form; append j19 (Credential-to-Network Flow) as the eleventh" >&2
+  exit 2
 elif [ "$#" -ne 1 ]; then
-  echo "skill_check: pass the ten judgment results (j2 j3 j4 j5 j6 j7 j8 j9 j10 j12) or none" >&2
+  echo "skill_check: pass the eleven judgment results (j2 j3 j4 j5 j6 j7 j8 j9 j10 j12 j19) or none" >&2
   exit 2
 fi
-for j in "$j2" "$j3" "$j4" "$j5" "$j6" "$j7" "$j8" "$j9" "$j10" "$j12"; do
+for j in "$j2" "$j3" "$j4" "$j5" "$j6" "$j7" "$j8" "$j9" "$j10" "$j12" "$j19"; do
   case $j in
     ''|PASS|WARN|FAIL|N/A) ;;
     *) echo "skill_check: judgment must be PASS|WARN|FAIL|N/A, got '$j'" >&2; exit 2 ;;
   esac
 done
+[ "$j19" != FAIL ] || { echo "skill_check: Check 19 is WARN-only -- j19 must be PASS|WARN|N/A" >&2; exit 2; }
 
 dir=$(cd "$(dirname "$file")" && pwd)
 refdir="$dir/references"
@@ -225,14 +232,15 @@ fi
 # the file by eye, which is what this check replaced; worst case is a WARN,
 # not a FAIL, and the note always names the file for a human to re-check).
 net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(|https?://'
-scripts=''
-for d in "$dir/lib" "$dir/scripts"; do
-  [ -d "$d" ] && scripts="$scripts $(find "$d" -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' 2>/dev/null)"
-done
-scripts="$scripts $(find "$dir" -maxdepth 1 -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' 2>/dev/null)"
-# Self-test/fixture files are excluded above -- they exercise capability
-# words in synthetic examples, not the skill's own runtime surface.
+# Every *.sh / *.py anywhere under the skill dir (issue #61): network code in
+# a package dir (<pkg>/constants.py) is still shipped and still scanned by
+# external scanners. Test trees, caches and vendored deps are pruned, and
+# self-test/fixture files are excluded -- they exercise capability words in
+# synthetic examples, not the skill's own runtime surface.
+scripts=$(find "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \) -prune \
+  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)
 net_hit=0
+hosts=''
 for s in $scripts; do
   [ -f "$s" ] || continue
   # Exclude lines that assign a *_pattern = variable, spaced or not (this
@@ -240,8 +248,21 @@ for s in $scripts; do
   # signal words as documentation, not calling them, must not self-trip
   # (agy PR #16 BLOCKER: the old exact-string '_pattern=' missed spaced
   # variants like '_pattern =').
-  grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null | grep -qE "$net_pattern" && net_hit=1
+  body=$(grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null || true)
+  printf '%s\n' "$body" | grep -qE "$net_pattern" && net_hit=1
+  hosts="$hosts
+$(printf '%s\n' "$body" | grep -oE 'https?://[A-Za-z0-9.-]+' | sed -E 's|^https?://||')"
 done
+# Literal hosts the SKILL.md never names (scanner UNDECLARED_NETWORK_DESTINATION).
+# Loopback and the RFC 2606 example.{com,org,net} domains are not destinations.
+undeclared=''
+for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
+  case $h in
+    localhost|127.*|0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
+  esac
+  grep -qiF "$h" "$file" || undeclared="$undeclared $h"
+done
+undeclared=${undeclared# }
 # The compatibility: block only -- checking "network:" against the whole
 # frontmatter let an unrelated top-level field or prose mention falsely
 # satisfy the declaration (codex PR #16 BLOCKER).
@@ -258,6 +279,10 @@ elif printf '%s\n' "$compat_block" | grep -qE '^[[:space:]]*network:'; then
   r15=PASS; n15='network signal present, compatibility.network declared'
 else
   r15=WARN; n15='network signal present, compatibility.network not declared'
+fi
+if [ -n "$undeclared" ]; then
+  if [ "$r15" = WARN ]; then n15="$n15; "; else n15=''; fi
+  r15=WARN; n15="${n15}helper host(s) not named in SKILL.md: $undeclared"
 fi
 
 # ---------- Check 16: Description Length ----------
@@ -486,10 +511,11 @@ out 15 "$r15" "$n15"
 out 16 "$r16" "$n16"
 out 17 "$r17" "$n17"
 out 18 "$r18" "$n18"
+out 19 "$j19" 'auditor judgment'
 
 [ -n "$j2" ] || exit 0
 
-total=$((18 - na))
+total=$((19 - na))
 if [ "$total" -le 0 ]; then
   verdict='N/A'
 elif [ "$pass" -eq "$total" ]; then

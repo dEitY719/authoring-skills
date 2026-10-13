@@ -1,6 +1,6 @@
 # skill-check 사용 결과
 
-> **한 줄 요약** — `SKILL.md` 파일 하나를 받아 18개 항목의 감사 리포트를 생성합니다.
+> **한 줄 요약** — `SKILL.md` 파일 하나를 받아 19개 항목의 감사 리포트를 생성합니다.
 
 ```
 SKILL.md  ──▶  /authoring:skill-check  ──▶  감사 리포트 (PASS/WARN/FAIL/N-A)
