@@ -79,7 +79,9 @@ FAIL — emoji present AND the skill's allowlist key is NOT in
 `references/allowed-emoji-skills.txt`
 N/A — the key IS in the allowlist (`[N/A] allowlisted in references/allowed-emoji-skills.txt`)
 WARN — allowlist file missing, or an allowlist entry resolves to nothing in the
-audited scope (see "Stale entries" below). Degrade rather than block;
+audited scope (see "Stale entries" below), or a symlinked dir under
+`references/` went unscanned (see "Symlinked directories" under Checks 17–18;
+it turns a PASS or N/A into WARN). Degrade rather than block;
 authoring:skill-check stays read-only.
 
 Rationale: CLAUDE.md "No emojis anywhere" policy with one exception — the
@@ -277,7 +279,7 @@ Network signals: imports of `requests` / `httpx` / `urllib` / `http.client` /
 | Result | Criteria |
 |---|---|
 | PASS | no network signal found, OR network is used AND `compatibility.network` is declared — and every literal helper host is named in SKILL.md |
-| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host with the first helper file it appears in; suggest documenting the destination in SKILL.md (or dropping the call) |
+| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host with the first helper file it appears in; suggest documenting the destination in SKILL.md (or dropping the call); OR a symlinked dir in the skill went unscanned — this turns a PASS or N/A into WARN (see "Symlinked directories" under Checks 17–18) |
 | N/A | skill ships no executable scripts (pure-prompt skill — nothing to scan) |
 
 Extension note: filesystem-write and subprocess capabilities follow the same

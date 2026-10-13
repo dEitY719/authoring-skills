@@ -123,16 +123,23 @@ scan_tree() {
     return 0
   fi
   [ -d "$st_root" ] || return 0
+  # shellcheck disable=SC2086 # $st_h is empty or -H; unquoted so empty drops out
   find $st_h "$st_root" -mindepth 1 \( "$@" -exec printf 'F\t%s\n' {} + \) \
     -o \( -type l -exec test -d {} \; -exec printf 'L\t%s\n' {} + \) 2>/dev/null || true
 }
 
+# scanned <scan_tree-output> -- the selected files, one per line.
+scanned() {
+  printf '%s\n' "$1" | awk -F'\t' '$1 == "F" { print $2 }'
+}
+
 # skipped <scan_tree-output> [prefix] -- the skipped links as one
-# comma-separated list, <prefix> stripped; empty when none.
+# comma-separated list, <prefix> stripped, sorted (find walks in readdir
+# order, which differs across filesystems); empty when none.
 skipped() {
   printf '%s\n' "$1" | awk -F'\t' -v p="${2:-}" '$1 == "L" {
-    f = $2; if (p != "" && index(f, p) == 1) f = substr(f, length(p) + 1)
-    s = s (s == "" ? "" : ", ") f } END { print s }'
+    f = $2; if (p != "" && index(f, p) == 1) f = substr(f, length(p) + 1); print f }' |
+    LC_ALL=C sort | awk '{ s = s (s == "" ? "" : ", ") $0 } END { print s }'
 }
 
 # flag_skipped <result> <note> <links> -- sets fr/fn: a PASS or N/A becomes
@@ -166,7 +173,7 @@ fm=$(awk '
 # find, not a bare */*.md glob -- also catches emoji in nested reference
 # subdirectories (codex PR #16 FOLLOW-UP).
 ref_scan=$(scan_tree "$refdir" -type f -name '*.md')
-scan_files="$file $(printf '%s\n' "$ref_scan" | awk -F'\t' '$1 == "F" { print $2 }')"
+scan_files="$file $(scanned "$ref_scan")"
 ref_links=$(skipped "$ref_scan" "$dir/")
 # Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
 # BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
@@ -282,7 +289,7 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 helper_scan=$(scan_tree -H "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
   -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*')
-scripts=$(printf '%s\n' "$helper_scan" | awk -F'\t' '$1 == "F" { print $2 }')
+scripts=$(scanned "$helper_scan")
 net_hit=0
 hosts=''
 for s in $scripts; do
@@ -425,7 +432,7 @@ port_scan_out=$(
 port_files=$(
   cd "$dir" && {
     echo SKILL.md
-    printf '%s\n' "$port_scan_out" | awk -F'\t' '$1 == "F" { print $2 }'
+    scanned "$port_scan_out"
   } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
 )
 port_links=$(skipped "$port_scan_out")
