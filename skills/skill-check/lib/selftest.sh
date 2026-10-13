@@ -500,6 +500,10 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
   *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
 esac
+case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
+  *"api.acme.io (lib/net.py)"*) ok "host: 15 note names the helper file carrying the host" ;;
+  *) no "host: 15 note names the helper file carrying the host" "missing (lib/net.py)" ;;
+esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS

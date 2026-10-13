@@ -277,7 +277,7 @@ Network signals: imports of `requests` / `httpx` / `urllib` / `http.client` /
 | Result | Criteria |
 |---|---|
 | PASS | no network signal found, OR network is used AND `compatibility.network` is declared — and every literal helper host is named in SKILL.md |
-| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host; suggest documenting the destination in SKILL.md (or dropping the call) |
+| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host with the first helper file it appears in; suggest documenting the destination in SKILL.md (or dropping the call) |
 | N/A | skill ships no executable scripts (pure-prompt skill — nothing to scan) |
 
 Extension note: filesystem-write and subprocess capabilities follow the same
