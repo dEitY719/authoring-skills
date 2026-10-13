@@ -29,9 +29,9 @@
 # strings and re-split by word splitting, so a file name containing a space
 # would be reported as two names. Every skill and reference file in this
 # marketplace layout is kebab-case with no spaces (see
-# skills/skill-check/references/naming-convention.md), the same call
-# lib/skill_check.sh makes for the same reason. Upgrade path if that ever
-# breaks: NUL-delimit and read with `while IFS= read -r -d ''`.
+# skills/skill-check/references/naming-convention.md). Upgrade path if that
+# ever breaks: newline-delimit and read with `while IFS= read -r`, as
+# skills/skill-check/lib/skill_check.sh does since issue #85.
 
 set -eu
 
