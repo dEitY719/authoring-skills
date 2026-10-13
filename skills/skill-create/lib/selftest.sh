@@ -1,8 +1,8 @@
 #!/bin/sh
 # selftest.sh -- one runnable check for scripts/quick_validate.py's
 # allowed_domains shape check (issue #69) and its frontmatter key allowlist
-# (issue #81). Builds throwaway skills and asserts
-# which ones validate. Run: sh lib/selftest.sh
+# (issue #81). Builds throwaway skills and asserts which ones validate.
+# Run: sh lib/selftest.sh
 
 set -eu
 
@@ -57,20 +57,31 @@ expect "argument-hint key passes" 0 "$(fixture ahint 'argument-hint: "<n>"')"
 expect "disable-model-invocation key passes" 0 "$(fixture dmi 'disable-model-invocation: true')"
 expect "unknown key still fails" 1 "$(fixture unk 'bogus-key: 1')" "Unexpected key(s)"
 expect "non-string key reports, not crashes" 1 "$(fixture boolkey 'on: push')" "Unexpected key(s)"
-expect "quoted user-invocable fails" 1 "$(fixture uinvs 'user-invocable: "false"')" "must be a boolean"
-expect "quoted disable-model-invocation fails" 1 "$(fixture dmis 'disable-model-invocation: "true"')" "must be a boolean"
-expect "list argument-hint fails" 1 "$(fixture ahintl 'argument-hint: [n]')" "must be a string"
+expect "quoted user-invocable fails" 1 "$(fixture uinvs 'user-invocable: "false"')" "must be an unquoted true or false"
+expect "quoted disable-model-invocation fails" 1 "$(fixture dmis 'disable-model-invocation: "true"')" "must be an unquoted true or false"
+expect "empty user-invocable names the empty value" 1 "$(fixture uinve 'user-invocable:')" "got an empty value"
+expect "unquoted bracket argument-hint passes" 0 "$(fixture ahintl 'argument-hint: [issue-number]')"
 
 # The allowlist must equal skill-check Check 3's "Known attributes" (issue #81
-# was exactly this drift).
+# was exactly this drift). Skipped only when skill-check is absent altogether
+# (a standalone copy of skill-create); a moved or renamed checks.md fails.
 checks=$here/../../skill-check/references/checks.md
-if [ -f "$checks" ]; then
+if [ -d "$here/../../skill-check" ]; then
   if out=$(PYTHONPATH="$here/../scripts" python3 - "$checks" <<'EOF' 2>&1
 import re, sys
 from quick_validate import ALLOWED_PROPERTIES
-text = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r"Known attributes:(.*?)\.\n", text, re.S)
-known = set(re.findall(r"`([^`]+)`", m.group(1))) if m else set()
+lines = open(sys.argv[1], encoding="utf-8").read().splitlines()
+start = next((i for i, l in enumerate(lines) if l.startswith("Known attributes:")), None)
+if start is None:
+    sys.exit("no 'Known attributes:' line in checks.md -- update this parser")
+para = [lines[start]]
+for l in lines[start + 1:]:
+    if not l.strip() or l.startswith(("**", "#", "-", "|")):
+        break
+    para.append(l)
+known = set(re.findall(r"`([^`]+)`", " ".join(para)))
+if not known:
+    sys.exit("'Known attributes:' paragraph lists no backticked keys -- update this parser")
 if known != set(ALLOWED_PROPERTIES):
     sys.exit(f"Check 3 only: {sorted(known - ALLOWED_PROPERTIES)}; "
              f"quick_validate only: {sorted(ALLOWED_PROPERTIES - known)}")
@@ -82,7 +93,7 @@ EOF
     fails=$((fails + 1))
   fi
 else
-  printf 'skip allowlist parity (no %s)\n' "$checks"
+  printf 'skip allowlist parity (no skill-check next to skill-create)\n'
 fi
 
 if [ "$fails" -ne 0 ]; then
