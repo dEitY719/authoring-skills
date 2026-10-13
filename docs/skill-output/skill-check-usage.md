@@ -36,11 +36,11 @@ Score: 17/17 checks passed (0 warnings, 0 fails, 2 N/A) · Verdict: EXCELLENT
 | 14 | License Declaration                | PASS | license declared in frontmatter
 | 15 | Capability Declaration Consistency | PASS | network signal present, compatibility.network declared
 | 19 | Credential-to-Network Flow         | N/A  | no helper makes a network call
-Recommended tier: haiku (declared: haiku, agrees)
+Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, agrees)
 ```
 
-15번의 network signal 은 `lib/sh_check.sh` 의 탐지 정규식과 `selftest.sh`
-fixture 이며, frontmatter 가 `compatibility.network: none` 과 그 사유를 선언한다.
+15번의 network signal 은 `lib/sh_check.sh` 가 `curl`/`wget` 호출을 세는 탐지
+정규식과 그 주석이며 (`selftest.sh` 는 Check 15 스캔에서 제외), frontmatter 가 `compatibility.network: none` 과 그 사유를 선언한다.
 
 재현: 기계 판정 8개는 `lib/skill_check.sh` 가, 나머지 11개는 감사자 판정이다.
 

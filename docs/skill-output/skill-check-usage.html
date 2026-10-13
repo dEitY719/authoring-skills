@@ -59,7 +59,7 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--muted);
   }
   .pill--audit { border-color: #cfe0fb; background: #eef4fe; color: var(--accent); }
-  .pill--verdict { border-color: #f0dcb4; background: #fdf5e7; color: var(--warn); }
+  .pill--verdict { border-color: #bfe3cf; background: #edf7f1; color: var(--ok); }
   .pill svg { display: block; }
 
   /* ===== SECTIONS ===== */
@@ -240,7 +240,7 @@
         감사 전용
       </span>
       <span class="pill">사용 결과 기록</span>
-      <span class="pill pill--verdict">Verdict: NEEDS WORK</span>
+      <span class="pill pill--verdict">Verdict: EXCELLENT</span>
     </div>
   </div>
 </header>
@@ -375,10 +375,11 @@
 | 14 | License Declaration                | PASS | license declared in frontmatter
 | 15 | Capability Declaration Consistency | PASS | network signal present, compatibility.network declared
 | 19 | Credential-to-Network Flow         | N/A  | no helper makes a network call
-Recommended tier: haiku (declared: haiku, agrees)</code></pre>
+Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, agrees)</code></pre>
     <p>
-      15번의 network signal 은 <code>lib/sh_check.sh</code> 의 탐지 정규식과
-      <code>selftest.sh</code> fixture 이며, frontmatter 가
+      15번의 network signal 은 <code>lib/sh_check.sh</code> 가 <code>curl</code>/<code>wget</code>
+      호출을 세는 탐지 정규식과 그 주석이며 (<code>selftest.sh</code> 는 Check 15 스캔에서 제외),
+      frontmatter 가
       <code>compatibility.network: none</code> 과 그 사유를 선언한다.
     </p>
 
