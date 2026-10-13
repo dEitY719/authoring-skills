@@ -141,16 +141,21 @@ real() { (cd -P -- "$1" 2>/dev/null && pwd -P); }
 # bundle, shared by Check 15 and Checks 17/18 (issue #87) so both agree on
 # what it is: test trees, caches and vendored deps are pruned, self-test and
 # fixture files excluded. Extra primaries (Check 15's script-type filter)
-# narrow the selected files. Keep the pruned names in step with bundle_prune_re.
+# narrow the selected files. The pruned names are bundle_prune_names, the one
+# list both the find expression and bundle_prune_re are built from.
+bundle_prune_names='tests __pycache__ .git node_modules .venv venv site-packages'
 bundle_scan() {
   bs_root=$1; shift
-  scan_tree -H "$bs_root" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
-    -o -name .venv -o -name venv -o -name site-packages \) -prune \
+  bs_prune=''
+  for bs_n in $bundle_prune_names; do bs_prune="$bs_prune -o -name $bs_n"; done
+  # shellcheck disable=SC2086 # split on purpose: one find word per token, no glob chars
+  scan_tree -H "$bs_root" \( ${bs_prune# -o } \) -prune \
     -o -type f "$@" ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
 }
-# The directory names bundle_scan prunes, as an awk ERE (bracketed dots, not
-# backslashes: awk -v would eat the escape).
-bundle_prune_re='tests|__pycache__|[.]git|node_modules|[.]venv|venv|site-packages'
+# The same names as an awk ERE (bracketed dots, not backslashes: awk -v would
+# eat the escape).
+# shellcheck disable=SC2086 # split on purpose, as in bundle_scan
+bundle_prune_re=$(printf '%s\n' $bundle_prune_names | sed 's/[.]/[.]/g' | paste -sd '|' -)
 
 # skipped [-p] <scan_tree-output> <prefix> [root]... -- the skipped links as one
 # comma-separated list, <prefix> stripped, sorted (find walks in readdir
@@ -484,13 +489,13 @@ port_scan_out=$(
   cd "$dir" && bundle_scan . ! -path ./SKILL.md |
     awk -F'\t' -v OFS='\t' '{ sub(/^\.\//, "", $2); print }'
 )
-# Text files only: one grep -Il over the list rather than a grep per file. The
-# list is split on newline only (IFS is a newline, globbing off), so a spaced
-# path stays one argument.
-# shellcheck disable=SC2086 # split on newline on purpose
+# Text files only: grep -Il over the list rather than a grep per file. The list
+# goes NUL-separated through xargs, so a spaced path stays one argument and a
+# large skill cannot overflow ARG_MAX; it is never empty (SKILL.md heads it).
+# A file grep cannot read says so on stderr, as scan_tree's find does.
 port_files=$(
-  cd "$dir" && pf=$(printf 'SKILL.md\n%s\n' "$(scanned "$port_scan_out")") && IFS='
-' && set -f && set -- $pf && grep -Il -e . -- "$@" 2>/dev/null | sort
+  cd "$dir" && printf 'SKILL.md\n%s\n' "$(scanned "$port_scan_out")" | awk 'NF' |
+    tr '\n' '\0' | xargs -0 grep -Il -e . -- | sort
 )
 port_links=$(cd "$dir" && skipped -p "$port_scan_out" "" .)
 

@@ -662,6 +662,8 @@ EOF
 echo ok
 EOF
   mkdir -p "$ur/build/x"
+  rows() { printf '%s\n' "$1" | awk -F'\t' '$1 ~ /^[0-9]+$/ { printf "%s ", $1 }'; }
+  want=$(rows "$(sh "$here/skill_check.sh" "$ur/SKILL.md")")
   chmod 000 "$ur/build"
   set +e
   o=$(sh "$here/skill_check.sh" "$ur/SKILL.md" 2>/dev/null)
@@ -669,8 +671,8 @@ EOF
   set -e
   chmod 755 "$ur/build"
   eq "i87: unreadable subdir does not abort (exit 0)" "$rc" 0
-  eq "i87: unreadable subdir still prints every mechanical row" \
-    "$(printf '%s\n' "$o" | awk -F'\t' '$1 ~ /^[0-9]+$/ { printf "%s ", $1 }')" '1 11 13 14 15 16 17 18 '
+  # Compared with the same fixture while readable, so a new check needs no edit here.
+  eq "i87: unreadable subdir still prints every mechanical row" "$(rows "$o")" "$want"
 fi
 # ---------- issue #77: symlinked dirs inside a skill are reported, not followed ----------
 mkskill "$work/lnk/shared/refs/a.md" <<EOF

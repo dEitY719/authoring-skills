@@ -403,7 +403,8 @@ symlinked dir a scan met and did not enter is named in that check's note
 becomes WARN — content an installer that follows links would ship went
 unread. A link whose target lies inside a directory the same scan already
 walks (`lib/current -> v2`) is not reported: that content was read under its
-real path. The audited skill directory itself is still dereferenced (Check 15).
+real path — unless the target sits under a pruned directory (`lib/fx ->
+../tests/fx`, Checks 15, 17, 18): the scan never read it, so it is reported. The audited skill directory itself is still dereferenced (Check 15).
 
 ### Check 17: Bundle Self-containment
 Extract every relative path token starting with `../` (after a `(`, backtick,
