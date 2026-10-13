@@ -286,8 +286,12 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
     127.*) continue ;;
   esac
   printf '%s\n' "$named" | grep -qxF -e "$h" && continue
-  # Name the first helper carrying the host, so the reader knows where to look.
-  src=$(grep -liF -e "$h" $scripts 2>/dev/null | head -n 1)
+  # Name the first helper (sorted, so stable across filesystems) carrying the
+  # host as a URL host -- after the scheme's slash or a userinfo @, and ending
+  # at a non-host character -- so sub.<host> or a bare mention elsewhere does
+  # not get the blame.
+  hre=$(printf '%s' "$h" | sed 's/\./\\./g')
+  src=$(grep -liE -e "[/@]$hre\\.?([^a-z0-9.-]|\$)" $scripts 2>/dev/null | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }

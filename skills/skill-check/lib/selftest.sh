@@ -497,12 +497,19 @@ curl -s https://127.evil.io/
 EOF
 eq "host: 15 a 127.-prefixed domain is not loopback" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" WARN
 case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
-  *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
-  *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
+  *"api.acme.io (lib/net.py)"*) ok "host: 15 note names the undeclared host and its helper file" ;;
+  *) no "host: 15 note names the undeclared host and its helper file" "missing api.acme.io (lib/net.py)" ;;
 esac
-case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
-  *"api.acme.io (lib/net.py)"*) ok "host: 15 note names the helper file carrying the host" ;;
-  *) no "host: 15 note names the helper file carrying the host" "missing (lib/net.py)" ;;
+# A helper that only calls sub.api.acme.io (named in SKILL.md) sorts first but
+# must not be blamed for api.acme.io: attribution matches the whole URL host.
+host attr lib/net.py 'Calls sub.api.acme.io.' >/dev/null
+mkskill "$work/host/attr/lib/a.sh" <<'EOF'
+#!/bin/sh
+curl -s https://sub.api.acme.io/v1
+EOF
+case $(note "$(sh "$here/skill_check.sh" "$work/host/attr/SKILL.md")" 15) in
+  *"api.acme.io (lib/net.py)"*) ok "host: 15 note blames the helper with the exact host, not a subdomain" ;;
+  *) no "host: 15 note blames the helper with the exact host, not a subdomain" "expected api.acme.io (lib/net.py)" ;;
 esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
