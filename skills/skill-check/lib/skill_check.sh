@@ -285,7 +285,10 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
     127.*[!0-9.]*) ;; # 127.evil.com is a real host, not loopback
     127.*) continue ;;
   esac
-  printf '%s\n' "$named" | grep -qxF -e "$h" || undeclared="$undeclared $h"
+  printf '%s\n' "$named" | grep -qxF -e "$h" && continue
+  # Name the first helper carrying the host, so the reader knows where to look.
+  src=$(grep -liF -e "$h" $scripts 2>/dev/null | head -n 1)
+  undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }
 # The compatibility: block only -- checking "network:" against the whole
