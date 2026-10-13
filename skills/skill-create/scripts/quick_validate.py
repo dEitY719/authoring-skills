@@ -119,19 +119,30 @@ def validate_skill(skill_path):
             got = "an empty value" if frontmatter[key] is None else repr(frontmatter[key])
             return False, f"{key} must be an unquoted true or false, got {got}"
 
-    # Validate allowed_domains if present: a list of literal hostnames, as
-    # skill-check's Check 3 requires (no wildcards, no URLs); this script is
-    # stricter and also rejects ports and whitespace.
+    # Validate allowed_domains if present: a non-empty list of literal
+    # hostnames, as skill-check's Check 3 requires (no wildcards, URLs, ports
+    # or whitespace; IDNs in punycode).
     if "allowed_domains" in frontmatter:
         domains = frontmatter["allowed_domains"]
         if not isinstance(domains, list):
             return False, f"allowed_domains must be a list of hostnames, got {type(domains).__name__}"
+        # An empty allowlist names no host; omit the key instead.
+        if not domains:
+            return False, "allowed_domains must list at least one hostname (omit the key if the skill needs none)"
         for domain in domains:
             if not isinstance(domain, str) or len(domain) > 253 or not HOSTNAME_RE.fullmatch(domain):
                 return False, (
                     f"allowed_domains entry {domain!r} is not a plain hostname "
                     "(ASCII labels only: no scheme, path, port, wildcard, whitespace or trailing dot; e.g. fonts.gstatic.com)"
                 )
+        # Check 3 pairs allowed_domains with `compatibility.network: required`.
+        # Only the mapping form is checked: a free-text compatibility string
+        # cannot be parsed reliably, so it is left alone.
+        if isinstance(compatibility, dict) and compatibility.get("network") != "required":
+            return False, (
+                "allowed_domains requires compatibility.network: required "
+                f"(got network: {compatibility.get('network')!r})"
+            )
 
     return True, "Skill is valid!"
 
