@@ -16,6 +16,16 @@ import yaml
 _LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 HOSTNAME_RE = re.compile(rf"{_LABEL}(?:\.{_LABEL})*")
 
+# Mirrors the "Known attributes" list of skill-check Check 3
+# (skills/skill-check/references/checks.md); lib/selftest.sh asserts the two
+# stay equal, so add a key there and here together.
+ALLOWED_PROPERTIES = frozenset({
+    "name", "description", "license", "allowed-tools", "metadata", "compatibility", "allowed_domains",
+    "user-invocable", "argument-hint", "disable-model-invocation",
+})
+# Value types the harness expects for the invocation-control keys.
+BOOL_PROPERTIES = ("user-invocable", "disable-model-invocation")
+
 
 def validate_skill(skill_path):
     """Basic validation of a skill"""
@@ -46,18 +56,13 @@ def validate_skill(skill_path):
     except yaml.YAMLError as e:
         return False, f"Invalid YAML in frontmatter: {e}"
 
-    # Define allowed properties. user-invocable, argument-hint and
-    # disable-model-invocation mirror skill-check Check 3's known attributes.
-    ALLOWED_PROPERTIES = {
-        "name", "description", "license", "allowed-tools", "metadata", "compatibility", "allowed_domains",
-        "user-invocable", "argument-hint", "disable-model-invocation",
-    }
-
-    # Check for unexpected properties (excluding nested keys under metadata)
+    # Check for unexpected properties (excluding nested keys under metadata).
+    # str() first: YAML turns keys such as `on:` or `1:` into bool/int, which
+    # would otherwise crash the join below.
     unexpected_keys = set(frontmatter.keys()) - ALLOWED_PROPERTIES
     if unexpected_keys:
         return False, (
-            f"Unexpected key(s) in SKILL.md frontmatter: {', '.join(sorted(unexpected_keys))}. "
+            f"Unexpected key(s) in SKILL.md frontmatter: {', '.join(sorted(map(str, unexpected_keys)))}. "
             f"Allowed properties are: {', '.join(sorted(ALLOWED_PROPERTIES))}"
         )
 
@@ -105,6 +110,17 @@ def validate_skill(skill_path):
                 return False, f"Compatibility is too long ({len(compatibility)} characters). Maximum is 500 characters."
         elif not isinstance(compatibility, dict):
             return False, f"Compatibility must be a string or mapping, got {type(compatibility).__name__}"
+
+    # Invocation-control keys: a quoted "false" is a truthy string, so a
+    # skill meant to be hidden would silently stay invocable.
+    for key in BOOL_PROPERTIES:
+        if key in frontmatter and not isinstance(frontmatter[key], bool):
+            return False, f"{key} must be a boolean (true/false), got {type(frontmatter[key]).__name__}"
+    if "argument-hint" in frontmatter and not isinstance(frontmatter["argument-hint"], str):
+        return False, (
+            f"argument-hint must be a string, got {type(frontmatter['argument-hint']).__name__} "
+            '(quote bracketed hints: argument-hint: "[issue-number]")'
+        )
 
     # Validate allowed_domains if present: a list of literal hostnames, as
     # skill-check's Check 3 requires (no wildcards, no URLs); this script is
