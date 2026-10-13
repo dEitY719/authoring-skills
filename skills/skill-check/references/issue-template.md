@@ -29,7 +29,8 @@ Score: <pass>/<total> checks passed · Verdict: <VERDICT>
 ## Audited
 
 - Snapshot: `<snapshot_ref>` (e.g. `upstream/main@1a2b3c4`)
-- skill-check: authoring-skills `<commit of the skill-check that ran>`
+- skill-check: authoring `<version>` (the `version` in this plugin's
+  `.claude-plugin/plugin.json`; `unknown` when there is none — never guess a SHA)
 
 ## Verification
 

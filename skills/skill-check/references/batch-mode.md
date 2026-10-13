@@ -58,9 +58,12 @@ issue body must quote only what that repo already publishes.
 
 1. `git fetch <target-remote>` (read-only).
 2. Default branch from `refs/remotes/<target-remote>/HEAD`, else
+   `git ls-remote --symref <target-remote> HEAD`, else
    `gh repo view --json defaultBranchRef`.
-3. `git archive <target-remote>/<default> | tar -x` into the temp dir; that
-   copy is what gets audited (`snapshot_ref` = `<remote>/<branch>@<sha>`).
+3. Check out that commit into the temp dir through a private index
+   (`read-tree` + `checkout-index`, so `export-ignore` cannot drop files); that
+   copy is what gets audited (`snapshot_ref` = `<remote>/<branch>@<sha>`). An
+   empty `.git` directory marks its root, so walk-ups stop there.
 4. A failed fetch falls back to the existing remote-tracking ref and appends
    `stale:<commit date>` to `snapshot_ref`; show it as a warning in the Issue
    Plan. No ref at all: a `skip` row for that repo.

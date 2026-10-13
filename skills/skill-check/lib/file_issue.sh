@@ -35,11 +35,14 @@ valid_key() {
 }
 
 # existing <host> <repo> <key> -- "#<n> <url>" of the first open issue whose
-# body has the exact key line; empty when none. The search is fuzzy, so the
-# exact line is re-checked in jq.
+# body has the exact key line; empty when none. A plain listing, not
+# `--search`: the search index lags, so a quick re-run (e.g. after a PENDING
+# stop) would miss an issue it just filed and file it twice.
+# shortcut: only the newest 1000 open issues are read; page further if a
+# target repo ever carries more.
 existing() {
-  out=$(GH_HOST=$1 "$GH" issue list -R "$2" --state open --limit 100 \
-    --search "\"skill-check-key: $3\" in:body" --json number,url,body \
+  out=$(GH_HOST=$1 "$GH" issue list -R "$2" --state open --limit 1000 \
+    --json number,url,body \
     --jq ".[] | select(any(.body | split(\"\\n\")[]; rtrimstr(\"\\r\") == \"skill-check-key: $3\")) | \"#\\(.number) \\(.url)\"") || return 3
   printf '%s\n' "$out" | head -n1
 }
