@@ -45,6 +45,12 @@ expect "non-string entry fails" 1 "$(fixture num 'allowed_domains: [42]')" "not 
 label63=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 expect "63-char label passes" 0 "$(fixture l63 "allowed_domains: [$label63.io]")"
 expect "64-char label fails" 1 "$(fixture l64 "allowed_domains: [${label63}a.io]")" "not a plain hostname"
+expect "258-char hostname fails (253 cap)" 1 "$(fixture l254 "allowed_domains: [$label63.$label63.$label63.$label63.io]")" "not a plain hostname"
+expect "punycode IDN passes" 0 "$(fixture idn 'allowed_domains: [xn--mnchen-3ya.de]')"
+expect "empty string fails" 1 "$(fixture empty 'allowed_domains: [""]')" "not a plain hostname"
+expect "trailing dot fails" 1 "$(fixture dot 'allowed_domains: [example.com.]')" "not a plain hostname"
+expect "leading hyphen fails" 1 "$(fixture hyph 'allowed_domains: [-a.io]')" "not a plain hostname"
+expect "underscore fails" 1 "$(fixture under 'allowed_domains: [_dmarc.x.io]')" "not a plain hostname"
 
 if [ "$fails" -ne 0 ]; then
   printf '%s check(s) failed\n' "$fails"
