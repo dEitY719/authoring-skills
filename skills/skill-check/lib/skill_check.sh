@@ -125,21 +125,37 @@ scan_tree() {
   [ -d "$st_root" ] || return 0
   # shellcheck disable=SC2086 # $st_h is empty or -H; unquoted so empty drops out
   find $st_h "$st_root" -mindepth 1 \( "$@" -exec printf 'F\t%s\n' {} + \) \
-    -o \( -type l -exec test -d {} \; -exec printf 'L\t%s\n' {} + \) 2>/dev/null || true
+    -o \( -type l -exec test -d {} \; -exec printf 'L\t%s\n' {} + \) || true
 }
+# No 2>/dev/null above: a find that cannot run (unsupported primary, unreadable
+# dir) must say so on stderr rather than leave an empty, silently-PASSing scan.
 
 # scanned <scan_tree-output> -- the selected files, one per line.
 scanned() {
   printf '%s\n' "$1" | awk -F'\t' '$1 == "F" { print $2 }'
 }
 
-# skipped <scan_tree-output> [prefix] -- the skipped links as one
+# real <dir> -- its physical path, empty when it does not resolve.
+real() { (cd -P -- "$1" 2>/dev/null && pwd -P); }
+
+# skipped <scan_tree-output> <prefix> [root]... -- the skipped links as one
 # comma-separated list, <prefix> stripped, sorted (find walks in readdir
-# order, which differs across filesystems); empty when none.
+# order, which differs across filesystems); empty when none. A link whose
+# target lies inside one of the scan's own non-symlink <root>s is dropped:
+# that content was already scanned under its real path (`lib/current -> v2`).
 skipped() {
-  printf '%s\n' "$1" | awk -F'\t' -v p="${2:-}" '$1 == "L" {
-    f = $2; if (p != "" && index(f, p) == 1) f = substr(f, length(p) + 1); print f }' |
-    LC_ALL=C sort | awk '{ s = s (s == "" ? "" : ", ") $0 } END { print s }'
+  sk_out=$1 sk_pre=$2; shift 2
+  sk_roots=''
+  for sk_r in "$@"; do
+    [ -L "$sk_r" ] && continue # a symlinked root was itself skipped, covers nothing
+    sk_r=$(real "$sk_r") && [ -n "$sk_r" ] && sk_roots="$sk_roots$sk_r
+"
+  done
+  printf '%s\n' "$sk_out" | awk -F'\t' '$1 == "L" { print $2 }' | while IFS= read -r sk_l; do
+    sk_t=$(real "$sk_l")
+    printf '%s' "$sk_roots" | awk -v t="$sk_t/" 'index(t, $0 "/") == 1 { f = 1 } END { exit !f }' && continue
+    printf '%s\n' "${sk_l#"$sk_pre"}"
+  done | LC_ALL=C sort | awk '{ s = s (s == "" ? "" : ", ") $0 } END { print s }'
 }
 
 # flag_skipped <result> <note> <links> -- sets fr/fn: a PASS or N/A becomes
@@ -174,7 +190,7 @@ fm=$(awk '
 # subdirectories (codex PR #16 FOLLOW-UP).
 ref_scan=$(scan_tree "$refdir" -type f -name '*.md')
 scan_files="$file $(scanned "$ref_scan")"
-ref_links=$(skipped "$ref_scan" "$dir/")
+ref_links=$(skipped "$ref_scan" "$dir/" "$refdir")
 # Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
 # BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
 # isn't guaranteed either (agy PR #16 BLOCKER). UTF-8 encodes the whole
@@ -217,7 +233,8 @@ else
     r11=FAIL; n11="$emoji_hits emoji glyph(s), key '$key' not in allowed-emoji-skills.txt"
   fi
 fi
-flag_skipped "$r11" "$n11" "$ref_links"; r11=$fr n11=$fn
+# An allowlisted skill stays N/A: emoji behind the link could not FAIL it anyway.
+flag_skipped "$r11" "$n11" "$ref_links"; [ "$r11" = N/A ] || r11=$fr; n11=$fn
 
 # ---------- Check 13: Model Recommendation Metadata (shape validation) ----------
 # Scoped to the metadata: block specifically -- searching the whole
@@ -363,7 +380,7 @@ if [ -n "$undeclared" ]; then
   if [ "$r15" = WARN ]; then n15="$n15; "; else n15=''; fi
   r15=WARN; n15="${n15}helper host(s) not named in SKILL.md: $undeclared"
 fi
-flag_skipped "$r15" "$n15" "$(skipped "$helper_scan" "$dir/")"; r15=$fr n15=$fn
+flag_skipped "$r15" "$n15" "$(skipped "$helper_scan" "$dir/" "$dir")"; r15=$fr n15=$fn
 
 # ---------- Check 16: Description Length ----------
 # Fold a `description:` value -- inline or a `>`/`>-`/`>+`/`|`/`|-`/`|+`
@@ -435,7 +452,7 @@ port_files=$(
     scanned "$port_scan_out"
   } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
 )
-port_links=$(skipped "$port_scan_out")
+port_links=$(cd "$dir" && skipped "$port_scan_out" "" references lib scripts)
 
 # port_scan <mode> -- one awk pass over $port_files, run from $dir.
 #   mode=escape: print `file:line -> path` for every `../` token (after a
