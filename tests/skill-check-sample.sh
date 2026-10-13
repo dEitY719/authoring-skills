@@ -16,8 +16,9 @@ fail() {
 }
 
 # The command spans two lines joined by a trailing backslash.
-args=$(sed -n '/^sh skills\/skill-check\/lib\/skill_check\.sh /{N;s/\\\n//;s/^sh //;p;q;}' "$md")
-[ -n "$args" ] || fail "no skill_check.sh reproduce command in $md"
+cmd=$(sed -n '/^sh skills\/skill-check\/lib\/skill_check\.sh /{N;p;q;}' "$md")
+[ -n "$cmd" ] || fail "no skill_check.sh reproduce command in $md"
+args=$(printf '%s\n' "$cmd" | sed 'N;s/\\\n//;s/^sh //')
 
 # "Score: 17/17 checks passed (...) · Verdict: EXCELLENT" -> "17/17 EXCELLENT"
 # (a verdict may hold a space or slash: NEEDS WORK, N/A)
@@ -38,7 +39,7 @@ verdict=${got#* }
 while IFS= read -r line; do
   grep -qF -- "$line" "$html" || fail "$html reproduce command differs from $md: $line"
 done <<EOF
-$(sed -n '/^sh skills\/skill-check\/lib\/skill_check\.sh /{N;p;q;}' "$md")
+$cmd
 EOF
 grep -q "<strong>$frac checks passed</strong>" "$html" ||
   fail "$html score is not $frac"
