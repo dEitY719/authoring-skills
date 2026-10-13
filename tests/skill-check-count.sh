@@ -18,16 +18,25 @@ grep -q "^total=\$(($n - na))\$" skills/skill-check/lib/skill_check.sh ||
 # and the codex longDescription with skill-check's count; in an HTML `<td>`
 # that row's cells sit on later lines, so the cut runs to its `</tr>`. Only
 # counted nouns match, so `0.1.19`, `#19`, `Check 19` and `7/17 checks passed`
-# are ignored. checks.md is read only to its intro line: its body names
-# per-group counts ("These three checks"). Every file must yield a count, so a
-# rewording the patterns miss fails instead of silently dropping coverage.
+# are ignored. checks.md is read only up to its first `Check <N>` heading: its
+# body names per-group counts ("These three checks"). Number words run to
+# ninety-nine. The sh-check guide pages count sh-check's own criteria, so only
+# their skill-check row ("sh-check 의 거울상", one line in md and html) is
+# read. Every file must yield a count, so a rewording the patterns miss fails
+# instead of silently dropping coverage.
 LC_ALL=C awk -v want="$n" '
 BEGIN {
   split("one two three four five six seven eight nine ten eleven twelve " \
-        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty " \
-        "twenty-one twenty-two twenty-three twenty-four twenty-five", w, " ")
-  for (i in w) num[w[i]] = i
-  words = "(twenty-(one|two|three|four|five)|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)"
+        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen", w, " ")
+  split("twenty thirty forty fifty sixty seventy eighty ninety", tens, " ")
+  for (i = 1; i <= 19; i++) num[w[i]] = i
+  for (t = 1; t <= 8; t++) {
+    num[tens[t]] = 10 * (t + 1)
+    for (i = 1; i <= 9; i++) num[tens[t] "-" w[i]] = 10 * (t + 1) + i
+  }
+  words = ""
+  for (k in num) words = words (words == "" ? "" : "|") k
+  words = "(" words ")"
   noun = "[ -](structure|checks?|criteria|check definitions|total)"
   bad = 0
 }
@@ -39,9 +48,10 @@ function report(got) {
   seen++; hits[FILENAME]++
 }
 {
-  if (FNR == 1) insh = 0
-  if (FILENAME ~ /references\/checks[.]md$/ && FNR > 3) next
+  if (FNR == 1) insh = stop = 0
+  if (FILENAME ~ /references\/checks[.]md$/ && (stop || $0 ~ /^#+ Check [0-9]/)) { stop = 1; next }
   s = tolower($0)
+  if (FILENAME ~ /sh-check[.]/ && !index(s, "거울상")) next
   if (insh) { if (index(s, "</tr>")) insh = 0; next }
   p = index(s, "sh-check")
   if (p) {
@@ -77,6 +87,7 @@ END {
   skills/skill-check/references/report-template.md \
   README.md CLAUDE.md GEMINI.md .codex-plugin/plugin.json docs/index.html \
   docs/skill-guides/skill-check.md docs/skill-guides/skill-check.html \
+  docs/skill-guides/sh-check.md docs/skill-guides/sh-check.html \
   docs/skill-guides/skill-create.md docs/skill-guides/skill-create.html \
   docs/skill-guides/skill-refactor.md docs/skill-guides/skill-refactor.html \
   docs/skill-output/skill-check-usage.md docs/skill-output/skill-check-usage.html
