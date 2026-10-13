@@ -713,15 +713,16 @@ mkskill "$rs/home/.claude/plugins/installed_plugins.json" <<EOF
 }
 EOF
 mkskill "$rs/home/.claude/skills/baz/SKILL.md" </dev/null
-res() { (cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" sh "$scan" resolve "$1" 2>/dev/null) | sed "s|^$(cd -P "$rs" && pwd -P)/||"; }
+in_rs() { (cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" "$@"); }
+res() { in_rs sh "$scan" resolve "$1" 2>/dev/null | sed "s|^$(cd -P "$rs" && pwd -P)/||"; }
 eq "resolve: plugin:skill from a local checkout" "$(res alpha:s)" "cwd/p1/skills/s/SKILL.md"
 eq "resolve: leading slash dropped" "$(res /beta:dup)" "cwd/p2/skills/dup/SKILL.md"
-eq "resolve: bare name, distinct plugins -> ambiguous" "$(cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" rc sh "$scan" resolve dup)" 2
+eq "resolve: bare name, distinct plugins -> ambiguous" "$(rc in_rs sh "$scan" resolve dup)" 2
 eq "resolve: installed plugin" "$(res gamma:bar)" "inst/gamma/skills/bar/SKILL.md"
 eq "resolve: bare name in an installed plugin" "$(res bar)" "inst/gamma/skills/bar/SKILL.md"
 eq "resolve: flat skill link" "$(res baz)" "home/.claude/skills/baz/SKILL.md"
 eq "resolve: a directory means its SKILL.md" "$(res "$rs/cwd/p1/skills/s")" "cwd/p1/skills/s/SKILL.md"
-eq "resolve: unknown name" "$(cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" rc sh "$scan" resolve nope)" 2
+eq "resolve: unknown name" "$(rc in_rs sh "$scan" resolve nope)" 2
 
 # ---------- file_issue.sh against a stub gh ----------
 stub="$work/stub"; mkdir -p "$stub"
@@ -755,8 +756,8 @@ eq "file_issue: second run is EXISTS" "$(fi_run example.com o/r plug:s 'fix(s): 
   "EXISTS #7 https://example.com/o/r/issues/7"
 eq "file_issue: --check EXISTS after filing" "$(fi_run --check example.com o/r plug:s)" "EXISTS #7 https://example.com/o/r/issues/7"
 printf 'no key line\n' > "$work/nokey.md"
-eq "file_issue: body without the key line is usage" "$(STUB="$stub" SKILL_CHECK_GH="$stub/gh" rc sh "$fi_sh" example.com o/r plug:s t "$work/nokey.md")" 2
-eq "file_issue: key with a quote is usage" "$(STUB="$stub" SKILL_CHECK_GH="$stub/gh" rc sh "$fi_sh" --check example.com o/r 'a"b')" 2
+eq "file_issue: body without the key line is usage" "$(rc fi_run example.com o/r plug:s t "$work/nokey.md")" 2
+eq "file_issue: key with a quote is usage" "$(rc fi_run --check example.com o/r 'a"b')" 2
 eq "file_issue: preflight OK" "$(fi_run --preflight example.com o/r)" OK
 touch "$stub/noauth"
 eq "file_issue: preflight SKIP without auth" "$(fi_run --preflight example.com o/r)" "SKIP gh not logged in to example.com"
