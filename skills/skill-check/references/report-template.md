@@ -57,7 +57,7 @@ Score: 7/17 checks passed (7 warnings, 3 fails, 2 N/A)
 Verdict: NEEDS WORK — fix FAIL items before shipping
 
 ## Sub-skill Model Plan
-(only for composite skills that invoke other skills; 1-depth unless --recursive)
+(only for composite skills that invoke other skills; 1-depth unless --deep-subskills)
 This skill's own tier: sonnet — orchestration, no deep edits
 
 | Sub-skill           | Declared tier | Notes                        |
@@ -103,3 +103,41 @@ Rules:
   - ≥60% PASS or any FAIL → `NEEDS WORK — fix FAIL items before shipping`
   - <60% PASS → `POOR — significant gaps, major rework needed`
 - Always end with "Next Actions" section listing concrete fixes in priority order
+
+## Batch Mode Output (`-d` / `-r` / `-R`)
+
+Batch runs do not print the per-skill report above; each skill's detail goes
+into its issue body (`references/issue-template.md`). Print instead:
+
+```
+## Batch Summary
+| Repo              | Skill        | Score | Verdict    | FAIL | WARN | Issue        |
+|-------------------|--------------|-------|------------|------|------|--------------|
+| authoring-skills/ | skill-check  | 17/17 | EXCELLENT  | 0    | 0    | —            |
+| gh-flow-skills/   | wave         | 14/17 | NEEDS WORK | 1    | 2    | NEW          |
+| gh-pr-skills/     | merge        | 15/17 | GOOD       | 0    | 2    | EXISTS #41   |
+| plain-skills/     | notes        | 16/17 | GOOD       | 0    | 1    | SKIP no remote |
+| jira-skills-claude-1/ | —        | —     | —          | —    | —    | DUP same target as jira-skills/ |
+
+## Issue Plan
+| Target repo                    | Title                                                | FAIL | WARN | Status     |
+|--------------------------------|------------------------------------------------------|------|------|------------|
+| github.com dEitY719/gh-flow-skills | fix(wave): skill-check findings — 1 FAIL, 2 WARN | 1    | 2    | NEW        |
+| github.com dEitY719/gh-pr-skills   | refactor(merge): skill-check findings — 0 FAIL, 2 WARN | 0 | 2  | EXISTS #41 |
+Snapshot: <snapshot_ref per repo; any `stale:<date>` ref is called out here as a warning>
+
+[OK] audited <n> skills in <m> repos — issues: <new> new, <exists> existing, <skip> skipped
+
+## Next Actions
+1. <highest priority fix across the batch>
+Run /authoring:skill-check -d <repo> --no-issue after fixes to verify.
+```
+
+Rules:
+- The Issue Plan is printed before the confirmation question; with
+  `--no-issue` it is omitted and the Issue column shows `—`.
+- After filing, replace each `NEW` with the created `NEW #N <url>`; rows not
+  reached after a gh failure show `PENDING`, and the verdict line becomes
+  `[FAIL] ... — <k> pending, re-run to file them`.
+- `DUP` and `SKIP` rows of the scanner (`skill_md` = `-`) appear in the Batch
+  Summary with `—` scores.

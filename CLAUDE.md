@@ -13,7 +13,7 @@ files, shell scripts, help text, command names:
 | Skill | Role |
 |-------|------|
 | `skill-create` | Build a new SKILL.md through interview, draft, eval loop, description tuning, and packaging. |
-| `skill-check` | Audit one SKILL.md against 19 structure, UX, model, security, context-budget, and portability checks. Read-only. |
+| `skill-check` | Audit one SKILL.md, a repo, or every repo under a directory against 19 structure, UX, model, security, context-budget, and portability checks. Never edits files; batch mode files one issue per failing skill after a confirmation gate. |
 | `skill-refactor` | Shrink an over-long SKILL.md under 100 lines by extracting detail into `references/`. |
 | `sh-check` | Audit a `*.sh` file against 10 PASS/WARN/FAIL/N-A criteria. Read-only. |
 | `ux-guidelines` | Replace raw `echo`/`printf`/ANSI in shell help text with semantic `ux_lib` calls. |
@@ -108,7 +108,8 @@ have not changed the other — and when CI fails, the fix is in the tree or in
   1,024. Keep new descriptions tight.
 - **Honour each skill's safety contract.** `skill-check` and `sh-check` are
   read-only and must report every criterion rather than stopping at the first
-  failure. `skill-refactor` presents a plan and waits before writing.
+  failure; `skill-check`'s only external write is batch-mode issue filing,
+  behind its one Issue Plan confirmation. `skill-refactor` presents a plan and waits before writing.
   `command-rename` files issues and renames nothing.
 - **Helpers stay executable.** `skills/skill-create/{scripts,eval-viewer}/`
   hold real Python entry points and `skills/command-rename/lib/` holds POSIX

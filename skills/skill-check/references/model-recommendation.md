@@ -70,7 +70,7 @@ day-one red wall 로 막지 않기 위함이다 (Open Question 1 결정).
 - 탐지 패턴: 본문의 `/gh-*`, `gh:*`, `Skill(<name> ...)` 를 정규화해 후보 추출.
 - 후보 스킬 파일이 있으면 그 `metadata.model_recommendation.tier` 를 읽는다.
 - 파일/메타데이터가 없으면 `unknown` 으로 표시하고 WARN.
-- **재귀는 기본 1-depth.** 깊은 재귀는 `--recursive` opt-in (비용·복잡도 분리,
+- **재귀는 기본 1-depth.** 깊은 재귀는 `--deep-subskills` opt-in (비용·복잡도 분리,
   Open Question 2 결정).
 
 예시 — `gh-flow:issue` 는 자체 티어(오케스트레이션 → `sonnet`)와 5개 하위

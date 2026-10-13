@@ -502,7 +502,7 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
 esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
-eq "self: 15 skill-check's own helpers carry no network signal" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
+eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
 # ---------- Check 19: eleven judged results ----------
 o=$(sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS WARN)
@@ -524,7 +524,7 @@ fi
 # agree with it (SKILL.md description, help.md, the score denominator).
 skill_dir=$(cd "$here/.." && pwd)
 n_defined=$(grep -cE '^### Check [0-9]+:' "$skill_dir/references/checks.md")
-n_skill=$(sed -nE 's/.*against ([0-9]+) structure.*/\1/p' "$skill_dir/SKILL.md")
+n_skill=$(sed -nE 's/.* on ([0-9]+) checks.*/\1/p' "$skill_dir/SKILL.md" | head -n1)
 n_help=$(sed -nE 's/.*Checks run \(([0-9]+) total\).*/\1/p' "$skill_dir/references/help.md")
 n_score=$(sed -nE 's/^total=\$\(\(([0-9]+) - na\)\)$/\1/p' "$here/skill_check.sh")
 eq "drift: SKILL.md description count = checks.md" "$n_skill" "$n_defined"
@@ -557,6 +557,185 @@ if sh "$here/skill_check.sh" "$work/nope.md" >/dev/null 2>&1; then
 else
   ok "usage: unreadable file"
 fi
+
+# =================== skill_scan.sh / file_issue.sh (issue #89) ===================
+scan="$here/skill_scan.sh"
+fi_sh="$here/file_issue.sh"
+# Fixture repos: no user hooks/templates, a fixed identity, and an ssh that
+# always fails, so a fetch from a fake remote fails fast instead of dialing out.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_SSH_COMMAND=false
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
+# rc <cmd...> -- exit status of a command, never tripping set -e.
+rc() { "$@" >/dev/null 2>&1 && echo 0 || echo $?; }
+# repo <dir> [remote url]... -- git repo with one commit holding skills/s/SKILL.md.
+repo() {
+  d=$1; shift
+  mkskill "$d/skills/s/SKILL.md" <<'EOF'
+---
+name: s
+description: Scan fixture.
+---
+EOF
+  git init -q -b main "$d"
+  git -C "$d" add -A
+  git -C "$d" commit -q -m init
+  while [ $# -gt 0 ]; do git -C "$d" remote add "$1" "$2"; shift 2; done
+}
+col() { printf '%s\n' "$1" | awk -F'\t' -v c="$2" 'NR == 1 { print $c }'; }
+
+# ---------- parse-url: three accepted forms ----------
+eq "scan: parse git@ form" "$(sh "$scan" parse-url git@ghe.example.com:o/r.git)" "$(printf 'ghe.example.com\to/r')"
+eq "scan: parse ssh:// form" "$(sh "$scan" parse-url ssh://git@ghe.example.com:2222/o/r)" "$(printf 'ghe.example.com\to/r')"
+eq "scan: parse https form" "$(sh "$scan" parse-url https://example.com/o/r.git)" "$(printf 'example.com\to/r')"
+eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
+
+# ---------- issue target: upstream first, origin fallback, none ----------
+repo "$work/t/both" origin git@example.com:me/fork.git upstream https://example.com/up/main.git
+repo "$work/t/orig" origin git@example.com:me/only.git
+repo "$work/t/none"
+o=$(sh "$scan" scan dir "$work/t/both")
+eq "scan: upstream wins over origin" "$(col "$o" 4) $(col "$o" 5)" "up/main upstream"
+o=$(sh "$scan" scan dir "$work/t/orig")
+eq "scan: origin when no upstream" "$(col "$o" 4) $(col "$o" 5)" "me/only origin"
+o=$(sh "$scan" scan dir "$work/t/none")
+eq "scan: no remote -> target none" "$(col "$o" 5) $(col "$o" 6)" "none worktree"
+
+# ---------- -R: DUP for a second checkout of the same target ----------
+repo "$work/R/alpha" origin git@example.com:o/alpha.git
+git -C "$work/R/alpha" worktree add -q "$work/R/alpha-claude-1" 2>/dev/null
+repo "$work/R/beta" origin git@example.com:o/beta.git
+mkdir -p "$work/R/not-a-repo/skills/x" && echo x > "$work/R/not-a-repo/skills/x/SKILL.md"
+o=$(sh "$scan" scan recursive "$work/R")
+eq "scan: -R the worktree is DUP of the main checkout" \
+  "$(printf '%s\n' "$o" | awk -F'\t' '$5 == "dup" { print $6 }')" "same target as alpha/"
+eq "scan: -R audits each distinct repo once" \
+  "$(printf '%s\n' "$o" | awk -F'\t' '$2 != "-"' | wc -l | tr -d ' ')" 2
+eq "scan: -R skips a non-repo child" "$(printf '%s\n' "$o" | grep -c not-a-repo || true)" 0
+
+# ---------- discovery prune ----------
+p="$work/prune"
+for f in skills/a .claude/worktrees/w/skills/a .worktrees/w/skills/a tests/x fixtures/x vendor/x node_modules/x; do
+  mkskill "$p/$f/SKILL.md" </dev/null
+done
+o=$(sh "$scan" scan dir "$p")
+eq "scan: prune keeps only skills/a" "$(printf '%s\n' "$o" | cut -f2 | sed "s|^$(cd -P "$p" && pwd -P)/||")" "skills/a/SKILL.md"
+
+# ---------- dedup key ----------
+mkskill "$work/t/orig/.claude-plugin/plugin.json" <<'EOF'
+{"name": "plug"}
+EOF
+eq "key: <plugin>:<skill> with a manifest" "$(sh "$scan" key "$work/t/orig/skills/s/SKILL.md")" "plug:s"
+eq "key: bare <skill> without one" "$(sh "$scan" key "$work/t/none/skills/s/SKILL.md")" "s"
+
+# ---------- snapshot: a dirty feature branch never reaches the issue ----------
+git init -q --bare -b main "$work/snap/up.git"
+repo "$work/snap/local" upstream "$work/snap/up.git"
+git -C "$work/snap/local" push -q upstream main
+git -C "$work/snap/local" fetch -q upstream
+git -C "$work/snap/local" remote set-head upstream main
+# Now point upstream at a URL that parses but cannot be fetched (ssh=false):
+# the scan must fall back to the existing remote-tracking ref and flag it.
+git -C "$work/snap/local" remote set-url upstream git@example.com:up/local.git
+git -C "$work/snap/local" checkout -q -b feat
+echo 'LOCAL-ONLY committed' >> "$work/snap/local/skills/s/SKILL.md"
+git -C "$work/snap/local" commit -q -am feat
+echo 'LOCAL-ONLY dirty' >> "$work/snap/local/skills/s/SKILL.md"
+st=$(mktemp -d "$work/st.XXXXXX")
+o=$(sh "$scan" scan dir "$work/snap/local" --snapshot --tmp "$st" 2>/dev/null)
+eq "snapshot: target is upstream" "$(col "$o" 4) $(col "$o" 5)" "up/local upstream"
+case $(col "$o" 6) in "upstream/main@"*" stale:"*) ok "snapshot: stale ref flagged" ;; *) no "snapshot: stale ref flagged" "got [$(col "$o" 6)]" ;; esac
+eq "snapshot: audited file is the default-branch copy" "$(grep -c LOCAL-ONLY "$(col "$o" 2)" || true)" 0
+eq "snapshot: working tree untouched" "$(grep -c LOCAL-ONLY "$work/snap/local/skills/s/SKILL.md")" 2
+o=$(sh "$scan" scan single "$work/snap/local/skills/s/SKILL.md" --snapshot --tmp "$st" 2>/dev/null)
+eq "snapshot: single mode maps into the snapshot" "$(grep -c LOCAL-ONLY "$(col "$o" 2)" || true)" 0
+eq "snapshot: --snapshot without --tmp is usage" "$(rc sh "$scan" scan dir "$work/snap/local" --snapshot)" 2
+
+# ---------- args ----------
+eq "args: single defaults issue off" "$(sh "$scan" args x)" "$(printf 'single\tx\toff\t0\t0')"
+eq "args: batch defaults issue on" "$(sh "$scan" args -d "$p" -y)" "$(printf 'dir\t%s\ton\t1\t0' "$p")"
+eq "args: --no-issue turns batch off" "$(sh "$scan" args -R "$work/R" --no-issue | cut -f3)" off
+eq "args: --deep-subskills" "$(sh "$scan" args x --deep-subskills | cut -f5)" 1
+eq "args: two modes" "$(rc sh "$scan" args x -d "$p")" 2
+eq "args: --issue with --no-issue" "$(rc sh "$scan" args --issue --no-issue)" 2
+eq "args: -d without a value" "$(rc sh "$scan" args -d)" 2
+eq "args: -r with a non-URL" "$(rc sh "$scan" args -r /srv/r)" 2
+eq "args: unknown option" "$(rc sh "$scan" args --bogus)" 2
+case $(sh "$scan" args "$good" --recursive 2>&1 || true) in
+  *--deep-subskills*) ok "args: old <path> --recursive names the migration" ;;
+  *) no "args: old <path> --recursive names the migration" "no --deep-subskills hint" ;;
+esac
+eq "args: old <path> --recursive exits 2" "$(rc sh "$scan" args "$good" --recursive)" 2
+eq "args: --recursive <file> exits 2" "$(rc sh "$scan" args --recursive "$good")" 2
+
+# ---------- resolve: path, local checkout, installed plugin, flat link ----------
+rs="$work/res"
+repo "$rs/cwd/p1"; mkskill "$rs/cwd/p1/.claude-plugin/plugin.json" <<'EOF'
+{"name": "alpha"}
+EOF
+mkskill "$rs/cwd/p1/skills/dup/SKILL.md" </dev/null
+repo "$rs/cwd/p2"; mkskill "$rs/cwd/p2/.claude-plugin/plugin.json" <<'EOF'
+{"name": "beta"}
+EOF
+mkskill "$rs/cwd/p2/skills/dup/SKILL.md" </dev/null
+mkskill "$rs/inst/gamma/skills/bar/SKILL.md" </dev/null
+mkskill "$rs/home/.claude/plugins/installed_plugins.json" <<EOF
+{
+  "version": 2,
+  "plugins": {
+    "gamma@market": [
+      { "scope": "user", "installPath": "$rs/inst/gamma", "version": "1.0.0" }
+    ]
+  }
+}
+EOF
+mkskill "$rs/home/.claude/skills/baz/SKILL.md" </dev/null
+res() { (cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" sh "$scan" resolve "$1" 2>/dev/null) | sed "s|^$(cd -P "$rs" && pwd -P)/||"; }
+eq "resolve: plugin:skill from a local checkout" "$(res alpha:s)" "cwd/p1/skills/s/SKILL.md"
+eq "resolve: leading slash dropped" "$(res /beta:dup)" "cwd/p2/skills/dup/SKILL.md"
+eq "resolve: bare name, distinct plugins -> ambiguous" "$(cd "$rs/cwd" && HOME="$rs/home" rc sh "$scan" resolve dup)" 2
+eq "resolve: installed plugin" "$(res gamma:bar)" "inst/gamma/skills/bar/SKILL.md"
+eq "resolve: bare name in an installed plugin" "$(res bar)" "inst/gamma/skills/bar/SKILL.md"
+eq "resolve: flat skill link" "$(res baz)" "home/.claude/skills/baz/SKILL.md"
+eq "resolve: a directory means its SKILL.md" "$(res "$rs/cwd/p1/skills/s")" "cwd/p1/skills/s/SKILL.md"
+eq "resolve: unknown name" "$(cd "$rs/cwd" && HOME="$rs/home" rc sh "$scan" resolve nope)" 2
+
+# ---------- file_issue.sh against a stub gh ----------
+stub="$work/stub"; mkdir -p "$stub"
+cat > "$stub/gh" <<'EOF'
+#!/bin/sh
+# Stub gh: answers only what file_issue.sh asks. State lives in $STUB.
+case "$1 $2" in
+  "auth status") [ ! -f "$STUB/noauth" ] ;;
+  "repo view") echo true ;;
+  "label list") printf 'fix\nskill\n' ;;
+  "issue list") cat "$STUB/open" 2>/dev/null || true ;;
+  "issue create")
+    printf '%s\n' "$*" > "$STUB/created"
+    echo "#7 https://example.com/o/r/issues/7" > "$STUB/open"
+    echo "https://example.com/o/r/issues/7" ;;
+  *) echo "stub gh: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$stub/gh"
+body="$work/body.md"
+printf 'Findings\n\nskill-check-key: plug:s\n' > "$body"
+fi_run() { STUB="$stub" SKILL_CHECK_GH="$stub/gh" sh "$fi_sh" "$@"; }
+eq "file_issue: --check NEW before filing" "$(fi_run --check example.com o/r plug:s)" NEW
+eq "file_issue: first run files" "$(fi_run example.com o/r plug:s 'fix(s): findings' "$body" fix,refactor,skill)" \
+  "NEW #7 https://example.com/o/r/issues/7"
+case $(cat "$stub/created") in
+  *"--label fix --label skill"*) ok "file_issue: only existing labels applied" ;;
+  *) no "file_issue: only existing labels applied" "got [$(cat "$stub/created")]" ;;
+esac
+eq "file_issue: second run is EXISTS" "$(fi_run example.com o/r plug:s 'fix(s): findings' "$body")" \
+  "EXISTS #7 https://example.com/o/r/issues/7"
+eq "file_issue: --check EXISTS after filing" "$(fi_run --check example.com o/r plug:s)" "EXISTS #7 https://example.com/o/r/issues/7"
+printf 'no key line\n' > "$work/nokey.md"
+eq "file_issue: body without the key line is usage" "$(STUB="$stub" SKILL_CHECK_GH="$stub/gh" rc sh "$fi_sh" example.com o/r plug:s t "$work/nokey.md")" 2
+eq "file_issue: key with a quote is usage" "$(STUB="$stub" SKILL_CHECK_GH="$stub/gh" rc sh "$fi_sh" --check example.com o/r 'a"b')" 2
+eq "file_issue: preflight OK" "$(fi_run --preflight example.com o/r)" OK
+touch "$stub/noauth"
+eq "file_issue: preflight SKIP without auth" "$(fi_run --preflight example.com o/r)" "SKIP gh not logged in to example.com"
 
 [ "$fails" -eq 0 ] || { printf '\n%s check(s) failed\n' "$fails" >&2; exit 1; }
 printf '\nall checks passed\n'

@@ -8,7 +8,7 @@ reading its `SKILL.md`, then follow it. Do not load all six.
 | Skill | Read | Use when |
 |-------|------|----------|
 | `skill-create` | `@./skills/skill-create/SKILL.md` | Building a new skill from an idea, or improving and evaluating an existing one — interview, draft, eval loop, description tuning, packaging. |
-| `skill-check` | `@./skills/skill-check/SKILL.md` | Auditing one `SKILL.md` against 19 structure, UX, model, security, context-budget, and portability checks. Read-only. |
+| `skill-check` | `@./skills/skill-check/SKILL.md` | Auditing one `SKILL.md`, a repo, or every repo under a directory against 19 structure, UX, model, security, context-budget, and portability checks. Never edits files; batch mode files issues after a confirmation. |
 | `skill-refactor` | `@./skills/skill-refactor/SKILL.md` | A `SKILL.md` is over 100 lines and its detail needs extracting into `references/`. |
 | `sh-check` | `@./skills/sh-check/SKILL.md` | Auditing a `*.sh` file against 10 shell quality criteria. Read-only. |
 | `ux-guidelines` | `@./skills/ux-guidelines/SKILL.md` | Shell help text uses raw `echo`/`printf`/ANSI and should use semantic `ux_lib` calls instead. |
@@ -33,8 +33,8 @@ skill may write**:
 - An `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`: none of these. That is
   `harness:ai-context` in the sibling `dEitY719/harness-skills` repo.
 
-Read-only: `skill-check`, `sh-check`, `command-rename` (it writes GitHub issues,
-never files). Write: `skill-create`, `skill-refactor`, `ux-guidelines`.
+Read-only: `skill-check`, `sh-check`, `command-rename` (`command-rename`, and
+`skill-check` in batch mode, write GitHub issues, never files). Write: `skill-create`, `skill-refactor`, `ux-guidelines`.
 
 ## Tool mapping for Gemini CLI
 

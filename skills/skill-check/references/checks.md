@@ -203,7 +203,8 @@ the declared `tier`.
 (`/gh-*`, `gh:*`, `Skill(<name> ...)` patterns), build a 1-depth Sub-skill Model
 Plan — read each sub-skill's declared `tier`, mark missing ones `unknown` (WARN),
 and report it **separately from this skill's own tier** (see report-template.md).
-Recursion is 1-depth by default; `--recursive` opts into deeper traversal.
+Recursion is 1-depth by default; `--deep-subskills` opts into deeper traversal
+(it was `--recursive` before that flag came to mean multi-repo batch mode).
 
 ---
 

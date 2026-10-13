@@ -223,7 +223,7 @@
         </svg>
         감사 전용
       </span>
-      <span class="pill">read-only · 파일을 쓰지 않는다</span>
+      <span class="pill">파일을 쓰지 않는다 · 일괄 모드만 이슈 등록</span>
       <span class="pill">19 checks</span>
     </div>
   </div>
@@ -307,7 +307,8 @@
 
   <section>
     <h2><span class="num">03</span>호출 형식과 인자/옵션</h2>
-    <pre><code>/authoring:skill-check [path/to/SKILL.md] [--recursive]</code></pre>
+    <pre><code>/authoring:skill-check [path/to/SKILL.md | plugin:skill] [--issue] [--deep-subskills]
+/authoring:skill-check -d &lt;dir&gt; | -r &lt;git-url&gt; | -R &lt;root&gt; [--no-issue] [-y]</code></pre>
     <p class="lede" style="margin-top:14px">
       <code>references/help.md</code> 가 인자/옵션의 SSOT 다.
     </p>
@@ -318,13 +319,19 @@
         </thead>
         <tbody>
           <tr>
-            <td><code>[path]</code></td>
-            <td>감사할 <code>SKILL.md</code> 경로</td>
+            <td><code>[path | skill-name]</code></td>
+            <td>감사할 <code>SKILL.md</code>, 스킬 디렉터리, 또는 <code>plugin:skill</code> / <code>skill</code></td>
             <td>생략 시 현재 디렉터리부터 <code>SKILL.md</code> 탐색</td>
           </tr>
+          <tr><td><code>-d, --dir &lt;dir&gt;</code></td><td>디렉터리(레포) 아래 모든 스킬</td><td>—</td></tr>
+          <tr><td><code>-r, --repo &lt;git-url&gt;</code></td><td>URL 을 임시로 shallow clone 해서 모든 스킬 감사</td><td>—</td></tr>
+          <tr><td><code>-R, --recursive &lt;root&gt;</code></td><td><code>&lt;root&gt;</code> 직속 하위의 모든 git 레포</td><td>—</td></tr>
+          <tr><td><code>--issue</code></td><td>단일 모드에서 이슈 등록 opt-in</td><td>off</td></tr>
+          <tr><td><code>--no-issue</code></td><td>일괄 모드에서 이슈 등록 끄기 (작업 트리 감사, read-only)</td><td>일괄 모드는 on</td></tr>
+          <tr><td><code>-y, --yes</code></td><td>Issue Plan 확인 생략 (무인 실행)</td><td>off</td></tr>
           <tr>
-            <td><code>--recursive</code></td>
-            <td>합성 스킬(composite)의 Sub-skill Model Plan 을 기본 1-depth 보다 깊게 순회</td>
+            <td><code>--deep-subskills</code></td>
+            <td>합성 스킬(composite)의 Sub-skill Model Plan 을 기본 1-depth 보다 깊게 순회 (이전 <code>--recursive</code>)</td>
             <td>off</td>
           </tr>
           <tr>
@@ -339,13 +346,16 @@
     <p class="lede" style="margin:20px 0 10px">예시</p>
     <pre><code>/authoring:skill-check
 /authoring:skill-check skills/my-skill/SKILL.md
-/authoring:skill-check skills/my-composite-skill/SKILL.md --recursive
+/authoring:skill-check gh-flow:wave
+/authoring:skill-check skills/my-composite-skill/SKILL.md --deep-subskills
+/authoring:skill-check -d ~/src/my-skills/ --no-issue
+/authoring:skill-check -R ~/src/
 /authoring:skill-check help</code></pre>
   </section>
 
   <section>
     <h2><span class="num">04</span>동작 단계 요약</h2>
-    <p class="lede">SKILL.md 가 정의한 실제 흐름은 Help 분기 + 3단계다.</p>
+    <p class="lede">SKILL.md 가 정의한 실제 흐름은 Help 분기 + 5단계다.</p>
 
     <div class="card">
       <ol class="steps">
@@ -354,8 +364,14 @@
           인자가 <code>help</code> 이면 <code>references/help.md</code> 를 그대로 출력하고 종료.
         </li>
         <li>
-          <span class="step-title">Step 1: Locate the File</span> —
-          경로가 주어지면 그 파일, 아니면 현재 디렉터리에서 탐색.
+          <span class="step-title">Step 0: Parse Arguments</span> —
+          <code>lib/skill_scan.sh args</code> 가 모드(single/dir/repo/recursive)와 이슈 등록 여부를 정한다.
+          인자 오류와 이전 형식 <code>&lt;path&gt; --recursive</code> 는 exit 2.
+        </li>
+        <li>
+          <span class="step-title">Step 1: Locate the Files</span> —
+          단일 모드는 경로나 스킬 이름(<code>skill_scan.sh resolve</code>), 일괄 모드는
+          <code>skill_scan.sh scan</code> 이 감사 목록을 만든다(<code>references/batch-mode.md</code>).
         </li>
         <li>
           <span class="step-title">Step 2: Run Nineteen Checks</span> —
@@ -368,7 +384,11 @@
         </li>
         <li>
           <span class="step-title">Step 3: Output the Report</span> —
-          <code>references/report-template.md</code> 의 형식 그대로 출력.
+          <code>references/report-template.md</code> 의 형식 그대로 출력. 일괄 모드는 Batch Summary 와 Issue Plan 표.
+        </li>
+        <li>
+          <span class="step-title">Step 4: File Issues</span> —
+          일괄 모드(또는 단일 <code>--issue</code>)에서만. <code>references/issue-filing.md</code>.
         </li>
       </ol>
     </div>
@@ -442,9 +462,18 @@
 
     <ul class="notes">
       <li class="n-accent">
-        <span class="note-title">read-only 계약</span>
-        티어를 추천만 하고 모델을 전환하지 않으며, 파일을 쓰지 않는다. Check 13 · 14 · 15 · 19 모두
-        정책 격차를 지적할 뿐 파일을 고치지 않는다. 실제 기입은 <code>skill-refactor</code> 의 몫이다.
+        <span class="note-title">파일을 쓰지 않는다 — 외부 쓰기는 일괄 이슈 등록 하나뿐</span>
+        티어를 추천만 하고 모델을 전환하지 않으며, 감사 대상 파일을 고치지 않는다. Check 13 · 14 · 15 · 19 모두
+        정책 격차를 지적할 뿐이고, 실제 기입은 <code>skill-refactor</code> 의 몫이다. 유일한 외부 쓰기는
+        일괄 모드(<code>-d</code>/<code>-r</code>/<code>-R</code>, 또는 단일 <code>--issue</code>)의 이슈 등록이며,
+        Issue Plan 을 보여 주고 확인을 한 번 받은 뒤에만 한다. 단일 모드 기본 실행과
+        <code>skill-create</code>/<code>skill-refactor</code> 경로는 이슈를 만들지 않는다.
+      </li>
+      <li class="n-accent">
+        <span class="note-title">이슈는 upstream 우선, 스냅샷 기준</span>
+        대상은 <code>upstream</code> remote, 없으면 <code>origin</code>. 이슈를 등록하는 실행은 대상 레포 기본
+        브랜치의 스냅샷을 감사하므로 로컬 전용 내용이 이슈 본문에 들어가지 않는다. 스킬 1개당 1건,
+        본문의 <code>skill-check-key:</code> 줄로 열린 이슈를 찾아 중복을 막는다.
       </li>
       <li class="n-accent">
         <span class="note-title">첫 실패에서 멈추지 않는다</span>
