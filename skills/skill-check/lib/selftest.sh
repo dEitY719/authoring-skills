@@ -436,6 +436,11 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 userinfo is stripped before the host" ;;
   *) no "host: 15 userinfo is stripped before the host" "api.acme.io missing" ;;
 esac
+mkskill "$work/host/local/lib/evil.sh" <<'EOF'
+#!/bin/sh
+curl -s https://127.evil.io/
+EOF
+eq "host: 15 a 127.-prefixed domain is not loopback" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" WARN
 case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
   *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
