@@ -9,7 +9,7 @@ SKILL.md  ──▶  /authoring:skill-check  ──▶  감사 리포트 (PASS/W
 ## 1. 실행한 명령
 
 ```
-/authoring:skill-check [path/to/SKILL.md] [--recursive]   # 일반형
+/authoring:skill-check [path/to/SKILL.md | plugin:skill] [--deep-subskills]   # 일반형
 /authoring:skill-check skills/sh-check/SKILL.md           # 이번 실행
 ```
 
