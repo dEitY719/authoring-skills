@@ -1,6 +1,7 @@
 #!/bin/sh
 # selftest.sh -- one runnable check for scripts/quick_validate.py's
-# allowed_domains shape check (issue #69). Builds throwaway skills and asserts
+# allowed_domains shape check (issue #69) and its frontmatter key allowlist
+# (issue #81). Builds throwaway skills and asserts
 # which ones validate. Run: sh lib/selftest.sh
 
 set -eu
@@ -51,6 +52,10 @@ expect "empty string fails" 1 "$(fixture empty 'allowed_domains: [""]')" "not a 
 expect "trailing dot fails" 1 "$(fixture dot 'allowed_domains: [example.com.]')" "not a plain hostname"
 expect "leading hyphen fails" 1 "$(fixture hyph 'allowed_domains: [-a.io]')" "not a plain hostname"
 expect "underscore fails" 1 "$(fixture under 'allowed_domains: [_dmarc.x.io]')" "not a plain hostname"
+expect "user-invocable key passes" 0 "$(fixture uinv 'user-invocable: false')"
+expect "argument-hint key passes" 0 "$(fixture ahint 'argument-hint: "<n>"')"
+expect "disable-model-invocation key passes" 0 "$(fixture dmi 'disable-model-invocation: true')"
+expect "unknown key still fails" 1 "$(fixture unk 'bogus-key: 1')" "Unexpected key(s)"
 
 if [ "$fails" -ne 0 ]; then
   printf '%s check(s) failed\n' "$fails"
