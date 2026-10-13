@@ -25,11 +25,12 @@ Checks run (19 total):
                       Executable Procedure Extraction
   Model (13):         Model Recommendation Metadata (read-only tier advice;
                       rubric: references/model-recommendation.md)
-  Security (14-15):   License Declaration, Capability Declaration Consistency
-                      (read-only policy alignment; pre-empts security scanners)
+  Security (14-15, 19): License Declaration, Capability Declaration
+                      Consistency, Credential-to-Network Flow (19 is
+                      model-judged, WARN-only, numbered last so ids 1-18 stay
+                      stable; read-only policy alignment; pre-empts security
+                      scanners)
   Budget (16):        Description Length (PASS <=250 chars / WARN 251-400 /
                       FAIL >400; characters not bytes)
   Portability (17-18): Bundle Self-containment, Plugin-root Fallback
                       (WARN-only: runs outside Claude Code's full-plugin install)
-  Security (19):      Credential-to-Network Flow (model-judged, WARN-only;
-                      numbered last so ids 1-18 stay stable)
