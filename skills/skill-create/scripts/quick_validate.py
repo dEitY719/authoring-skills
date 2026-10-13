@@ -9,9 +9,10 @@ from pathlib import Path
 
 import yaml
 
-# Dot-separated labels (1-63 chars) of letters, digits and inner hyphens:
-# rejects `/`, `:`, `*` and whitespace, so URLs, ports and wildcards cannot
-# slip through. The 253-char total cap is checked at the call site.
+# Dot-separated labels (1-63 chars) of ASCII letters, digits and inner hyphens:
+# rejects `/`, `:`, `*`, `_`, whitespace and a trailing dot, so URLs, ports and
+# wildcards cannot slip through. IDNs must be written in punycode (`xn--...`);
+# an IPv4 literal matches too. The 253-char total cap is checked at the call site.
 _LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 HOSTNAME_RE = re.compile(rf"{_LABEL}(?:\.{_LABEL})*")
 
@@ -101,8 +102,9 @@ def validate_skill(skill_path):
         elif not isinstance(compatibility, dict):
             return False, f"Compatibility must be a string or mapping, got {type(compatibility).__name__}"
 
-    # Validate allowed_domains if present: a list of literal hostnames, the
-    # shape skill-check's Check 3 requires (no wildcards, no URLs, no ports).
+    # Validate allowed_domains if present: a list of literal hostnames, as
+    # skill-check's Check 3 requires (no wildcards, no URLs); this script is
+    # stricter and also rejects ports and whitespace.
     if "allowed_domains" in frontmatter:
         domains = frontmatter["allowed_domains"]
         if not isinstance(domains, list):
@@ -111,7 +113,7 @@ def validate_skill(skill_path):
             if not isinstance(domain, str) or len(domain) > 253 or not HOSTNAME_RE.fullmatch(domain):
                 return False, (
                     f"allowed_domains entry {domain!r} is not a plain hostname "
-                    "(no scheme, path, port, wildcard or whitespace; e.g. fonts.gstatic.com)"
+                    "(ASCII labels only: no scheme, path, port, wildcard, whitespace or trailing dot; e.g. fonts.gstatic.com)"
                 )
 
     return True, "Skill is valid!"
