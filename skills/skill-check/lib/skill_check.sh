@@ -256,13 +256,17 @@ for s in $scripts; do
   body=$(grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null || true)
   printf '%s\n' "$body" | grep -qE "$net_pattern" && net_hit=1
   # Skip any user[:token]@ so the host, not the user name, is what gets checked.
-  # Quotes and the unquoted delimiters , ` ( ) < > \ ; | end the userinfo: a URL
-  # followed by a 'u@b.io' argument must yield the URL's host, not b.io. A
-  # whole <word> placeholder (<user>:<token>@) is still userinfo. (No literal
-  # URL here: this file is itself a Check 15 helper, and one would make
-  # skill-check flag itself.)
-  hosts="$hosts
-$(printf '%s\n' "$body" | grep -oiE 'https?://(([^/?#@[:space:]"'"'"'`,()<>\;|]|<[A-Za-z0-9_-]+>)*@)?[A-Za-z0-9.-]+' | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
+  # Two passes, both kept: RFC 3986 allows , ; ( ) in userinfo, so a URL such
+  # as scheme://u,p@evil.io really goes to evil.io (pass 1 must not miss it),
+  # yet in code those same characters usually end the URL, and a later
+  # 'u@b.io' argument must not hide the URL's own host (pass 2, #68). Reporting
+  # both trades an occasional false WARN for never missing a destination.
+  # Quotes end the userinfo in both. (No literal URL here: this file is itself
+  # a Check 15 helper, and one would make skill-check flag itself.)
+  for ui in "[^/?#@[:space:]\"']" "[^/?#@[:space:]\"'\`,()<>\\;|]"; do
+    hosts="$hosts
+$(printf '%s\n' "$body" | grep -oiE "https?://($ui*@)?[A-Za-z0-9.-]+" | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
+  done
 done
 # Literal hosts the SKILL.md never names (scanner UNDECLARED_NETWORK_DESTINATION).
 # Loopback, the RFC 2606 example.{com,org,net} domains and dotless
