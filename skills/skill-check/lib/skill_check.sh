@@ -309,7 +309,8 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # selftest.sh runs Check 15 on this very skill: keep URLs and signal words out of comments here.
 helper_scan=$(scan_tree -H "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
-  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*')
+  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname '*selfcheck*' \
+  ! -iname 'test_*' ! -iname '*_test.*')
 scripts=$(scanned "$helper_scan")
 net_hit=0
 hosts=''
@@ -350,8 +351,9 @@ EOF
 # stripped like a sentence-final dot.
 named=$(grep -oE '[A-Za-z0-9_][A-Za-z0-9._-]*' "$file" | sed -E 's/^_+//; s/[._]+$//' | tr '[:upper:]' '[:lower:]')
 undeclared=''
-# Trailing underscores are emphasis, not host (same as the named side above).
-for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed -E 's/_+$//; s/\.$//' | sort -u); do
+# Trailing underscores are emphasis and trailing dots are a sentence end or an
+# ellipsis (`host...`), not host -- stripped as on the named side above.
+for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed -E 's/[._]+$//' | sort -u); do
   case $h in
     *.*) ;;
     *) continue ;;
@@ -372,7 +374,7 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed -E 's/_+$//
   # shellcheck disable=SC2086 # split on newline on purpose, see above
   src=$(IFS='
 '; set -f; set -- $scripts; [ "$#" -gt 0 ] || exit 0
-    grep -liE -e "(//|@)$hre\\.?_*([^a-z0-9._-]|\$)" "$@" 2>/dev/null | sort | head -n 1)
+    grep -liE -e "(//|@)${hre}[._]*([^a-z0-9._-]|\$)" "$@" 2>/dev/null | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }
@@ -453,15 +455,18 @@ else
 fi
 
 # ---------- shared scan set for Checks 17, 18 ----------
-# SKILL.md plus every text file under references/, lib/, scripts/ -- the
-# bundle a single-skill install (Hermes tap, `npx skills add`) copies.
+# SKILL.md plus every text file anywhere under the skill dir -- the bundle a
+# single-skill install (Hermes tap, `npx skills add`) copies. Discovery is
+# recursive with Check 15's prune list (issue #87), so the two checks agree on
+# what the bundle is: a helper at <pkg>/run.sh is seen by both.
 # Self-test/fixture files are excluded as in Check 15: they spell out `../`
 # and CLAUDE_PLUGIN_ROOT as synthetic examples, not as the skill's own
 # runtime surface. Paths are printed relative to the skill dir.
 port_scan_out=$(
-  cd "$dir" && for d in references lib scripts; do
-    scan_tree "$d" -type f ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
-  done
+  cd "$dir" && scan_tree -H . \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
+    -o -name .venv -o -name venv -o -name site-packages \) -prune \
+    -o -type f ! -path ./SKILL.md ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*' |
+    awk -F'\t' -v OFS='\t' '{ sub(/^\.\//, "", $2); print }'
 )
 port_files=$(
   cd "$dir" && {
@@ -469,7 +474,7 @@ port_files=$(
     scanned "$port_scan_out"
   } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
 )
-port_links=$(cd "$dir" && skipped "$port_scan_out" "" references lib scripts)
+port_links=$(cd "$dir" && skipped "$port_scan_out" "" .)
 
 # port_scan <mode> -- one awk pass over $port_files, run from $dir.
 #   mode=escape: print `file:line -> path` for every `../` token (after a

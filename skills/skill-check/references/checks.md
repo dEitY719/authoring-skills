@@ -257,7 +257,7 @@ Scan every `*.sh` / `*.py` anywhere under the skill directory, recursively —
 the `compatibility.network` declaration. Skipped: `tests/`, `__pycache__/`,
 `.git/`, `node_modules/` and virtualenv (`.venv/`, `venv/`, `site-packages/`)
 directories, plus self-test/fixture files
-(`*selftest*`, `test_*`, `*_test.*`). 1st-scope is **network only** — the
+(`*selftest*`, `*selfcheck*`, `test_*`, `*_test.*`). 1st-scope is **network only** — the
 capability the external scanner actually flags
 (`TOOL_ABUSE_UNDECLARED_NETWORK`).
 
@@ -389,9 +389,11 @@ Other harnesses do not: a Hermes Agent GitHub tap or `npx skills add` copies
 dEitY719/dotfiles#1829). Both checks are therefore **WARN-only** — a
 Claude-Code-only skill must never FAIL for it — and read-only.
 
-Scan set for both: `SKILL.md` plus every text file under `references/`,
-`lib/`, `scripts/`, minus self-test/fixture files (`*selftest*`,
-`*selfcheck*`, `test_*`, `*_test.*`) exactly as Check 15 excludes them.
+Scan set for both: `SKILL.md` plus every text file anywhere under the skill
+directory, recursively (dEitY719/authoring-skills#87) — with the same pruned
+directories (`tests/`, `__pycache__/`, `.git/`, `node_modules/`, virtualenvs)
+and the same self-test/fixture exclusions (`*selftest*`, `*selfcheck*`,
+`test_*`, `*_test.*`) as Check 15, so both checks agree on what the bundle is.
 
 **Symlinked directories (Checks 11, 15, 17, 18).** A scan never follows a
 symlinked directory inside the skill (issue #32 keeps results deterministic),

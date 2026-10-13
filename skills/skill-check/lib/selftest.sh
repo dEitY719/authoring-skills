@@ -593,6 +593,82 @@ esac
 # Markdown emphasis wraps a token in underscores that are not part of the host.
 eq "host: 15 SKILL.md naming the host in _emphasis_ PASSes" "$(host emph lib/net.py 'Calls _api.acme.io_ for data.')" PASS
 eq "host: 15 SKILL.md naming the host in __strong__ PASSes" "$(host strong lib/net.py 'Calls __api.acme.io__ for data.')" PASS
+# ---------- issue #87: scan hardening ----------
+# Finding 4: a *selfcheck* fixture is excluded from Check 15 like *selftest*,
+# so its only helper being one leaves no helpers at all.
+eq "i87: 15 a selfcheck fixture URL is ignored" "$(host selfck lib/net.selfcheck.sh 'Calls an API.')" 'N/A'
+# Finding 5: an ellipsis after a helper host is not part of the host.
+mkskill "$work/host/ellip/SKILL.md" <<'EOF'
+---
+name: ellip
+description: Host fixture.
+compatibility:
+  network: required
+---
+Calls api.acme.io for data.
+EOF
+mkskill "$work/host/ellip/lib/net.sh" <<'EOF'
+#!/bin/sh
+# see https://api.acme.io... for the schema
+curl -s "$1"
+EOF
+eq "i87: 15 host... matches the host SKILL.md names" "$(row "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15)" PASS
+sed 's/Calls api.acme.io for data./Calls an API./' "$work/host/ellip/SKILL.md" > "$work/host/ellip/SKILL.md.new"
+mv "$work/host/ellip/SKILL.md.new" "$work/host/ellip/SKILL.md"
+case $(note "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15) in
+  *"api.acme.io (lib/net.sh)"*) ok "i87: 15 an undeclared host... is named without its dots" ;;
+  *) no "i87: 15 an undeclared host... is named without its dots" "$(note "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15)" ;;
+esac
+# Finding 6: the Check 17/18 scan set is recursive, as Check 15's is -- a
+# helper at <pkg>/run.sh is part of the bundle; a tests/ copy is still pruned.
+p=$(port nestedpkg <<'EOF'
+Nothing to see here.
+EOF
+)
+mkskill "$work/port/nestedpkg/pkg/run.sh" <<'EOF'
+#!/bin/sh
+. ../../shared/common.sh
+EOF
+mkskill "$work/port/nestedpkg/pkg/tests/fixture.sh" <<'EOF'
+#!/bin/sh
+bash ../../../../outside.sh
+EOF
+o=$(sh "$here/skill_check.sh" "$p")
+eq "i87: 17 a nested helper's escape WARNs" "$(row "$o" 17)" WARN
+case $(note "$o" 17) in
+  *'pkg/run.sh:2 -> ../../shared/common.sh'*) ok "i87: 17 note names the nested helper" ;;
+  *) no "i87: 17 note names the nested helper" "$(note "$o" 17)" ;;
+esac
+case $(note "$o" 17) in
+  *outside.sh*) no "i87: 17 a pruned tests/ dir stays out of the scan set" "$(note "$o" 17)" ;;
+  *) ok "i87: 17 a pruned tests/ dir stays out of the scan set" ;;
+esac
+# Finding 1: an unreadable subdir must not abort the audit -- every
+# mechanical row still prints. (Root reads through mode 000, so skip there.)
+if [ "$(id -u)" -ne 0 ]; then
+  ur="$work/unread"
+  mkskill "$ur/SKILL.md" <<'EOF'
+---
+name: unread
+description: Unreadable subdir fixture.
+---
+Body.
+EOF
+  mkskill "$ur/lib/ok.sh" <<'EOF'
+#!/bin/sh
+echo ok
+EOF
+  mkdir -p "$ur/build/x"
+  chmod 000 "$ur/build"
+  set +e
+  o=$(sh "$here/skill_check.sh" "$ur/SKILL.md" 2>/dev/null)
+  rc=$?
+  set -e
+  chmod 755 "$ur/build"
+  eq "i87: unreadable subdir does not abort (exit 0)" "$rc" 0
+  eq "i87: unreadable subdir still prints every mechanical row" \
+    "$(printf '%s\n' "$o" | awk -F'\t' '$1 ~ /^[0-9]+$/ { printf "%s ", $1 }')" '1 11 13 14 15 16 17 18 '
+fi
 # ---------- issue #77: symlinked dirs inside a skill are reported, not followed ----------
 mkskill "$work/lnk/shared/refs/a.md" <<EOF
 Party $emoji here.
