@@ -10,6 +10,7 @@ metadata:
 license: Apache-2.0
 compatibility:
   network: required
+allowed_domains: [fonts.googleapis.com, fonts.gstatic.com]  # eval report web fonts (scripts/generate_report.py)
 ---
 
 # Skill Creator
@@ -71,7 +72,6 @@ Read `references/description-optimization.md` for the trigger eval query generat
 review flow, optimization loop script, and triggering mechanics.
 
 ## Phase 7: Package and Present
-
 If `present_files` is available, run `python -m scripts.package_skill <path>`, then point the
 user to the resulting `.skill` file path so they can install it. When helpers exist, show direct
 call patterns such as `bash skills/<name>/lib/<script>.sh` or `python skills/<name>/lib/<script>.py`.
