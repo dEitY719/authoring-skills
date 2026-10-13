@@ -238,7 +238,8 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # self-test/fixture files are excluded -- they exercise capability words in
 # synthetic examples, not the skill's own runtime surface.
 # -mindepth 1: a skill dir itself named e.g. `tests` must not prune its own root.
-scripts=$(find "$dir" -mindepth 1 \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
+# -H: $dir is a logical path, often a symlinked skill dir; plain find would not enter it.
+scripts=$(find -H "$dir" -mindepth 1 \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
   -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)
 net_hit=0
@@ -253,7 +254,9 @@ for s in $scripts; do
   body=$(grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null || true)
   printf '%s\n' "$body" | grep -qE "$net_pattern" && net_hit=1
   # Skip any user[:token]@ so the host, not the user name, is what gets checked.
-  # Quotes end the userinfo: 'https://a.io',x=('u@b.io') must yield a.io, not b.io.
+  # Quotes end the userinfo: a quoted URL followed by a quoted 'u@b.io' argument
+  # must yield the URL's host, not b.io. (No literal URL here: this file is
+  # itself a Check 15 helper, and one would make skill-check flag itself.)
   hosts="$hosts
 $(printf '%s\n' "$body" | grep -oiE 'https?://([^/?#@[:space:]"'"'"']*@)?[A-Za-z0-9.-]+' | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
 done
