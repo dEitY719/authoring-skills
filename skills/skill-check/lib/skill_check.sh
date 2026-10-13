@@ -323,12 +323,12 @@ for s in $scripts; do
   # as scheme://u,p@evil.io really goes to evil.io (pass 1 must not miss it),
   # yet in code those same characters usually end the URL, and a later
   # 'u@b.io' argument must not hide the URL's own host (pass 2, #68). Pass 2
-  # allows only unreserved characters, % (of pct-encoding) and : ! $ + (#79),
-  # so any other character ends it. Quotes end the userinfo in both. Reporting
-  # both trades an occasional false WARN for never missing a destination. (No
-  # literal URL here: this file is itself a Check 15 helper, and one would make
-  # skill-check flag itself.)
-  for ui in "[^/?#@[:space:]\"']" '[A-Za-z0-9._~%:!$+-]'; do
+  # allows only unreserved characters, % (of pct-encoding) and : (#79), so any
+  # other character ends it; whatever it skips is userinfo under any reading.
+  # Quotes end the userinfo in both. Reporting both trades an occasional false
+  # WARN for never missing a destination. (No literal URL here: this file is
+  # itself a Check 15 helper, and one would make skill-check flag itself.)
+  for ui in "[^/?#@[:space:]\"']" '[A-Za-z0-9._~%:-]'; do
     hosts="$hosts
 $(printf '%s\n' "$body" | grep -oiE "https?://($ui*@)?[A-Za-z0-9.-]+" | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
   done
