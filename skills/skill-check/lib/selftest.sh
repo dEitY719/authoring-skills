@@ -461,6 +461,9 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
   *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
 esac
+ln -s "$work/host/undoc" "$work/host/undoc-link"
+eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
+eq "self: 15 skill-check's own helpers carry no network signal" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
 # ---------- Check 19: eleven judged results ----------
 o=$(sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS WARN)
@@ -474,7 +477,7 @@ fi
 if sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS FAIL >/dev/null 2>&1; then
   no "j19: FAIL rejected (WARN-only)" "exited 0, expected 2"
 else
-  ok "j19: FAIL rejected (WARN-only)"
+  rc=$?; eq "j19: FAIL rejected (WARN-only, exit 2)" "$rc" 2
 fi
 
 # ---------- count drift guard ----------
