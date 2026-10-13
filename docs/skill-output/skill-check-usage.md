@@ -42,8 +42,8 @@ Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, 
 15번의 network signal 은 `lib/sh_check.sh` 가 `curl`/`wget` 호출을 세는 탐지
 정규식과 그 주석이며 (`selftest.sh` 는 Check 15 스캔에서 제외), frontmatter 가 `compatibility.network: none` 과 그 사유를 선언한다.
 
-19번은 `checks.md` 의 N/A 기준이 명시한 경우다 — 15번의 신호가 실제 호출이 아닌 탐지
-정규식이므로 PASS 가 아니라 N/A.
+19번은 `checks.md` 의 N/A 기준이 명시한 경우다 — 15번의 신호 줄(탐지 정규식과 그 주석)을
+모두 읽어도 실제 호출이 없으므로 PASS 가 아니라 N/A. `network: none` 선언만으로 N/A 가 되지는 않는다.
 
 재현: 기계 판정 8개는 `lib/skill_check.sh` 가, 나머지 11개는 감사자 판정이다.
 

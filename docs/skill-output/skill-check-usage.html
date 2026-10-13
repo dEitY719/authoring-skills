@@ -383,8 +383,8 @@ Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, 
       <code>compatibility.network: none</code> 과 그 사유를 선언한다.
     </p>
     <p>
-      19번은 <code>checks.md</code> 의 N/A 기준이 명시한 경우다 — 15번의 신호가 실제 호출이 아닌 탐지
-      정규식이므로 PASS 가 아니라 N/A.
+      19번은 <code>checks.md</code> 의 N/A 기준이 명시한 경우다 — 15번의 신호 줄(탐지 정규식과 그 주석)을
+      모두 읽어도 실제 호출이 없으므로 PASS 가 아니라 N/A. <code>network: none</code> 선언만으로 N/A 가 되지는 않는다.
     </p>
 
     <p class="lede" style="margin:26px 0 10px">재현 — 기계 판정 8개는 <code>lib/skill_check.sh</code>, 나머지 11개는 감사자 판정</p>

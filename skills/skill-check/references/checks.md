@@ -298,7 +298,7 @@ credential leaves the machine unencrypted.
 |---|---|
 | PASS | helpers make network calls, and no credential value reaches one — or each such flow is necessary, sent only on the call that needs it, over TLS with verification on, to a destination named in SKILL.md |
 | WARN | a credential reaches a network call it is not needed for (e.g. a reachability probe), over plain `http://`, with TLS verification disabled, or to a destination SKILL.md does not name — the note names `file:line` and the credential source |
-| N/A | no helper makes a network call (Check 15 found no network signal or no helpers, or reading every signal line shows it is not a real call — e.g. a detection regex, with `compatibility.network: none` declared; the declaration alone never qualifies) |
+| N/A | no helper makes a network call: Check 15 found no network signal or no helpers, or every signal line, read in full, is not a call (e.g. a detection regex or a comment). A URL, import, or command string later run indirectly (`eval`, `subprocess`, a wrapper) still counts as a call. A `compatibility.network: none` declaration is neither required nor sufficient |
 
 **How to fix**: send the credential only on the call that requires it (drop
 it from health or reachability probes), keep TLS verification on, and name the
