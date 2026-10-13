@@ -413,6 +413,9 @@ mkskill "$work/host/intests/lib/ok.sh" <<'EOF'
 echo ok
 EOF
 eq "host: 15 host under a nested tests/ dir is ignored" "$(host intests pkg/tests/fixture.py 'Calls an API.')" PASS
+# A skill dir itself named `tests` must not prune its own root (find -mindepth 1):
+# without it Check 15 sees no helpers at all and returns N/A instead of WARN.
+eq "host: 15 skill dir named tests still scans its own helpers" "$(host tests scripts/net.py 'Calls an API.')" WARN
 mkskill "$work/host/local/SKILL.md" <<'EOF'
 ---
 name: local
