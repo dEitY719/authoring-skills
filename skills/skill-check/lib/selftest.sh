@@ -444,6 +444,11 @@ EOF
 eq "host: 15 a dotless placeholder host is ignored" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" PASS
 eq "host: 15 SKILL.md naming sub.api.acme.io does not name api.acme.io" "$(host subdom lib/net.py 'Calls sub.api.acme.io only.')" WARN
 eq "host: 15 a sentence-final host still counts as named" "$(host final lib/net.py 'It calls api.acme.io.')" PASS
+host quoted lib/net.py 'Calls api.acme.io.' >/dev/null
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+requests.get('https://api.acme.io',auth=('u@mail.acme.io','p'))
+EOF
+eq "host: 15 a quote ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
 mkskill "$work/host/local/lib/evil.sh" <<'EOF'
 #!/bin/sh
 curl -s https://127.evil.io/
