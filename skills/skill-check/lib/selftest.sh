@@ -462,6 +462,19 @@ mkskill "$work/host/quoted/lib/net.py" <<'EOF'
 echo `https://api.acme.io``u@mail.acme.io`
 EOF
 eq "host: 15 a backtick ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+print("https://api.acme.io>u@mail.acme.io")
+EOF
+eq "host: 15 a > ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+print("https://api.acme.io\nu@mail.acme.io")
+EOF
+eq "host: 15 a backslash ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
+# ...but a whole <word> placeholder is userinfo: the host after it is still checked.
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+# clone https://<user>:<token>@git.acme.io/r
+EOF
+eq "host: 15 host after a <user>:<token>@ placeholder is still checked" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" WARN
 mkskill "$work/host/local/lib/evil.sh" <<'EOF'
 #!/bin/sh
 curl -s https://127.evil.io/
