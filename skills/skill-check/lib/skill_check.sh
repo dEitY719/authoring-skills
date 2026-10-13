@@ -137,12 +137,31 @@ scanned() {
 # real <dir> -- its physical path, empty when it does not resolve.
 real() { (cd -P -- "$1" 2>/dev/null && pwd -P); }
 
-# skipped <scan_tree-output> <prefix> [root]... -- the skipped links as one
+# bundle_scan <root> [find-expr]... -- scan_tree over a skill's shipped
+# bundle, shared by Check 15 and Checks 17/18 (issue #87) so both agree on
+# what it is: test trees, caches and vendored deps are pruned, self-test and
+# fixture files excluded. Extra primaries (Check 15's script-type filter)
+# narrow the selected files. Keep the pruned names in step with bundle_prune_re.
+bundle_scan() {
+  bs_root=$1; shift
+  scan_tree -H "$bs_root" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
+    -o -name .venv -o -name venv -o -name site-packages \) -prune \
+    -o -type f "$@" ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
+}
+# The directory names bundle_scan prunes, as an awk ERE (bracketed dots, not
+# backslashes: awk -v would eat the escape).
+bundle_prune_re='tests|__pycache__|[.]git|node_modules|[.]venv|venv|site-packages'
+
+# skipped [-p] <scan_tree-output> <prefix> [root]... -- the skipped links as one
 # comma-separated list, <prefix> stripped, sorted (find walks in readdir
 # order, which differs across filesystems); empty when none. A link whose
 # target lies inside one of the scan's own non-symlink <root>s is dropped:
 # that content was already scanned under its real path (`lib/current -> v2`).
+# -p: the scan was a bundle_scan, so a target under a pruned dir (`tests/`)
+# was never read and its link is still reported.
 skipped() {
+  sk_re=''
+  [ "$1" = -p ] && { sk_re="/($bundle_prune_re)/"; shift; }
   sk_out=$1 sk_pre=$2; shift 2
   sk_roots=''
   for sk_r in "$@"; do
@@ -152,7 +171,9 @@ skipped() {
   done
   printf '%s\n' "$sk_out" | awk -F'\t' '$1 == "L" { print $2 }' | while IFS= read -r sk_l; do
     sk_t=$(real "$sk_l")
-    printf '%s' "$sk_roots" | awk -v t="$sk_t/" 'index(t, $0 "/") == 1 { f = 1 } END { exit !f }' && continue
+    printf '%s' "$sk_roots" | awk -v t="$sk_t/" -v re="$sk_re" '
+      index(t, $0 "/") == 1 && (re == "" || substr(t, length($0) + 1) !~ re) { f = 1 }
+      END { exit !f }' && continue
     printf '%s\n' "${sk_l#"$sk_pre"}"
   done | LC_ALL=C sort | awk '{ s = s (s == "" ? "" : ", ") $0 } END { print s }'
 }
@@ -307,10 +328,7 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # Only that root is dereferenced; links inside the skill stay unfollowed (issue #32)
 # and are named in the note instead (issue #77).
 # selftest.sh runs Check 15 on this very skill: keep URLs and signal words out of comments here.
-helper_scan=$(scan_tree -H "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
-  -o -name .venv -o -name venv -o -name site-packages \) -prune \
-  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname '*selfcheck*' \
-  ! -iname 'test_*' ! -iname '*_test.*')
+helper_scan=$(bundle_scan "$dir" \( -name '*.sh' -o -name '*.py' \))
 scripts=$(scanned "$helper_scan")
 net_hit=0
 hosts=''
@@ -399,7 +417,7 @@ if [ -n "$undeclared" ]; then
   if [ "$r15" = WARN ]; then n15="$n15; "; else n15=''; fi
   r15=WARN; n15="${n15}helper host(s) not named in SKILL.md: $undeclared"
 fi
-flag_skipped "$r15" "$n15" "$(skipped "$helper_scan" "$dir/" "$dir")"; r15=$fr n15=$fn
+flag_skipped "$r15" "$n15" "$(skipped -p "$helper_scan" "$dir/" "$dir")"; r15=$fr n15=$fn
 
 # ---------- Check 16: Description Length ----------
 # Fold a `description:` value -- inline or a `>`/`>-`/`>+`/`|`/`|-`/`|+`
@@ -463,18 +481,18 @@ fi
 # and CLAUDE_PLUGIN_ROOT as synthetic examples, not as the skill's own
 # runtime surface. Paths are printed relative to the skill dir.
 port_scan_out=$(
-  cd "$dir" && scan_tree -H . \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
-    -o -name .venv -o -name venv -o -name site-packages \) -prune \
-    -o -type f ! -path ./SKILL.md ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*' |
+  cd "$dir" && bundle_scan . ! -path ./SKILL.md |
     awk -F'\t' -v OFS='\t' '{ sub(/^\.\//, "", $2); print }'
 )
+# Text files only: one grep -Il over the list rather than a grep per file. The
+# list is split on newline only (IFS is a newline, globbing off), so a spaced
+# path stays one argument.
+# shellcheck disable=SC2086 # split on newline on purpose
 port_files=$(
-  cd "$dir" && {
-    echo SKILL.md
-    scanned "$port_scan_out"
-  } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
+  cd "$dir" && pf=$(printf 'SKILL.md\n%s\n' "$(scanned "$port_scan_out")") && IFS='
+' && set -f && set -- $pf && grep -Il -e . -- "$@" 2>/dev/null | sort
 )
-port_links=$(cd "$dir" && skipped "$port_scan_out" "" .)
+port_links=$(cd "$dir" && skipped -p "$port_scan_out" "" .)
 
 # port_scan <mode> -- one awk pass over $port_files, run from $dir.
 #   mode=escape: print `file:line -> path` for every `../` token (after a
