@@ -27,7 +27,7 @@ expect() {
   fi
 }
 
-# fixture <name> <allowed_domains YAML line> -> a minimal skill dir
+# fixture <name> <extra frontmatter YAML line> -> a minimal skill dir
 fixture() {
   mkdir -p "$work/$1"
   printf -- '---\nname: demo\ndescription: Demo skill.\n%s\n---\nbody\n' "$2" > "$work/$1/SKILL.md"
@@ -56,6 +56,34 @@ expect "user-invocable key passes" 0 "$(fixture uinv 'user-invocable: false')"
 expect "argument-hint key passes" 0 "$(fixture ahint 'argument-hint: "<n>"')"
 expect "disable-model-invocation key passes" 0 "$(fixture dmi 'disable-model-invocation: true')"
 expect "unknown key still fails" 1 "$(fixture unk 'bogus-key: 1')" "Unexpected key(s)"
+expect "non-string key reports, not crashes" 1 "$(fixture boolkey 'on: push')" "Unexpected key(s)"
+expect "quoted user-invocable fails" 1 "$(fixture uinvs 'user-invocable: "false"')" "must be a boolean"
+expect "quoted disable-model-invocation fails" 1 "$(fixture dmis 'disable-model-invocation: "true"')" "must be a boolean"
+expect "list argument-hint fails" 1 "$(fixture ahintl 'argument-hint: [n]')" "must be a string"
+
+# The allowlist must equal skill-check Check 3's "Known attributes" (issue #81
+# was exactly this drift).
+checks=$here/../../skill-check/references/checks.md
+if [ -f "$checks" ]; then
+  if out=$(PYTHONPATH="$here/../scripts" python3 - "$checks" <<'EOF' 2>&1
+import re, sys
+from quick_validate import ALLOWED_PROPERTIES
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"Known attributes:(.*?)\.\n", text, re.S)
+known = set(re.findall(r"`([^`]+)`", m.group(1))) if m else set()
+if known != set(ALLOWED_PROPERTIES):
+    sys.exit(f"Check 3 only: {sorted(known - ALLOWED_PROPERTIES)}; "
+             f"quick_validate only: {sorted(ALLOWED_PROPERTIES - known)}")
+EOF
+  ); then
+    printf 'ok   allowlist matches skill-check Check 3\n'
+  else
+    printf 'FAIL allowlist drifted from skill-check Check 3 -- %s\n' "$out"
+    fails=$((fails + 1))
+  fi
+else
+  printf 'skip allowlist parity (no %s)\n' "$checks"
+fi
 
 if [ "$fails" -ne 0 ]; then
   printf '%s check(s) failed\n' "$fails"
