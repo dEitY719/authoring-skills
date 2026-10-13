@@ -1,6 +1,6 @@
 #!/bin/sh
 # selftest.sh -- one runnable check for scripts/quick_validate.py's
-# allowed_domains shape check (issue #69) and its frontmatter key allowlist
+# allowed_domains shape and pairing checks (issues #69, #82) and its frontmatter key allowlist
 # (issue #81). Builds throwaway skills and asserts which ones validate.
 # Run: sh lib/selftest.sh
 
@@ -52,6 +52,11 @@ expect "empty string fails" 1 "$(fixture empty 'allowed_domains: [""]')" "not a 
 expect "trailing dot fails" 1 "$(fixture dot 'allowed_domains: [example.com.]')" "not a plain hostname"
 expect "leading hyphen fails" 1 "$(fixture hyph 'allowed_domains: [-a.io]')" "not a plain hostname"
 expect "underscore fails" 1 "$(fixture under 'allowed_domains: [_dmarc.x.io]')" "not a plain hostname"
+expect "empty list fails" 1 "$(fixture emptylist 'allowed_domains: []')" "at least one hostname"
+expect "mapping compatibility with network: required passes" 0 "$(fixture netreq "$(printf 'compatibility:\n  network: required\nallowed_domains: [x.io]')")"
+expect "mapping compatibility without network fails" 1 "$(fixture nonet "$(printf 'compatibility:\n  tools: [python3]\nallowed_domains: [x.io]')")" "requires compatibility.network: required"
+expect "mapping compatibility with other network value fails" 1 "$(fixture netopt "$(printf 'compatibility:\n  network: optional\nallowed_domains: [x.io]')")" "got network: 'optional'"
+expect "string compatibility skips pairing" 0 "$(fixture netstr "$(printf 'compatibility: needs python3\nallowed_domains: [x.io]')")"
 expect "user-invocable key passes" 0 "$(fixture uinv 'user-invocable: false')"
 expect "argument-hint key passes" 0 "$(fixture ahint 'argument-hint: "<n>"')"
 expect "disable-model-invocation key passes" 0 "$(fixture dmi 'disable-model-invocation: true')"
