@@ -12,12 +12,18 @@ html=$root/docs/skill-output/skill-check-usage.html
 
 fail() {
   echo "FAIL $*" >&2
+  echo "     rerun the page's command and update both sample pages to match" >&2
   exit 1
 }
 
 # The command spans two lines joined by a trailing backslash.
 cmd=$(sed -n '/^sh skills\/skill-check\/lib\/skill_check\.sh /{N;p;q;}' "$md")
 [ -n "$cmd" ] || fail "no skill_check.sh reproduce command in $md"
+case $cmd in
+  *'\
+'*) ;;
+  *) fail "reproduce command in $md must be two lines joined by a trailing backslash" ;;
+esac
 args=$(printf '%s\n' "$cmd" | sed 'N;s/\\\n//;s/^sh //')
 
 # "Score: 17/17 checks passed (...) · Verdict: EXCELLENT" -> "17/17 EXCELLENT"
@@ -45,6 +51,8 @@ grep -q "<strong>$frac checks passed</strong>" "$html" ||
   fail "$html score is not $frac"
 grep -q "Verdict: <strong[^>]*>$verdict</strong>" "$html" ||
   fail "$html verdict is not $verdict"
+grep -q "pill--verdict\">Verdict: $verdict<" "$html" ||
+  fail "$html header verdict pill is not $verdict"
 for page in "$md" "$html"; do
   grep -qF "score  $frac  $verdict" "$page" ||
     fail "$page reproduce comment is not 'score  $frac  $verdict'"
