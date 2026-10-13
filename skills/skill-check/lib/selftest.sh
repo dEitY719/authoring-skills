@@ -479,6 +479,15 @@ EOF
 delim "host: 15 an & ends the userinfo (no later @ hides the host)" <<'EOF'
 curl https://api.acme.io&u@mail.acme.io
 EOF
+delim "host: 15 an = ends the userinfo (no later @ hides the host)" <<'EOF'
+curl https://api.acme.io=u@mail.acme.io
+EOF
+delim "host: 15 a * ends the userinfo (no later @ hides the host)" <<'EOF'
+curl https://api.acme.io*u@mail.acme.io
+EOF
+delim "host: 15 a [ ] ends the userinfo (no later @ hides the host)" <<'EOF'
+print("https://api.acme.io[u]@mail.acme.io")
+EOF
 # ...but RFC 3986 allows , ; ( ) in userinfo, so the host after such a
 # userinfo is still checked (claude review, PR #78 BLOCKER).
 mkskill "$work/host/quoted/lib/net.py" <<'EOF'
