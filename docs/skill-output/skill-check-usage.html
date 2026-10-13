@@ -329,7 +329,7 @@
       </div>
     </div>
 
-    <div class="bar" role="img" aria-label="PASS 17, N/A 2">
+    <div class="bar" role="img" aria-label="PASS 17, WARN 0, FAIL 0, N/A 2">
       <span class="b-pass" style="width:89.47%"></span>
       <span class="b-na" style="width:10.53%"></span>
     </div>
@@ -381,6 +381,11 @@ Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, 
       호출을 세는 탐지 정규식과 그 주석이며 (<code>selftest.sh</code> 는 Check 15 스캔에서 제외),
       frontmatter 가
       <code>compatibility.network: none</code> 과 그 사유를 선언한다.
+    </p>
+    <p>
+      19번 N/A 근거: <code>checks.md</code> 의 N/A 기준 본문은 "no helper makes a network call" 이다.
+      15번이 잡은 신호는 탐지 정규식일 뿐 실제 호출이 아니므로, "helpers make network calls" 를
+      전제로 하는 PASS 가 아니라 N/A 로 판정했다.
     </p>
 
     <p class="lede" style="margin:26px 0 10px">재현 — 기계 판정 8개는 <code>lib/skill_check.sh</code>, 나머지 11개는 감사자 판정</p>
