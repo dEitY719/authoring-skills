@@ -263,7 +263,9 @@ must also be named somewhere in the skill's own SKILL.md (body prose, or the
 one as `UNDECLARED_NETWORK_DESTINATION` (LOW). Loopback (`localhost`,
 `127.*`, `0.0.0.0`) and the reserved `example.com` / `example.org` /
 `example.net` domains (and their subdomains) are not destinations and are
-ignored.
+ignored, as are dotless placeholders such as `https://host/...` in a comment.
+A host counts as named only as a whole host token: `sub.acme.io` or
+`notacme.io` in SKILL.md does not name `acme.io`.
 
 Network signals: imports of `requests` / `httpx` / `urllib` / `http.client` /
 `socket` / `aiohttp`, or explicit MCP/HTTP call patterns (e.g. `curl`, `wget`,

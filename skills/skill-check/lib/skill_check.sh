@@ -256,16 +256,23 @@ for s in $scripts; do
 $(printf '%s\n' "$body" | grep -oiE 'https?://([^/?#@[:space:]"]*@)?[A-Za-z0-9.-]+' | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
 done
 # Literal hosts the SKILL.md never names (scanner UNDECLARED_NETWORK_DESTINATION).
-# Loopback and the RFC 2606 example.{com,org,net} domains are not destinations.
+# Loopback, the RFC 2606 example.{com,org,net} domains and dotless
+# placeholders (a URL whose host is just `host`, in a comment) are not destinations.
+# SKILL.md names a host only as a whole host-shaped token, so neither
+# `notacme.io` nor `sub.acme.io` counts as naming `acme.io`.
+named=$(grep -oE '[A-Za-z0-9][A-Za-z0-9.-]*' "$file" | sed 's/\.*$//' | tr '[:upper:]' '[:lower:]')
 undeclared=''
 for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
   case $h in
-    localhost|0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
+    *.*) ;;
+    *) continue ;;
+  esac
+  case $h in
+    0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
     127.*[!0-9.]*) ;; # 127.evil.com is a real host, not loopback
     127.*) continue ;;
   esac
-  # -w: `acme.io` must not count as named just because `notacme.io` is.
-  grep -qiwF -e "$h" "$file" || undeclared="$undeclared $h"
+  printf '%s\n' "$named" | grep -qxF -e "$h" || undeclared="$undeclared $h"
 done
 undeclared=${undeclared# }
 # The compatibility: block only -- checking "network:" against the whole

