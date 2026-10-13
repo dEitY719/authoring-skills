@@ -112,7 +112,11 @@ find_upward() {
 # `( names ) -prune -o`), and `L<TAB>path` for each link it met and did not
 # follow: a symlinked directory, or a symlink to a regular file that the same
 # expression would have selected were it a plain file (its `-type f` read as
-# `-type l` plus a `test -f`). Links are never followed (issue #32), so a scan
+# `-type l`, with a `test -f` appended after the caller's own filters, so a
+# link they reject costs no process). Contract this rewrite relies on: `-type`
+# appears only as a primary, and nothing is `-o`-joined after `-type f` at the
+# top level (group alternatives in `( )`). Links are never followed (issue
+# #32), so a scan
 # reports them rather than skipping them silently. -H dereferences <root>
 # only; without it a symlinked <root> is itself reported as skipped.
 scan_tree() {
@@ -126,20 +130,22 @@ scan_tree() {
   [ -d "$st_root" ] || return 0
   # Two copies of the expression go into one find: the caller's ("$1".."$n")
   # selects plain files, and its link twin -- appended after it, each
-  # `-type f` swapped for `-type l -exec test -f {} ;` -- selects file links.
+  # `-type f` swapped for `-type l` and one `-exec test -f {} ;` added last --
+  # selects file links.
   # POSIX sh has no arrays, so each copy is a string of quoted positional
   # references ("$1" "$2" ...) that eval expands, never the words themselves.
-  st_n=$# st_i=0 st_f='' st_l='' st_ty=''
+  st_n=$# st_i=0 st_f='' st_l='' st_ty='' st_tf=''
   for st_a in "$@"; do
     st_i=$((st_i + 1)); st_f="$st_f \"\${$st_i}\""
     if [ -n "$st_ty" ]; then
       st_ty=''
-      if [ "$st_a" = f ]; then set -- "$@" -type l -exec test -f '{}' ';'
+      if [ "$st_a" = f ]; then set -- "$@" -type l; st_tf=1
       else set -- "$@" -type "$st_a"; fi
     elif [ "$st_a" = -type ]; then st_ty=1; continue
     else set -- "$@" "$st_a"; fi
   done
   [ -z "$st_ty" ] || set -- "$@" -type
+  [ -z "$st_tf" ] || set -- "$@" -exec test -f '{}' ';'
   st_i=$st_n
   while [ "$st_i" -lt $# ]; do st_i=$((st_i + 1)); st_l="$st_l \"\${$st_i}\""; done
   # shellcheck disable=SC2086 # $st_h is empty or -H; unquoted so empty drops out
@@ -560,7 +566,8 @@ port_links=$(cd "$dir" && skipped -p "$(printf 'F\tSKILL.md\n%s' "$port_scan_out
 #     `name.ext`; `#anchor` dropped) and that, normalised as a string
 #     against the referencing file's own directory, climbs above the skill
 #     dir. Symlinks are never followed (issue #32 decision: deterministic);
-#     a symlinked dir the scan set skipped is reported, not hidden (#77).
+#     a symlinked dir or file the scan set skipped is reported, not hidden
+#     (#77, #98).
 #     Also (issue #34): a skill-dir variable + `/../` path, resolved from the
 #     skill root and checked even inside fences; and, in references/, a `../`
 #     path whose file-relative target is missing but whose skill-root-relative

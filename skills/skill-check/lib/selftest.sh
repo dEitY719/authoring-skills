@@ -827,8 +827,13 @@ case $(note "$o" 15) in
   *'not followed'*) no "flnk: 15 note does not name the png link" "$(note "$o" 15)" ;;
   *) ok "flnk: 15 note does not name the png link" ;;
 esac
+# Checks 17/18 select by content, which an unread target cannot show, so the
+# same png link is named there (issue #98 decision: report, do not follow).
+eq "flnk: 17 a symlinked assets/logo.png WARNs (target unread)" "$(row "$o" 17)" WARN
+eq "flnk: 18 a symlinked assets/logo.png WARNs (target unread)" "$(row "$o" 18)" WARN
 # Covered target: a file link back inside a dir the scan walks stays silent,
-# as does a dangling one.
+# through a chain of links too (alias2.sh -> alias.sh -> run.sh), as do a
+# dangling link and a link loop (test -f fails on both).
 mkskill "$work/flnk/quiet/SKILL.md" <<'EOF'
 ---
 name: quiet
@@ -840,10 +845,14 @@ mkskill "$work/flnk/quiet/lib/run.sh" <<'EOF'
 echo hi
 EOF
 ln -s run.sh "$work/flnk/quiet/lib/alias.sh"
+ln -s alias.sh "$work/flnk/quiet/lib/alias2.sh"
 ln -s ../missing.sh "$work/flnk/quiet/lib/dangling.sh"
+ln -s loopb.sh "$work/flnk/quiet/lib/loopa.sh"
+ln -s loopa.sh "$work/flnk/quiet/lib/loopb.sh"
 o=$(sh "$here/skill_check.sh" "$work/flnk/quiet/SKILL.md")
-eq "flnk: 15 a file link inside the skill / dangling stays silent" "$(row "$o" 15)" PASS
-eq "flnk: 17 a file link inside the skill / dangling stays silent" "$(row "$o" 17)" PASS
+eq "flnk: 15 a file link / chain inside the skill, dangling, loop stay silent" "$(row "$o" 15)" PASS
+eq "flnk: 17 a file link / chain inside the skill, dangling, loop stay silent" "$(row "$o" 17)" PASS
+eq "flnk: 18 a file link / chain inside the skill, dangling, loop stay silent" "$(row "$o" 18)" 'N/A'
 # A file link into a pruned dir was never read, so it is still reported.
 mkskill "$work/flnk/quiet/tests/fx.sh" <<'EOF'
 #!/bin/sh
@@ -888,6 +897,7 @@ case $(note "$o" 11) in
   *) no "flnk: 11 a link to an unselected references/ file is named" "$(note "$o" 11)" ;;
 esac
 eq "flnk: 17 links to read files (data/, references/, SKILL.md) stay silent" "$(row "$o" 17)" PASS
+eq "flnk: 18 links to read files (data/, references/, SKILL.md) stay silent" "$(row "$o" 18)" 'N/A'
 
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
