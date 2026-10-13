@@ -79,8 +79,8 @@ FAIL — emoji present AND the skill's allowlist key is NOT in
 `references/allowed-emoji-skills.txt`
 N/A — the key IS in the allowlist (`[N/A] allowlisted in references/allowed-emoji-skills.txt`)
 WARN — allowlist file missing, or an allowlist entry resolves to nothing in the
-audited scope (see "Stale entries" below), or a symlinked dir under
-`references/` went unscanned (see "Symlinked directories" under Checks 17–18;
+audited scope (see "Stale entries" below), or a symlinked dir or `*.md` file under
+`references/` went unscanned (see "Symlinks" under Checks 17–18;
 it turns a PASS into WARN; an allowlisted N/A stays N/A with the note).
 Degrade rather than block;
 authoring:skill-check stays read-only.
@@ -280,7 +280,7 @@ Network signals: imports of `requests` / `httpx` / `urllib` / `http.client` /
 | Result | Criteria |
 |---|---|
 | PASS | no network signal found, OR network is used AND `compatibility.network` is declared — and every literal helper host is named in SKILL.md |
-| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host with the first helper file it appears in; suggest documenting the destination in SKILL.md (or dropping the call); OR a symlinked dir in the skill went unscanned — this turns a PASS or N/A into WARN (see "Symlinked directories" under Checks 17–18) |
+| WARN | network signal present BUT no `compatibility.network` declaration → suggest "scripts use the network — declare `compatibility.network: required`"; OR a helper host is not named in SKILL.md → the note lists each host with the first helper file it appears in; suggest documenting the destination in SKILL.md (or dropping the call); OR a symlinked dir, or a symlinked `*.sh`/`*.py` file, in the skill went unscanned — this turns a PASS or N/A into WARN (see "Symlinks" under Checks 17–18) |
 | N/A | skill ships no executable scripts (pure-prompt skill — nothing to scan) |
 
 Extension note: filesystem-write and subprocess capabilities follow the same
@@ -395,15 +395,18 @@ directories (`tests/`, `__pycache__/`, `.git/`, `node_modules/`, virtualenvs)
 and the same self-test/fixture exclusions (`*selftest*`, `*selfcheck*`,
 `test_*`, `*_test.*`) as Check 15, so both checks agree on what the bundle is.
 
-**Symlinked directories (Checks 11, 15, 17, 18).** A scan never follows a
-symlinked directory inside the skill (issue #32 keeps results deterministic),
-but it never skips one silently either (dEitY719/authoring-skills#77): every
-symlinked dir a scan met and did not enter is named in that check's note
-(`symlinked dir(s) not followed, unscanned: <path>`), and a PASS or N/A (Check 11's allowlisted N/A excepted)
+**Symlinks (Checks 11, 15, 17, 18).** A scan never follows a
+symlink inside the skill (issue #32 keeps results deterministic),
+but it never skips one silently either (dEitY719/authoring-skills#77, #98): every
+symlinked dir a scan met and did not enter, and every symlink to a regular
+file that the check's own file filter selects (`*.md` for Check 11,
+`*.sh`/`*.py` for Check 15, any bundle file for Checks 17/18 — a link's
+unread target cannot show whether it is text), is named in that check's note
+(`symlink(s) not followed, unscanned: <path>`), and a PASS or N/A (Check 11's allowlisted N/A excepted)
 becomes WARN — content an installer that follows links would ship went
 unread. A link whose target lies inside a directory the same scan already
 walks (`lib/current -> v2`) is not reported: that content was read under its
-real path — unless the target sits under a pruned directory (`lib/fx ->
+real path (`lib/alias.sh -> run.sh` likewise) — unless the target sits under a pruned directory (`lib/fx ->
 ../tests/fx`, Checks 15, 17, 18): the scan never read it, so it is reported. The audited skill directory itself is still dereferenced (Check 15).
 
 ### Check 17: Bundle Self-containment
@@ -429,7 +432,7 @@ violation. Two more forms are extracted the same way (dEitY719/authoring-skills#
 | Result | Criteria |
 |---|---|
 | PASS | no path escapes the skill directory |
-| WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`); OR a symlinked dir in the scan set went unscanned (see "Symlinked directories" above) |
+| WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`); OR a symlinked dir or file in the scan set went unscanned (see "Symlinks" above) |
 
 Not violations: plain `../` paths inside a markdown code fence (``` / ~~~ —
 illustrative examples), `http(s)://` URLs, and bare directory talk such as
@@ -462,8 +465,8 @@ when any of these holds:
 | Result | Criteria |
 |---|---|
 | PASS | every use is protected |
-| WARN | one or more unprotected uses — the note lists `file:line`; OR a symlinked dir in the scan set went unscanned (see "Symlinked directories" above) |
-| N/A | no executing use of `CLAUDE_PLUGIN_ROOT`, and no symlinked dir went unscanned |
+| WARN | one or more unprotected uses — the note lists `file:line`; OR a symlinked dir or file in the scan set went unscanned (see "Symlinks" above) |
+| N/A | no executing use of `CLAUDE_PLUGIN_ROOT`, and no symlinked dir or file went unscanned |
 
 Recommended pattern to quote in the report — tier 1 is Hermes' skill-relative
 dir, tier 2 the guarded plugin root, else `[FAIL]` (canonical shape:

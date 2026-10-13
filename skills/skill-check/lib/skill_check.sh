@@ -107,10 +107,12 @@ find_upward() {
 }
 
 # scan_tree [-H] <root> <find-expr>... -- the one file lister for Checks 11,
-# 15 and 17/18 (issue #77). Prints `F<TAB>path` for each regular file the
-# expression selects (it must include `-type f`, and may lead with a
-# `( names ) -prune -o`), and `L<TAB>path` for each symlinked directory it
-# met and did not enter. Links are never followed (issue #32), so a scan
+# 15 and 17/18 (issues #77, #98). Prints `F<TAB>path` for each regular file
+# the expression selects (it must include `-type f`, and may lead with a
+# `( names ) -prune -o`), and `L<TAB>path` for each link it met and did not
+# follow: a symlinked directory, or a symlink to a regular file that the same
+# expression would have selected were it a plain file (its `-type f` read as
+# `-type l` plus a `test -f`). Links are never followed (issue #32), so a scan
 # reports them rather than skipping them silently. -H dereferences <root>
 # only; without it a symlinked <root> is itself reported as skipped.
 scan_tree() {
@@ -122,9 +124,28 @@ scan_tree() {
     return 0
   fi
   [ -d "$st_root" ] || return 0
+  # Two copies of the expression go into one find: the caller's ("$1".."$n")
+  # selects plain files, and its link twin -- appended after it, each
+  # `-type f` swapped for `-type l -exec test -f {} ;` -- selects file links.
+  # POSIX sh has no arrays, so each copy is a string of quoted positional
+  # references ("$1" "$2" ...) that eval expands, never the words themselves.
+  st_n=$# st_i=0 st_f='' st_l='' st_ty=''
+  for st_a in "$@"; do
+    st_i=$((st_i + 1)); st_f="$st_f \"\${$st_i}\""
+    if [ -n "$st_ty" ]; then
+      st_ty=''
+      if [ "$st_a" = f ]; then set -- "$@" -type l -exec test -f '{}' ';'
+      else set -- "$@" -type "$st_a"; fi
+    elif [ "$st_a" = -type ]; then st_ty=1; continue
+    else set -- "$@" "$st_a"; fi
+  done
+  [ -z "$st_ty" ] || set -- "$@" -type
+  st_i=$st_n
+  while [ "$st_i" -lt $# ]; do st_i=$((st_i + 1)); st_l="$st_l \"\${$st_i}\""; done
   # shellcheck disable=SC2086 # $st_h is empty or -H; unquoted so empty drops out
-  find $st_h "$st_root" -mindepth 1 \( "$@" -exec printf 'F\t%s\n' {} + \) \
-    -o \( -type l -exec test -d {} \; -exec printf 'L\t%s\n' {} + \) || true
+  eval "find \$st_h \"\$st_root\" -mindepth 1 \\( $st_f -exec printf 'F\\t%s\\n' {} + \\) \\
+    -o \\( $st_l -exec printf 'L\\t%s\\n' {} + \\) \\
+    -o \\( -type l -exec test -d {} \\; -exec printf 'L\\t%s\\n' {} + \\)" || true
 }
 # No 2>/dev/null above: a find that cannot run (unsupported primary, unreadable
 # dir) must say so on stderr rather than leave an empty, silently-PASSing scan.
@@ -136,6 +157,22 @@ scanned() {
 
 # real <dir> -- its physical path, empty when it does not resolve.
 real() { (cd -P -- "$1" 2>/dev/null && pwd -P); }
+
+# real_target <link> -- the physical path a skipped link points at: real for a
+# dir, and for a file link its final target's real dir plus its name (the
+# chain is walked by readlink, at most 40 hops -- a loop resolves to nothing).
+# Only the path is resolved; the target is never opened (issue #98).
+real_target() {
+  [ -d "$1" ] && { real "$1"; return; }
+  rt_p=$1 rt_i=0
+  while [ -L "$rt_p" ]; do
+    rt_i=$((rt_i + 1)); [ "$rt_i" -le 40 ] || return 0
+    rt_t=$(readlink -- "$rt_p") || return 0
+    case $rt_t in /*) rt_p=$rt_t ;; *) rt_p=$(dirname -- "$rt_p")/$rt_t ;; esac
+  done
+  rt_d=$(real "$(dirname -- "$rt_p")") && [ -n "$rt_d" ] &&
+    printf '%s/%s\n' "$rt_d" "$(basename -- "$rt_p")"
+}
 
 # bundle_scan <root> [find-expr]... -- scan_tree over a skill's shipped
 # bundle, shared by Check 15 and Checks 17/18 (issue #87) so both agree on
@@ -159,8 +196,9 @@ bundle_prune_re=$(printf '%s\n' $bundle_prune_names | sed 's/[.]/[.]/g' | paste 
 
 # skipped [-p] <scan_tree-output> <prefix> [root]... -- the skipped links as one
 # comma-separated list, <prefix> stripped, sorted (find walks in readdir
-# order, which differs across filesystems); empty when none. A link whose
-# target lies inside one of the scan's own non-symlink <root>s is dropped:
+# order, which differs across filesystems); empty when none. A link (to a dir
+# or a file) whose target lies inside one of the scan's own non-symlink
+# <root>s is dropped:
 # that content was already scanned under its real path (`lib/current -> v2`).
 # -p: the scan was a bundle_scan, so a target under a pruned dir (`tests/`)
 # was never read and its link is still reported.
@@ -175,7 +213,7 @@ skipped() {
 "
   done
   printf '%s\n' "$sk_out" | awk -F'\t' '$1 == "L" { print $2 }' | while IFS= read -r sk_l; do
-    sk_t=$(real "$sk_l")
+    sk_t=$(real_target "$sk_l")
     printf '%s' "$sk_roots" | awk -v t="$sk_t/" -v re="$sk_re" '
       index(t, $0 "/") == 1 && (re == "" || substr(t, length($0) + 1) !~ re) { f = 1 }
       END { exit !f }' && continue
@@ -184,12 +222,12 @@ skipped() {
 }
 
 # flag_skipped <result> <note> <links> -- sets fr/fn: a PASS or N/A becomes
-# WARN and the note names the links, so a skipped dir is never silent.
+# WARN and the note names the links, so a skipped dir or file is never silent.
 flag_skipped() {
   fr=$1 fn=$2
   [ -n "$3" ] || return 0
   case $fr in PASS|N/A) fr=WARN ;; esac
-  fn="$fn; symlinked dir(s) not followed, unscanned: $3"
+  fn="$fn; symlink(s) not followed, unscanned: $3"
 }
 
 # ---------- Check 1: Line Count ----------
