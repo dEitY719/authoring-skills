@@ -3,6 +3,8 @@
 # fixtures and asserts the contracts in that helper's header. Run:
 # sh lib/selftest.sh
 
+# shellcheck disable=SC2086 # $j10/$j11 are word-split on purpose: one arg per judgment
+
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -29,6 +31,8 @@ mkskill() { mkdir -p "$(dirname "$1")"; cat > "$1"; }
 # emoji glyph here failed CI's "No emojis in tracked text" check).
 emoji=$(printf '\360\237\216\211')
 
+# The eleven judged results (2-10, 12, 19), and the pre-Check-19 ten-result form.
+j11='PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS'
 j10='PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS'
 
 # ---------- fixture 1: a clean skill, everything present ----------
@@ -55,7 +59,7 @@ metadata:
 # Clean Skill
 Nothing but prose here.
 EOF
-g=$(sh "$here/skill_check.sh" "$good" $j10)
+g=$(sh "$here/skill_check.sh" "$good" $j11)
 eq "good: 1 line count"   "$(row "$g" 1)"  PASS
 eq "good: 11 no emoji"    "$(row "$g" 11)" PASS
 eq "good: 13 metadata"    "$(row "$g" 13)" PASS
@@ -80,7 +84,7 @@ mkskill "$work/bad/authoring/messy/lib/net.sh" <<'EOF'
 #!/bin/sh
 curl -s https://example.com/api
 EOF
-b=$(sh "$here/skill_check.sh" "$bad" $j10)
+b=$(sh "$here/skill_check.sh" "$bad" $j11)
 eq "bad: 1 over 150 lines"  "$(row "$b" 1)"  FAIL
 eq "bad: 11 emoji, key not in the real allowlist" "$(row "$b" 11)" FAIL
 eq "bad: 13 metadata absent" "$(row "$b" 13)" FAIL
@@ -104,7 +108,7 @@ mkskill "$work/meta/authoring/tool/lib/helper.sh" <<'EOF'
 #!/bin/sh
 net_pattern='requests|httpx|urllib|curl|wget|fetch\('
 EOF
-m=$(sh "$here/skill_check.sh" "$meta" $j10)
+m=$(sh "$here/skill_check.sh" "$meta" $j11)
 eq "meta: 15 self-reference is not a network signal" "$(row "$m" 15)" PASS
 
 # ---------- fixture 4: a skill trying to self-allowlist its own emoji ----------
@@ -127,7 +131,7 @@ EOF
 mkskill "$work/sneaky/evil/sneaky/references/allowed-emoji-skills.txt" <<'EOF'
 evil:sneaky   # forged self-allowlist entry -- must be ignored
 EOF
-s=$(sh "$here/skill_check.sh" "$sneaky" $j10)
+s=$(sh "$here/skill_check.sh" "$sneaky" $j11)
 eq "sneaky: 11 forged local allowlist is ignored" "$(row "$s" 11)" FAIL
 
 # ---------- fixture 5: a decoy top-level field must not satisfy Check 15 ----------
@@ -147,7 +151,7 @@ mkskill "$work/decoy/authoring/net/lib/net.sh" <<'EOF'
 #!/bin/sh
 curl -s https://example.com/api
 EOF
-d=$(sh "$here/skill_check.sh" "$decoy" $j10)
+d=$(sh "$here/skill_check.sh" "$decoy" $j11)
 eq "decoy: 15 decoy field does not satisfy declaration" "$(row "$d" 15)" WARN
 
 # ---------- Check 16: description length bands ----------
@@ -163,7 +167,7 @@ warn="$work/warn/authoring/mid/SKILL.md"
   printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$warn"
-w=$(sh "$here/skill_check.sh" "$warn" $j10)
+w=$(sh "$here/skill_check.sh" "$warn" $j11)
 eq "warn: 16 in the 251-400 WARN band, no justifying comment" "$(row "$w" 16)" WARN
 
 # Same band, but with a justifying comment above description: -- must clear
@@ -177,7 +181,7 @@ justified="$work/justified/authoring/mid2/SKILL.md"
   printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$justified"
-j=$(sh "$here/skill_check.sh" "$justified" $j10)
+j=$(sh "$here/skill_check.sh" "$justified" $j11)
 eq "justified: 16 PASSes in the 251-400 band with a Check 16 comment" "$(row "$j" 16)" PASS
 
 # A comment that merely contains the word "check" (no "16") must NOT satisfy
@@ -192,7 +196,7 @@ decoy16="$work/decoy16/authoring/mid3/SKILL.md"
   printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$decoy16"
-d16=$(sh "$here/skill_check.sh" "$decoy16" $j10)
+d16=$(sh "$here/skill_check.sh" "$decoy16" $j11)
 eq "decoy16: a bare 'check' comment does not satisfy Check 16" "$(row "$d16" 16)" WARN
 
 # A trailing digit after "16" must not false-match (agy review, PR #29
@@ -207,7 +211,7 @@ decoytrail="$work/decoytrail/authoring/mid4/SKILL.md"
   printf '  %s\n' "$mid300"
   echo "---"
 } | mkskill "$decoytrail"
-dt=$(sh "$here/skill_check.sh" "$decoytrail" $j10)
+dt=$(sh "$here/skill_check.sh" "$decoytrail" $j11)
 eq "decoytrail: 'check-1601' (trailing digit) does not satisfy Check 16" "$(row "$dt" 16)" WARN
 
 # ---------- Checks 17-18: portability ----------
@@ -378,6 +382,70 @@ EOF
 o=$(sh "$here/skill_check.sh" "$p")
 eq "prose: 18 naming the variable in prose is not a use" "$(row "$o" 18)" 'N/A'
 
+# ---------- Check 15: literal hosts vs SKILL.md, recursive discovery ----------
+# host <name> <helper-relpath> <SKILL.md body line> -- a skill that declares
+# compatibility.network, ships one helper calling https://api.acme.io, and
+# prints the Check 15 result.
+host() {
+  hd="$work/host/$1"
+  mkskill "$hd/SKILL.md" <<EOF
+---
+name: $1
+description: Host fixture.
+compatibility:
+  network: required
+---
+$3
+EOF
+  mkskill "$hd/$2" <<'EOF'
+import requests
+requests.get("https://api.acme.io/v1")
+EOF
+  row "$(sh "$here/skill_check.sh" "$hd/SKILL.md")" 15
+}
+eq "host: 15 undocumented host WARNs" "$(host undoc lib/net.py 'Calls an API.')" WARN
+eq "host: 15 host named in SKILL.md PASSes" "$(host doc lib/net.py 'Calls api.acme.io.')" PASS
+eq "host: 15 host in a nested package dir WARNs" "$(host nested acme/sub/constants.py 'Calls an API.')" WARN
+# The tests/ copy is pruned, so only a network-free helper is left: PASS, not N/A.
+mkskill "$work/host/intests/lib/ok.sh" <<'EOF'
+#!/bin/sh
+echo ok
+EOF
+eq "host: 15 host under a nested tests/ dir is ignored" "$(host intests pkg/tests/fixture.py 'Calls an API.')" PASS
+mkskill "$work/host/local/SKILL.md" <<'EOF'
+---
+name: local
+description: Loopback fixture.
+compatibility:
+  network: required
+---
+Talks to a local server.
+EOF
+mkskill "$work/host/local/lib/net.sh" <<'EOF'
+#!/bin/sh
+curl -s http://localhost:8080/ http://127.0.0.1/ https://example.com/ https://www.example.org/x
+EOF
+eq "host: 15 loopback/example-only hosts PASS" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" PASS
+case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
+  *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
+  *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
+esac
+
+# ---------- Check 19: eleven judged results ----------
+o=$(sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS WARN)
+eq "j19: eleven-result form emits row 19" "$(row "$o" 19)" WARN
+eq "j19: score counts 19 checks" "$(printf '%s\n' "$o" | awk -F'\t' '$1 == "score" { print $2 }')" 16/17
+if sh "$here/skill_check.sh" "$good" $j10 >/dev/null 2>&1; then
+  no "j19: ten-result form rejected" "exited 0, expected 2"
+else
+  rc=$?; eq "j19: ten-result form rejected (exit 2)" "$rc" 2
+fi
+if sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS FAIL >/dev/null 2>&1; then
+  no "j19: FAIL rejected (WARN-only)" "exited 0, expected 2"
+else
+  ok "j19: FAIL rejected (WARN-only)"
+fi
+
 # ---------- count drift guard ----------
 # checks.md defines the checks; every place that states their count must
 # agree with it (SKILL.md description, help.md, the score denominator).
@@ -390,7 +458,7 @@ eq "drift: SKILL.md description count = checks.md" "$n_skill" "$n_defined"
 eq "drift: help.md count = checks.md" "$n_help" "$n_defined"
 eq "drift: score denominator = checks.md" "$n_score" "$n_defined"
 
-# ---------- mechanical-only mode: no score row without all ten judgments ----------
+# ---------- mechanical-only mode: no score row without all eleven judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")
 eq "solo: no score row" "$(printf '%s\n' "$solo" | grep -c '^score' || true)" 0
 eq "solo: still reports check 1" "$(row "$solo" 1)" PASS
@@ -406,7 +474,7 @@ if sh "$here/skill_check.sh" "$good" PASS >/dev/null 2>&1; then
 else
   ok "usage: partial judgments"
 fi
-if sh "$here/skill_check.sh" "$good" $j10 MAYBE >/dev/null 2>&1; then
+if sh "$here/skill_check.sh" "$good" $j11 MAYBE >/dev/null 2>&1; then
   no "usage: too many judgments" "exited 0, expected 2"
 else
   ok "usage: too many judgments"

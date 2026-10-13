@@ -38,6 +38,7 @@ References dir: <exists / missing>
 |----|--------------------------------|--------|--------------------------------------------|
 | 14 | License Declaration            | WARN   | no license; repo LICENSE exists → add MIT  |
 | 15 | Capability Declaration Consistency | WARN | lib/scripts helper imports requests; network undeclared |
+| 19 | Credential-to-Network Flow     | PASS   | no secret reaches a network call           |
 
 ### Context Budget Check
 | #  | Check                        | Result | Notes                                      |
@@ -82,12 +83,15 @@ For Check 12, name the helper to extract, its inputs/outputs, and the direct `li
 1. <highest priority fix>
 2. <next fix>
 Run /authoring:skill-check again after fixes to verify.
+<only when Check 15 or 19 is WARN:>
+Confirm with the real security scanner -- it, not this audit, is the source of truth:
+  uvx --from cisco-ai-skill-scanner skill-scanner scan-all <skills-dir> --use-behavioral --format json --output-json /tmp/skill-scan.json
 ```
 
 Rules:
 - Only include WARN and FAIL items in Issues & Improvements section
 - Quote actual lines from the file when describing problems
-- Score denominator excludes N/A checks (18 checks total, minus any N/A)
+- Score denominator excludes N/A checks (19 checks total, minus any N/A)
 - Check 16 always reports the measured character count in Notes, so the
   overage is actionable without re-running a measurement
 - The "Model Recommendation Check" table row + "Recommended tier" line are
