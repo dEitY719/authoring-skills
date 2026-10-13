@@ -485,9 +485,27 @@ EOF
 delim "host: 15 a * ends the userinfo (no later @ hides the host)" <<'EOF'
 curl https://api.acme.io*u@mail.acme.io
 EOF
-delim "host: 15 a [ ] ends the userinfo (no later @ hides the host)" <<'EOF'
-print("https://api.acme.io[u]@mail.acme.io")
+delim "host: 15 a [ ends the userinfo (no later @ hides the host)" <<'EOF'
+print("https://api.acme.io[u@mail.acme.io")
 EOF
+delim "host: 15 a ] ends the userinfo (no later @ hides the host)" <<'EOF'
+print("https://api.acme.io]u@mail.acme.io")
+EOF
+delim "host: 15 a + ends the userinfo (no later @ hides the host)" <<'EOF'
+print("https://api.acme.io+u@mail.acme.io")
+EOF
+delim "host: 15 a $ ends the userinfo (no later @ hides the host)" <<'EOF'
+echo https://api.acme.io$u@mail.acme.io
+EOF
+delim "host: 15 a ! ends the userinfo (no later @ hides the host)" <<'EOF'
+echo https://api.acme.io!u@mail.acme.io
+EOF
+# The other direction: pct-encoded userinfo is still skipped, so its first.last
+# fragment is not reported as a host (SKILL.md names only mail.acme.io).
+mkskill "$work/host/delim/lib/net.py" <<'EOF'
+curl https://first.last%40co@mail.acme.io
+EOF
+eq "host: 15 a pct-encoded userinfo is skipped, not reported" "$(row "$(sh "$here/skill_check.sh" "$work/host/delim/SKILL.md")" 15)" PASS
 # ...but RFC 3986 allows , ; ( ) in userinfo, so the host after such a
 # userinfo is still checked (claude review, PR #78 BLOCKER).
 mkskill "$work/host/quoted/lib/net.py" <<'EOF'
