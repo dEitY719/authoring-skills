@@ -237,6 +237,7 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # external scanners. Test trees, caches and vendored deps are pruned, and
 # self-test/fixture files are excluded -- they exercise capability words in
 # synthetic examples, not the skill's own runtime surface.
+# -mindepth 1: a skill dir itself named e.g. `tests` must not prune its own root.
 scripts=$(find "$dir" -mindepth 1 \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
   -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)

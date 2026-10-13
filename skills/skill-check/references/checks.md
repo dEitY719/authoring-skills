@@ -261,9 +261,11 @@ capability the external scanner actually flags
 must also be named somewhere in the skill's own SKILL.md (body prose, or the
 `allowed_domains` frontmatter list — Check 3) — the scanner reports an unnamed
 one as `UNDECLARED_NETWORK_DESTINATION` (LOW). Loopback (`localhost`,
-numeric `127.x.x.x` — `127.evil.io` is a real host — and `0.0.0.0`) and the reserved `example.com` / `example.org` /
-`example.net` domains (and their subdomains) are not destinations and are
-ignored, as are dotless placeholders such as `https://host/...` in a comment.
+numeric `127.x.x.x` and `0.0.0.0`) and the reserved `example.com` /
+`example.org` / `example.net` domains (and their subdomains) are not
+destinations and are ignored, as are dotless placeholders such as
+`https://host/...` in a comment. Only a numeric `127.` host is loopback:
+`127.evil.io` is a real host and is checked.
 A host counts as named only as a whole host token: `sub.acme.io` or
 `notacme.io` in SKILL.md does not name `acme.io`.
 
