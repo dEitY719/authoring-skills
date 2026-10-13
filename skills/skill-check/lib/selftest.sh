@@ -452,25 +452,41 @@ mkskill "$work/host/quoted/lib/net.py" <<'EOF'
 requests.get('https://api.acme.io',auth=('u@mail.acme.io','p'))
 EOF
 eq "host: 15 a quote ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
-# Unquoted delimiters end the userinfo too (#68): a comma or backtick right after
-# the host must not let a later @ swap in an unrelated host.
-mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+# Unquoted delimiters end the userinfo too (#68): a delimiter right after the
+# host must not let a later @ hide that host. SKILL.md names only the later
+# host, so the row WARNs only if the URL's own host is reported.
+host delim lib/net.py 'Calls mail.acme.io.' >/dev/null
+delim() {
+  mkskill "$work/host/delim/lib/net.py"
+  d=$(sh "$here/skill_check.sh" "$work/host/delim/SKILL.md")
+  case "$(row "$d" 15) $(note "$d" 15)" in
+    WARN*api.acme.io*) ok "$1" ;;
+    *) no "$1" "api.acme.io not reported" ;;
+  esac
+}
+delim "host: 15 a comma ends the userinfo (no later @ hides the host)" <<'EOF'
 curl https://api.acme.io,u@mail.acme.io
 EOF
-eq "host: 15 a comma ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
-mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+delim "host: 15 a backtick ends the userinfo (no later @ hides the host)" <<'EOF'
 echo `https://api.acme.io``u@mail.acme.io`
 EOF
-eq "host: 15 a backtick ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
-mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+delim "host: 15 a > ends the userinfo (no later @ hides the host)" <<'EOF'
 print("https://api.acme.io>u@mail.acme.io")
 EOF
-eq "host: 15 a > ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
-mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+delim "host: 15 a backslash ends the userinfo (no later @ hides the host)" <<'EOF'
 print("https://api.acme.io\nu@mail.acme.io")
 EOF
-eq "host: 15 a backslash ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
-# ...but a whole <word> placeholder is userinfo: the host after it is still checked.
+# ...but RFC 3986 allows , ; ( ) in userinfo, so the host after such a
+# userinfo is still checked (claude review, PR #78 BLOCKER).
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+requests.get("https://u,p@evil.acme.io")
+EOF
+d=$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")
+case "$(row "$d" 15) $(note "$d" 15)" in
+  WARN*evil.acme.io*) ok "host: 15 host after a userinfo holding a comma is still checked" ;;
+  *) no "host: 15 host after a userinfo holding a comma is still checked" "evil.acme.io not reported" ;;
+esac
+# A whole <user>:<token>@ placeholder is userinfo: the host after it is still checked.
 mkskill "$work/host/quoted/lib/net.py" <<'EOF'
 # clone https://<user>:<token>@git.acme.io/r
 EOF
