@@ -19,6 +19,7 @@
 #       mode) or worktree. A status row has skill_md "-", target_source dup or
 #       skip, and the reason in snapshot_ref. repo mode and --snapshot need
 #       --tmp: a directory the caller made with mktemp and deletes afterwards.
+#       repo mode with --snapshot clones a fork's parent, the issue target.
 #   skill_scan.sh parse-url <git-url>    print host<TAB>owner/repo
 #   skill_scan.sh key <SKILL.md>         print the dedup key <plugin>:<skill>
 #
@@ -34,6 +35,8 @@ set -eu
 
 GH=${SKILL_CHECK_GH:-gh}
 tab=$(printf '\t')
+# Fail a fetch/clone that needs credentials instead of hanging an unattended (-y) run on a prompt.
+export GIT_TERMINAL_PROMPT=0
 
 die() { printf 'skill-check: %s\n' "$1" >&2; exit "${2:-2}"; }
 
@@ -283,6 +286,10 @@ emit() {
     fi
     return
   fi
+  if [ ! -d "$root$sub" ]; then
+    printf '%s\t-\t%s\t%s\tskip\tnot on %s\n' "$top" "$host" "$repo" "$ref"
+    return
+  fi
   for f in $(discover "$root$sub"); do
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$top" "$f" "$host" "$repo" "$src" "$ref"
   done
@@ -330,13 +337,18 @@ $k$tab$c"
     repo)
       t=$(parse_url "$tgt") || die "not a git URL: $tgt"
       host=$(printf '%s' "$t" | cut -f1); repo=$(printf '%s' "$t" | cut -f2)
-      dest=$(mktemp -d "$tmp/clone.XXXXXX")
-      git clone --quiet --depth 1 "$tgt" "$dest" 2>/dev/null || die "git clone failed: $tgt" 3
       # A fresh clone has no upstream remote: a fork parent stands in for it.
       parent=$(GH_HOST=$host "$GH" repo view "$repo" --json parent \
         --jq 'if .parent then .parent.owner.login + "/" + .parent.name else "" end' 2>/dev/null || true)
-      src=origin
-      if [ -n "$parent" ]; then repo=$parent; src=fork-parent; fi
+      url=$tgt; src=origin
+      if [ -n "$parent" ]; then
+        # Issues go to the parent, so --snapshot audits the parent's default
+        # branch, not the fork's (same URL form, owner/repo swapped).
+        [ "$snap" = 0 ] || url=${tgt%%"$repo"*}$parent${tgt#*"$repo"}
+        repo=$parent; src=fork-parent
+      fi
+      dest=$(mktemp -d "$tmp/clone.XXXXXX")
+      git clone --quiet --depth 1 "$url" "$dest" 2>/dev/null || die "git clone failed: $url" 3
       ref=clone@$(git -C "$dest" rev-parse --short HEAD)
       for f in $(discover "$dest"); do
         printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$tgt" "$f" "$host" "$repo" "$src" "$ref"

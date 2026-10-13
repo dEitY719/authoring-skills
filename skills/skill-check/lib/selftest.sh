@@ -649,6 +649,30 @@ eq "snapshot: working tree untouched" "$(grep -c LOCAL-ONLY "$work/snap/local/sk
 o=$(sh "$scan" scan single "$work/snap/local/skills/s/SKILL.md" --snapshot --tmp "$st" 2>/dev/null)
 eq "snapshot: single mode maps into the snapshot" "$(grep -c LOCAL-ONLY "$(col "$o" 2)" || true)" 0
 eq "snapshot: --snapshot without --tmp is usage" "$(rc sh "$scan" scan dir "$work/snap/local" --snapshot)" 2
+mkskill "$work/snap/local/extra/skills/e/SKILL.md" </dev/null
+o=$(sh "$scan" scan dir "$work/snap/local/extra" --snapshot --tmp "$st" 2>/dev/null)
+eq "snapshot: a dir missing from the default branch is a skip row" "$(col "$o" 2) $(col "$o" 5)" "- skip"
+
+# ---------- -r on a fork: --snapshot clones the parent (the issue target) ----------
+fk="$work/fork"
+repo "$fk/src"
+git init -q --bare -b main "$fk/up/r.git"
+git -C "$fk/src" push -q "$fk/up/r.git" main
+echo 'FORK-ONLY' >> "$fk/src/skills/s/SKILL.md"
+git -C "$fk/src" commit -q -am fork
+git init -q --bare -b main "$fk/me/r.git"
+git -C "$fk/src" push -q "$fk/me/r.git" main
+printf '#!/bin/sh\necho up/r\n' > "$fk/gh"; chmod +x "$fk/gh"
+# insteadOf maps the https URLs onto the local bare repos: no network.
+fork_scan() {
+  GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="url.$fk/.insteadOf" GIT_CONFIG_VALUE_0=https://example.com/ \
+    SKILL_CHECK_GH="$fk/gh" sh "$scan" scan repo https://example.com/me/r.git --tmp "$st" "$@" 2>/dev/null
+}
+o=$(fork_scan --snapshot)
+eq "repo: a fork's issue target is its parent" "$(col "$o" 4) $(col "$o" 5)" "up/r fork-parent"
+eq "repo: --snapshot audits the parent, not the fork" "$(grep -c FORK-ONLY "$(col "$o" 2)" || true)" 0
+o=$(fork_scan)
+eq "repo: without --snapshot the given fork is audited" "$(grep -c FORK-ONLY "$(col "$o" 2)" || true)" 1
 
 # ---------- args ----------
 eq "args: single defaults issue off" "$(sh "$scan" args x)" "$(printf 'single\tx\toff\t0\t0')"
@@ -692,12 +716,12 @@ mkskill "$rs/home/.claude/skills/baz/SKILL.md" </dev/null
 res() { (cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" sh "$scan" resolve "$1" 2>/dev/null) | sed "s|^$(cd -P "$rs" && pwd -P)/||"; }
 eq "resolve: plugin:skill from a local checkout" "$(res alpha:s)" "cwd/p1/skills/s/SKILL.md"
 eq "resolve: leading slash dropped" "$(res /beta:dup)" "cwd/p2/skills/dup/SKILL.md"
-eq "resolve: bare name, distinct plugins -> ambiguous" "$(cd "$rs/cwd" && HOME="$rs/home" rc sh "$scan" resolve dup)" 2
+eq "resolve: bare name, distinct plugins -> ambiguous" "$(cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" rc sh "$scan" resolve dup)" 2
 eq "resolve: installed plugin" "$(res gamma:bar)" "inst/gamma/skills/bar/SKILL.md"
 eq "resolve: bare name in an installed plugin" "$(res bar)" "inst/gamma/skills/bar/SKILL.md"
 eq "resolve: flat skill link" "$(res baz)" "home/.claude/skills/baz/SKILL.md"
 eq "resolve: a directory means its SKILL.md" "$(res "$rs/cwd/p1/skills/s")" "cwd/p1/skills/s/SKILL.md"
-eq "resolve: unknown name" "$(cd "$rs/cwd" && HOME="$rs/home" rc sh "$scan" resolve nope)" 2
+eq "resolve: unknown name" "$(cd "$rs/cwd" && HOME="$rs/home" CLAUDE_CONFIG_DIR="$rs/home/.claude" rc sh "$scan" resolve nope)" 2
 
 # ---------- file_issue.sh against a stub gh ----------
 stub="$work/stub"; mkdir -p "$stub"

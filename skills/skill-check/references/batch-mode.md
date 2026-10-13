@@ -66,6 +66,8 @@ issue body must quote only what that repo already publishes.
    Plan. No ref at all: a `skip` row for that repo.
 
 `-r` needs none of this: the shallow clone is the default-branch snapshot.
+When the URL is a fork, `--snapshot` clones the fork parent instead (the issue
+target, `references/issue-filing.md`), never the fork.
 A repo with no usable remote has no issue target, so it is audited from the
 working tree and its issue is reported `[SKIP] no remote`.
 
@@ -76,7 +78,7 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/skill-check.XXXXXX") && echo "$tmp"
 sh <skill-dir>/lib/skill_scan.sh scan <mode> <target> --tmp "$tmp" [--snapshot]
 ```
 
-Pass `--snapshot` exactly when issue filing is on (`repo` mode ignores it).
+Pass `--snapshot` exactly when issue filing is on.
 Each output row is `repo_dir skill_md target_host target_repo target_source
 snapshot_ref`; a row whose `skill_md` is `-` is a status row (`dup`/`skip`,
 reason in the last column) to show in the Batch Summary, not a skill to audit.
