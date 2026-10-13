@@ -452,6 +452,16 @@ mkskill "$work/host/quoted/lib/net.py" <<'EOF'
 requests.get('https://api.acme.io',auth=('u@mail.acme.io','p'))
 EOF
 eq "host: 15 a quote ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
+# Unquoted delimiters end the userinfo too (#68): a comma or backtick right after
+# the host must not let a later @ swap in an unrelated host.
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+curl https://api.acme.io,u@mail.acme.io
+EOF
+eq "host: 15 a comma ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
+mkskill "$work/host/quoted/lib/net.py" <<'EOF'
+echo `https://api.acme.io``u@mail.acme.io`
+EOF
+eq "host: 15 a backtick ends the userinfo (no later @ swallows the host)" "$(row "$(sh "$here/skill_check.sh" "$work/host/quoted/SKILL.md")" 15)" PASS
 mkskill "$work/host/local/lib/evil.sh" <<'EOF'
 #!/bin/sh
 curl -s https://127.evil.io/
