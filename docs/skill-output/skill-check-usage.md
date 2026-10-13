@@ -15,7 +15,7 @@ SKILL.md  ──▶  /authoring:skill-check  ──▶  감사 리포트 (PASS/W
 
 ## 2. 입력
 
-`skills/sh-check/SKILL.md` — 이 레포의 `sh-check` 스킬 정의 파일 (90줄,
+`skills/sh-check/SKILL.md` — 이 레포의 `sh-check` 스킬 정의 파일 (88줄,
 `references/` 에 checks.md · help.md · report-template.md 3개, `lib/` 에
 `sh_check.sh` · `selftest.sh` 2개 보유).
 
@@ -34,16 +34,16 @@ Score: 17/17 checks passed (0 warnings, 0 fails, 2 N/A) · Verdict: EXCELLENT
 ```
 ### Security & Policy Alignment Checks
 | 14 | License Declaration                | PASS | license declared in frontmatter
-| 15 | Capability Declaration Consistency | PASS | network signal present, compatibility.network declared
+| 15 | Capability Declaration Consistency | PASS | no network signal in helpers
 | 19 | Credential-to-Network Flow         | N/A  | no helper makes a network call
 Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, agrees)
 ```
 
-15번의 network signal 은 `lib/sh_check.sh` 가 `curl`/`wget` 호출을 세는 탐지
-정규식과 그 주석이며 (`selftest.sh` 는 Check 15 스캔에서 제외), frontmatter 가 `compatibility.network: none` 과 그 사유를 선언한다.
+15번은 helper(`lib/sh_check.sh`, `selftest.sh` 는 스캔 제외)에서 network signal 을 찾지
+못했다 — `sh_check.sh` 의 `curl`/`wget` 탐지 정규식은 `skill_check.sh` 가 건너뛰는 `*_pattern`
+대입(`call_pattern=`)에만 있다. 그래서 frontmatter 에 `compatibility.network` 선언도 필요 없다.
 
-19번은 `checks.md` 의 N/A 기준이 명시한 경우다 — 15번의 신호 줄(탐지 정규식과 그 주석)을
-모두 읽어도 실제 호출이 없으므로 PASS 가 아니라 N/A. `network: none` 선언만으로 N/A 가 되지는 않는다.
+19번은 `checks.md` 의 N/A 기준 첫 갈래다 — 15번이 network signal 을 찾지 못했으므로 N/A.
 
 재현: 기계 판정 8개는 `lib/skill_check.sh` 가, 나머지 11개는 감사자 판정이다.
 

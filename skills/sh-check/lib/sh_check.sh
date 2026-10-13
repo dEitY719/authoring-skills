@@ -147,16 +147,19 @@ fi
 # The opening brace may sit on the definition line, on the next line, or the
 # whole body may be a one-liner, so the definition is recognised by `name()`
 # alone and the remainder of that same line is scanned as body.
-# net counts gh/curl/wget calls in command position that no enclosing if/elif
-# or case arm gates on an opt-in token (issue #42): `"gh pr view 1"` as a NEXT
-# string, `command -v gh` and comments are not calls.
+# net counts calls to a transfer command (call_pattern) in command position that
+# no enclosing if/elif or case arm gates on an opt-in token (issue #42):
+# `"gh pr view 1"` as a NEXT string, `command -v gh` and comments are not calls.
+# The command names live only in the call_pattern assignment, which skill-check
+# Check 15 skips as a *_pattern line -- keep them out of comments (issue #84).
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
 # ponytail: opt-in is a name match on the condition (remote|network|online),
 # not data flow -- widen opt_in when a real flag name keeps landing in WARN.
 next_cmds='gwt|git|gh|ps'
 opt_in='remote|network|online'
-FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" '
+call_pattern='(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)'
+FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
   FNR == NR {
     t = $0
     while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
@@ -218,7 +221,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" '
     if (t ~ /^[ \t]*[^ \t($="\047][^ \t=()]*\)/) arm = tok
     gated = tok || arm
     for (i = 1; i <= gd; i++) if (gate[i]) gated = 1
-    if (!gated && t ~ /(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)/) net++
+    if (!gated && t ~ call) net++
     if (t ~ /;;/) arm = 0
     if (gd && t ~ /(^|[;&[:space:]])fi([ \t;]|$)/) gd--
   }

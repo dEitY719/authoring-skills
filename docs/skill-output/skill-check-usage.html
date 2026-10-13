@@ -292,7 +292,7 @@
     <div class="card">
       <p>
         <code>skills/sh-check/SKILL.md</code> — 이 레포의 <code>sh-check</code> 스킬 정의 파일
-        (<strong>90줄</strong>, <code>references/</code> 에 <code>checks.md</code> ·
+        (<strong>88줄</strong>, <code>references/</code> 에 <code>checks.md</code> ·
         <code>help.md</code> · <code>report-template.md</code> 3개, <code>lib/</code> 에
         <code>sh_check.sh</code> · <code>selftest.sh</code> 2개 보유).
       </p>
@@ -373,18 +373,17 @@
     <p class="lede" style="margin:26px 0 10px">리포트 발췌</p>
     <pre><code>### Security &amp; Policy Alignment Checks
 | 14 | License Declaration                | PASS | license declared in frontmatter
-| 15 | Capability Declaration Consistency | PASS | network signal present, compatibility.network declared
+| 15 | Capability Declaration Consistency | PASS | no network signal in helpers
 | 19 | Credential-to-Network Flow         | N/A  | no helper makes a network call
 Recommended tier: haiku — audit-only linter, bounded output (declared: haiku, agrees)</code></pre>
     <p>
-      15번의 network signal 은 <code>lib/sh_check.sh</code> 가 <code>curl</code>/<code>wget</code>
-      호출을 세는 탐지 정규식과 그 주석이며 (<code>selftest.sh</code> 는 Check 15 스캔에서 제외),
-      frontmatter 가
-      <code>compatibility.network: none</code> 과 그 사유를 선언한다.
+      15번은 helper(<code>lib/sh_check.sh</code>, <code>selftest.sh</code> 는 스캔 제외)에서 network signal 을
+      찾지 못했다 — <code>sh_check.sh</code> 의 <code>curl</code>/<code>wget</code> 탐지 정규식은
+      <code>skill_check.sh</code> 가 건너뛰는 <code>*_pattern</code> 대입(<code>call_pattern=</code>)에만 있다.
+      그래서 frontmatter 에 <code>compatibility.network</code> 선언도 필요 없다.
     </p>
     <p>
-      19번은 <code>checks.md</code> 의 N/A 기준이 명시한 경우다 — 15번의 신호 줄(탐지 정규식과 그 주석)을
-      모두 읽어도 실제 호출이 없으므로 PASS 가 아니라 N/A. <code>network: none</code> 선언만으로 N/A 가 되지는 않는다.
+      19번은 <code>checks.md</code> 의 N/A 기준 첫 갈래다 — 15번이 network signal 을 찾지 못했으므로 N/A.
     </p>
 
     <p class="lede" style="margin:26px 0 10px">재현 — 기계 판정 8개는 <code>lib/skill_check.sh</code>, 나머지 11개는 감사자 판정</p>
