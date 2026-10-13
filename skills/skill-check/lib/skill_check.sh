@@ -107,6 +107,43 @@ find_upward() {
   done
 }
 
+# scan_tree [-H] <root> <find-expr>... -- the one file lister for Checks 11,
+# 15 and 17/18 (issue #77). Prints `F<TAB>path` for each regular file the
+# expression selects (it must include `-type f`, and may lead with a
+# `( names ) -prune -o`), and `L<TAB>path` for each symlinked directory it
+# met and did not enter. Links are never followed (issue #32), so a scan
+# reports them rather than skipping them silently. -H dereferences <root>
+# only; without it a symlinked <root> is itself reported as skipped.
+scan_tree() {
+  st_h=''
+  [ "$1" = -H ] && { st_h=-H; shift; }
+  st_root=$1; shift
+  if [ -z "$st_h" ] && [ -L "$st_root" ]; then
+    [ -d "$st_root" ] && printf 'L\t%s\n' "$st_root"
+    return 0
+  fi
+  [ -d "$st_root" ] || return 0
+  find $st_h "$st_root" -mindepth 1 \( "$@" -exec printf 'F\t%s\n' {} + \) \
+    -o \( -type l -exec test -d {} \; -exec printf 'L\t%s\n' {} + \) 2>/dev/null || true
+}
+
+# skipped <scan_tree-output> [prefix] -- the skipped links as one
+# comma-separated list, <prefix> stripped; empty when none.
+skipped() {
+  printf '%s\n' "$1" | awk -F'\t' -v p="${2:-}" '$1 == "L" {
+    f = $2; if (p != "" && index(f, p) == 1) f = substr(f, length(p) + 1)
+    s = s (s == "" ? "" : ", ") f } END { print s }'
+}
+
+# flag_skipped <result> <note> <links> -- sets fr/fn: a PASS or N/A becomes
+# WARN and the note names the links, so a skipped dir is never silent.
+flag_skipped() {
+  fr=$1 fn=$2
+  [ -n "$3" ] || return 0
+  case $fr in PASS|N/A) fr=WARN ;; esac
+  fn="$fn; symlinked dir(s) not followed, unscanned: $3"
+}
+
 # ---------- Check 1: Line Count ----------
 lines=$(wc -l < "$file" | tr -d ' ')
 if [ "$lines" -le 100 ]; then
@@ -126,12 +163,11 @@ fm=$(awk '
 ' "$file")
 
 # ---------- Check 11: No Emojis ----------
-scan_files="$file"
-if [ -d "$refdir" ]; then
-  # find, not a bare */*.md glob -- also catches emoji in nested reference
-  # subdirectories (codex PR #16 FOLLOW-UP).
-  scan_files="$scan_files $(find "$refdir" -type f -name '*.md' 2>/dev/null)"
-fi
+# find, not a bare */*.md glob -- also catches emoji in nested reference
+# subdirectories (codex PR #16 FOLLOW-UP).
+ref_scan=$(scan_tree "$refdir" -type f -name '*.md')
+scan_files="$file $(printf '%s\n' "$ref_scan" | awk -F'\t' '$1 == "F" { print $2 }')"
+ref_links=$(skipped "$ref_scan" "$dir/")
 # Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
 # BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
 # isn't guaranteed either (agy PR #16 BLOCKER). UTF-8 encodes the whole
@@ -174,6 +210,7 @@ else
     r11=FAIL; n11="$emoji_hits emoji glyph(s), key '$key' not in allowed-emoji-skills.txt"
   fi
 fi
+flag_skipped "$r11" "$n11" "$ref_links"; r11=$fr n11=$fn
 
 # ---------- Check 13: Model Recommendation Metadata (shape validation) ----------
 # Scoped to the metadata: block specifically -- searching the whole
@@ -239,11 +276,13 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # synthetic examples, not the skill's own runtime surface.
 # -mindepth 1: a skill dir itself named e.g. `tests` must not prune its own root.
 # -H: $dir is a logical path, often a symlinked skill dir; plain find would not enter it.
-# Only that root is dereferenced; links inside the skill stay unfollowed (issue #32).
+# Only that root is dereferenced; links inside the skill stay unfollowed (issue #32)
+# and are named in the note instead (issue #77).
 # selftest.sh runs Check 15 on this very skill: keep URLs and signal words out of comments here.
-scripts=$(find -H "$dir" -mindepth 1 \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
+helper_scan=$(scan_tree -H "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
   -o -name .venv -o -name venv -o -name site-packages \) -prune \
-  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)
+  -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*')
+scripts=$(printf '%s\n' "$helper_scan" | awk -F'\t' '$1 == "F" { print $2 }')
 net_hit=0
 hosts=''
 for s in $scripts; do
@@ -291,6 +330,7 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
   # at a non-host character -- so sub.<host>, a /<host>/ path segment or a
   # bare mention elsewhere does not get the blame.
   hre=$(printf '%s' "$h" | sed 's/\./\\./g')
+  # shellcheck disable=SC2086 # $scripts is word-split on purpose (see header ponytail)
   src=$(grep -liE -e "(//|@)$hre\\.?([^a-z0-9.-]|\$)" $scripts 2>/dev/null | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
@@ -316,6 +356,7 @@ if [ -n "$undeclared" ]; then
   if [ "$r15" = WARN ]; then n15="$n15; "; else n15=''; fi
   r15=WARN; n15="${n15}helper host(s) not named in SKILL.md: $undeclared"
 fi
+flag_skipped "$r15" "$n15" "$(skipped "$helper_scan" "$dir/")"; r15=$fr n15=$fn
 
 # ---------- Check 16: Description Length ----------
 # Fold a `description:` value -- inline or a `>`/`>-`/`>+`/`|`/`|-`/`|+`
@@ -376,21 +417,26 @@ fi
 # Self-test/fixture files are excluded as in Check 15: they spell out `../`
 # and CLAUDE_PLUGIN_ROOT as synthetic examples, not as the skill's own
 # runtime surface. Paths are printed relative to the skill dir.
+port_scan_out=$(
+  cd "$dir" && for d in references lib scripts; do
+    scan_tree "$d" -type f ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
+  done
+)
 port_files=$(
   cd "$dir" && {
     echo SKILL.md
-    for d in references lib scripts; do
-      [ -d "$d" ] && find "$d" -type f ! -iname '*selftest*' ! -iname '*selfcheck*' ! -iname 'test_*' ! -iname '*_test.*'
-    done
+    printf '%s\n' "$port_scan_out" | awk -F'\t' '$1 == "F" { print $2 }'
   } | while IFS= read -r f; do grep -Iq . "$f" 2>/dev/null && printf '%s\n' "$f"; done | sort
 )
+port_links=$(skipped "$port_scan_out")
 
 # port_scan <mode> -- one awk pass over $port_files, run from $dir.
 #   mode=escape: print `file:line -> path` for every `../` token (after a
 #     `(`, backtick, quote, `=` or whitespace) that names a file (ends in
 #     `name.ext`; `#anchor` dropped) and that, normalised as a string
 #     against the referencing file's own directory, climbs above the skill
-#     dir. Symlinks are never followed (issue #32 decision: deterministic).
+#     dir. Symlinks are never followed (issue #32 decision: deterministic);
+#     a symlinked dir the scan set skipped is reported, not hidden (#77).
 #     Also (issue #34): a skill-dir variable + `/../` path, resolved from the
 #     skill root and checked even inside fences; and, in references/, a `../`
 #     path whose file-relative target is missing but whose skill-root-relative
@@ -511,6 +557,8 @@ case $roots in
     r18=WARN; n18="$(printf '%s\n' "$unprot" | grep -c .) CLAUDE_PLUGIN_ROOT use(s) with no fallback: $(summarize "$unprot")"
     ;;
 esac
+flag_skipped "$r17" "$n17" "$port_links"; r17=$fr n17=$fn
+flag_skipped "$r18" "$n18" "$port_links"; r18=$fr n18=$fn
 
 # ---------- Report ----------
 pass=0 fail=0 na=0

@@ -390,6 +390,14 @@ Scan set for both: `SKILL.md` plus every text file under `references/`,
 `lib/`, `scripts/`, minus self-test/fixture files (`*selftest*`,
 `*selfcheck*`, `test_*`, `*_test.*`) exactly as Check 15 excludes them.
 
+**Symlinked directories (Checks 11, 15, 17, 18).** A scan never follows a
+symlinked directory inside the skill (issue #32 keeps results deterministic),
+but it never skips one silently either (dEitY719/authoring-skills#77): every
+symlinked dir a scan met and did not enter is named in that check's note
+(`symlinked dir(s) not followed, unscanned: <path>`), and a PASS or N/A
+becomes WARN — content an installer that follows links would ship went
+unread. The audited skill directory itself is still dereferenced (Check 15).
+
 ### Check 17: Bundle Self-containment
 Extract every relative path token starting with `../` (after a `(`, backtick,
 quote, `=` or whitespace — markdown link targets, quoted/backticked paths,
