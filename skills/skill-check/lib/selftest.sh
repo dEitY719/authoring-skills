@@ -544,6 +544,25 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/attr/SKILL.md")" 15) in
 esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
+# Issue #85: a helper path with a space is still scanned (newline-split, not word-split).
+# Kept outside lib/references/scripts: Check 17/18's $port_files still word-splits (header ponytail).
+eq "host: 15 helper in a spaced path still WARNs" "$(host spaced 'acme/my pkg/net.py' 'Calls an API.')" WARN
+case $(note "$(sh "$here/skill_check.sh" "$work/host/spaced/SKILL.md")" 15) in
+  *"api.acme.io (acme/my pkg/net.py)"*) ok "host: 15 note names the spaced helper path" ;;
+  *) no "host: 15 note names the spaced helper path" "missing api.acme.io (acme/my pkg/net.py)" ;;
+esac
+# Issue #85: an underscore in a host does not truncate it to a dotless prefix.
+host under lib/net.py 'Calls an API.' >/dev/null
+mkskill "$work/host/under/lib/net.py" <<'EOF'
+import requests
+requests.get("https://my_svc.acme.io/x")
+EOF
+case $(sh "$here/skill_check.sh" "$work/host/under/SKILL.md" | awk -F'\t' '$1 == 15 { print $2 " " $3 }') in
+  WARN*"my_svc.acme.io (lib/net.py)"*) ok "host: 15 a host with an underscore is checked whole" ;;
+  *) no "host: 15 a host with an underscore is checked whole" "my_svc.acme.io (lib/net.py) not reported" ;;
+esac
+printf 'Calls my_svc.acme.io.\n' >> "$work/host/under/SKILL.md"
+eq "host: 15 SKILL.md naming an underscore host PASSes" "$(row "$(sh "$here/skill_check.sh" "$work/host/under/SKILL.md")" 15)" PASS
 # ---------- issue #77: symlinked dirs inside a skill are reported, not followed ----------
 mkskill "$work/lnk/shared/refs/a.md" <<EOF
 Party $emoji here.
@@ -648,6 +667,13 @@ if sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PAS
 else
   rc=$?; eq "j19: FAIL rejected (WARN-only, exit 2)" "$rc" 2
 fi
+# Issue #85: an empty result in the full form would drop its row yet still
+# count in the denominator, so it is a usage error, not mechanical-only mode.
+if sh "$here/skill_check.sh" "$good" PASS PASS PASS PASS PASS PASS PASS PASS PASS PASS '' >/dev/null 2>&1; then
+  no "judgment: empty result in the full form rejected" "exited 0, expected 2"
+else
+  rc=$?; eq "judgment: empty result in the full form rejected (exit 2)" "$rc" 2
+fi
 
 # ---------- count drift guard ----------
 # checks.md defines the checks; every place that states their count must
@@ -660,6 +686,13 @@ n_score=$(sed -nE 's/^total=\$\(\(([0-9]+) - na\)\)$/\1/p' "$here/skill_check.sh
 eq "drift: SKILL.md description count = checks.md" "$n_skill" "$n_defined"
 eq "drift: help.md count = checks.md" "$n_help" "$n_defined"
 eq "drift: score denominator = checks.md" "$n_score" "$n_defined"
+# Judgment arity (issue #85): the usage line's j-list, the full-form `$# -eq`
+# arity and checks.md's mechanical-check list must add up to the check count.
+n_judged=$(sed -nE 's/^# Usage: skill_check\.sh <SKILL\.md-path> \[(j[0-9 j]*)\]$/\1/p' "$here/skill_check.sh" | wc -w | tr -d ' ')
+n_arity=$(sed -nE 's/^if \[ "\$#" -eq ([0-9]+) \]; then$/\1/p' "$here/skill_check.sh" | head -n1)
+n_mech=$(tr '\n' ' ' < "$skill_dir/references/checks.md" | sed -nE 's/.*extracts its own [a-z]+ mechanical checks \(([^)]*)\).*/\1/p' | grep -oE '[0-9]+' | wc -l | tr -d ' ')
+eq "drift: full-form arity = 1 + judged checks" "$n_arity" "$((n_judged + 1))"
+eq "drift: judged + mechanical checks = checks.md" "$((n_judged + n_mech))" "$n_defined"
 
 # ---------- mechanical-only mode: no score row without all eleven judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")

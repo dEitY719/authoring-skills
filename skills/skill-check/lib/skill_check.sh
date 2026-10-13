@@ -34,7 +34,7 @@
 # scope for this audit run -- that judgment call stays with the auditor; this
 # script only ever emits FAIL (key absent) or N/A (key present), never the
 # stale-entry WARN.
-# ponytail: $scan_files/$scripts/$port_files are built via unquoted word-splitting, so a
+# ponytail: $scan_files/$port_files are built via unquoted word-splitting, so a
 # path containing a space would break them. Every skill/file name in this
 # repo's marketplace convention is kebab-case with no spaces (naming-
 # convention.md), so this is accepted rather than reworked into a POSIX-sh
@@ -63,6 +63,8 @@ esac
 j2='' j3='' j4='' j5='' j6='' j7='' j8='' j9='' j10='' j12='' j19=''
 if [ "$#" -eq 12 ]; then
   shift
+  # An empty result would drop its row yet still count in the denominator.
+  for j; do [ -n "$j" ] || { echo "skill_check: judgment results must not be empty" >&2; exit 2; }; done
   j2=$1 j3=$2 j4=$3 j5=$4 j6=$5 j7=$6 j8=$7 j9=$8 j10=$9 j12=${10} j19=${11}
 elif [ "$#" -eq 11 ]; then
   echo "skill_check: got ten judgment results -- the pre-Check-19 form; append j19 (Credential-to-Network Flow) as the eleventh" >&2
@@ -309,7 +311,8 @@ helper_scan=$(scan_tree -H "$dir" \( -name tests -o -name __pycache__ -o -name .
 scripts=$(scanned "$helper_scan")
 net_hit=0
 hosts=''
-for s in $scripts; do
+# Newline-split, not word-split, so a helper path with a space is still scanned.
+while IFS= read -r s; do
   [ -f "$s" ] || continue
   # Exclude lines that assign a *_pattern = variable, spaced or not (this
   # file's own net_pattern definition line included) -- a helper quoting the
@@ -330,15 +333,17 @@ for s in $scripts; do
   # itself a Check 15 helper, and one would make skill-check flag itself.)
   for ui in "[^/?#@[:space:]\"']" '[A-Za-z0-9._~%:-]'; do
     hosts="$hosts
-$(printf '%s\n' "$body" | grep -oiE "https?://($ui*@)?[A-Za-z0-9.-]+" | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
+$(printf '%s\n' "$body" | grep -oiE "https?://($ui*@)?[A-Za-z0-9._-]+" | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
   done
-done
+done <<EOF
+$scripts
+EOF
 # Literal hosts the SKILL.md never names (scanner UNDECLARED_NETWORK_DESTINATION).
 # Loopback, the RFC 2606 example.{com,org,net} domains and dotless
 # placeholders (a URL whose host is just `host`, in a comment) are not destinations.
 # SKILL.md names a host only as a whole host-shaped token, so neither
 # `notacme.io` nor `sub.acme.io` counts as naming `acme.io`.
-named=$(grep -oE '[A-Za-z0-9][A-Za-z0-9.-]*' "$file" | sed 's/\.*$//' | tr '[:upper:]' '[:lower:]')
+named=$(grep -oE '[A-Za-z0-9_][A-Za-z0-9._-]*' "$file" | sed 's/\.*$//' | tr '[:upper:]' '[:lower:]')
 undeclared=''
 for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
   case $h in
@@ -356,8 +361,10 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
   # at a non-host character -- so sub.<host>, a /<host>/ path segment or a
   # bare mention elsewhere does not get the blame.
   hre=$(printf '%s' "$h" | sed 's/\./\\./g')
-  # shellcheck disable=SC2086 # $scripts is word-split on purpose (see header ponytail)
-  src=$(grep -liE -e "(//|@)$hre\\.?([^a-z0-9.-]|\$)" $scripts 2>/dev/null | sort | head -n 1)
+  src=$(printf '%s\n' "$scripts" | while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    grep -liE -e "(//|@)$hre\\.?([^a-z0-9._-]|\$)" "$s" 2>/dev/null || :
+  done | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }
