@@ -514,6 +514,55 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/attr/SKILL.md")" 15) in
 esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
+# ---------- issue #77: symlinked dirs inside a skill are reported, not followed ----------
+mkskill "$work/lnk/shared/refs/a.md" <<EOF
+Party $emoji here.
+EOF
+mkskill "$work/lnk/shared/lib/net.py" <<'EOF'
+import requests
+requests.get("https://api.acme.io/v1")
+EOF
+mkskill "$work/lnk/shared/scripts/run.sh" <<'EOF'
+#!/bin/sh
+echo hi
+EOF
+for k in reflink liblink scrlink; do
+  mkskill "$work/lnk/$k/SKILL.md" <<EOF
+---
+name: $k
+description: Symlinked-dir fixture.
+compatibility:
+  network: required
+---
+Calls nothing named here.
+EOF
+done
+ln -s ../shared/refs "$work/lnk/reflink/references"
+ln -s ../shared/lib "$work/lnk/liblink/lib"
+mkdir -p "$work/lnk/scrlink/lib"
+ln -s ../../shared/scripts "$work/lnk/scrlink/lib/scripts"
+ln -s ../shared/scripts "$work/lnk/scrlink/scripts"
+o=$(sh "$here/skill_check.sh" "$work/lnk/reflink/SKILL.md")
+case $(row "$o" 11) in PASS) no "lnk: 11 symlinked references/ is not PASS" PASS ;; *) ok "lnk: 11 symlinked references/ is not PASS" ;; esac
+case $(note "$o" 11) in
+  *'not followed'*references*) ok "lnk: 11 note names the skipped references link" ;;
+  *) no "lnk: 11 note names the skipped references link" "$(note "$o" 11)" ;;
+esac
+o=$(sh "$here/skill_check.sh" "$work/lnk/liblink/SKILL.md")
+eq "lnk: 15 symlinked lib/ with an undeclared host WARNs, not N/A" "$(row "$o" 15)" WARN
+case $(note "$o" 15) in
+  *'not followed'*lib*) ok "lnk: 15 note names the skipped lib link" ;;
+  *) no "lnk: 15 note names the skipped lib link" "$(note "$o" 15)" ;;
+esac
+o=$(sh "$here/skill_check.sh" "$work/lnk/scrlink/SKILL.md")
+case $(note "$o" 17) in
+  *'not followed'*'lib/scripts, scripts'*) ok "lnk: 17 note names the skipped scripts links (top-level and nested)" ;;
+  *) no "lnk: 17 note names the skipped scripts links (top-level and nested)" "$(note "$o" 17)" ;;
+esac
+eq "lnk: 17 symlinked scripts/ is not a silent PASS" "$(row "$o" 17)" WARN
+eq "lnk: 18 symlinked scripts/ is not a silent N/A" "$(row "$o" 18)" WARN
+eq "lnk: 11 a skill with no symlinked dir is untouched" "$(row "$(sh "$here/skill_check.sh" "$good")" 11)" PASS
+
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
 # ---------- Check 19: eleven judged results ----------
