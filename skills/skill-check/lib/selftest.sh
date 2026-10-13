@@ -500,12 +500,13 @@ case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
   *"api.acme.io (lib/net.py)"*) ok "host: 15 note names the undeclared host and its helper file" ;;
   *) no "host: 15 note names the undeclared host and its helper file" "missing api.acme.io (lib/net.py)" ;;
 esac
-# A helper that only calls sub.api.acme.io (named in SKILL.md) sorts first but
-# must not be blamed for api.acme.io: attribution matches the whole URL host.
+# A helper that only calls sub.api.acme.io (named in SKILL.md) or carries
+# api.acme.io as a path segment sorts first but must not be blamed for
+# api.acme.io: attribution matches the whole URL host.
 host attr lib/net.py 'Calls sub.api.acme.io.' >/dev/null
 mkskill "$work/host/attr/lib/a.sh" <<'EOF'
 #!/bin/sh
-curl -s https://sub.api.acme.io/v1
+curl -s https://sub.api.acme.io/v1 https://cdn.example.com/api.acme.io/x
 EOF
 case $(note "$(sh "$here/skill_check.sh" "$work/host/attr/SKILL.md")" 15) in
   *"api.acme.io (lib/net.py)"*) ok "host: 15 note blames the helper with the exact host, not a subdomain" ;;
