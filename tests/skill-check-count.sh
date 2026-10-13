@@ -10,6 +10,9 @@ cd "$root"
 
 n=$(grep -c '^#\{1,6\} Check [0-9][0-9]*:' skills/skill-check/references/checks.md || :)
 [ "$n" -gt 0 ] || { echo "FAIL no 'Check <N>:' headings in checks.md" >&2; exit 1; }
+# The helper's score denominator is the same count, in code rather than prose.
+grep -q "^total=\$(($n - na))\$" skills/skill-check/lib/skill_check.sh ||
+  { echo "FAIL skills/skill-check/lib/skill_check.sh: score denominator is not total=\$(($n - na))" >&2; exit 1; }
 
 # A line is cut at its first `sh-check`, whose own "ten criteria" share rows
 # and the codex longDescription with skill-check's count; in an HTML `<td>`
