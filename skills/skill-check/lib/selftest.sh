@@ -405,6 +405,7 @@ EOF
 }
 eq "host: 15 undocumented host WARNs" "$(host undoc lib/net.py 'Calls an API.')" WARN
 eq "host: 15 host named in SKILL.md PASSes" "$(host doc lib/net.py 'Calls api.acme.io.')" PASS
+eq "host: 15 a longer name containing the host does not count" "$(host substr lib/net.py 'Calls xapi.acme.io.')" WARN
 eq "host: 15 host in a nested package dir WARNs" "$(host nested acme/sub/constants.py 'Calls an API.')" WARN
 # The tests/ copy is pruned, so only a network-free helper is left: PASS, not N/A.
 mkskill "$work/host/intests/lib/ok.sh" <<'EOF'
@@ -426,6 +427,15 @@ mkskill "$work/host/local/lib/net.sh" <<'EOF'
 curl -s http://localhost:8080/ http://127.0.0.1/ https://example.com/ https://www.example.org/x
 EOF
 eq "host: 15 loopback/example-only hosts PASS" "$(row "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15)" PASS
+mkskill "$work/host/local/lib/auth.sh" <<'EOF'
+#!/bin/sh
+curl -s https://bob:tok@api.acme.io/v1
+EOF
+case $(note "$(sh "$here/skill_check.sh" "$work/host/local/SKILL.md")" 15) in
+  *bob*) no "host: 15 userinfo is stripped before the host" "user name reported as host" ;;
+  *api.acme.io*) ok "host: 15 userinfo is stripped before the host" ;;
+  *) no "host: 15 userinfo is stripped before the host" "api.acme.io missing" ;;
+esac
 case $(note "$(sh "$here/skill_check.sh" "$work/host/undoc/SKILL.md")" 15) in
   *api.acme.io*) ok "host: 15 note names the undeclared host" ;;
   *) no "host: 15 note names the undeclared host" "missing api.acme.io" ;;
