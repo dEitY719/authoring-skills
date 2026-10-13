@@ -27,7 +27,7 @@ expect() {
   fi
 }
 
-# fixture <name> <extra frontmatter YAML line> -> a minimal skill dir
+# fixture <name> <extra frontmatter YAML line(s)> -> a minimal skill dir
 fixture() {
   mkdir -p "$work/$1"
   printf -- '---\nname: demo\ndescription: Demo skill.\n%s\n---\nbody\n' "$2" > "$work/$1/SKILL.md"
