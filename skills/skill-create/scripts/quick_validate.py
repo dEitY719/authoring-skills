@@ -135,7 +135,9 @@ def validate_skill(skill_path):
                     f"allowed_domains entry {domain!r} is not a plain hostname "
                     "(ASCII labels only: no scheme, path, port, wildcard, whitespace or trailing dot; e.g. fonts.gstatic.com)"
                 )
-        # Check 3 pairs allowed_domains with `compatibility.network: required`.
+        # Check 3 pairs allowed_domains with `compatibility.network: required`;
+        # this script is deliberately stricter than Check 3's grading and
+        # fails an unpaired or empty allowlist outright.
         # A free-text compatibility string cannot be parsed reliably, so it is
         # left alone; a missing, empty or mapping-form compatibility is checked.
         if not (isinstance(compatibility, str) and compatibility.strip()):
