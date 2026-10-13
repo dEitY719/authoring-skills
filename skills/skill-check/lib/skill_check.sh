@@ -260,7 +260,9 @@ done
 undeclared=''
 for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
   case $h in
-    localhost|127.*|0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
+    localhost|0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
+    127.*[!0-9.]*) ;; # 127.evil.com is a real host, not loopback
+    127.*) continue ;;
   esac
   # -w: `acme.io` must not count as named just because `notacme.io` is.
   grep -qiwF -e "$h" "$file" || undeclared="$undeclared $h"
