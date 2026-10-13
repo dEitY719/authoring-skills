@@ -42,6 +42,9 @@ expect "wildcard fails" 1 "$(fixture wild 'allowed_domains: ["*.x.io"]')" "not a
 expect "port fails" 1 "$(fixture port 'allowed_domains: [example.com:443]')" "not a plain hostname"
 expect "whitespace fails" 1 "$(fixture space 'allowed_domains: ["a b.io"]')" "not a plain hostname"
 expect "non-string entry fails" 1 "$(fixture num 'allowed_domains: [42]')" "not a plain hostname"
+label63=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+expect "63-char label passes" 0 "$(fixture l63 "allowed_domains: [$label63.io]")"
+expect "64-char label fails" 1 "$(fixture l64 "allowed_domains: [${label63}a.io]")" "not a plain hostname"
 
 if [ "$fails" -ne 0 ]; then
   printf '%s check(s) failed\n' "$fails"
