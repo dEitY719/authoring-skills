@@ -9,6 +9,10 @@ from pathlib import Path
 
 import yaml
 
+# Dot-separated labels of letters, digits and inner hyphens: rejects `/`, `:`,
+# `*` and whitespace, so URLs, ports and wildcards cannot slip through.
+HOSTNAME_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*")
+
 
 def validate_skill(skill_path):
     """Basic validation of a skill"""
@@ -94,6 +98,19 @@ def validate_skill(skill_path):
                 return False, f"Compatibility is too long ({len(compatibility)} characters). Maximum is 500 characters."
         elif not isinstance(compatibility, dict):
             return False, f"Compatibility must be a string or mapping, got {type(compatibility).__name__}"
+
+    # Validate allowed_domains if present: a list of literal hostnames, the
+    # shape skill-check's Check 3 requires (no wildcards, no URLs, no ports).
+    if "allowed_domains" in frontmatter:
+        domains = frontmatter["allowed_domains"]
+        if not isinstance(domains, list):
+            return False, f"allowed_domains must be a list of hostnames, got {type(domains).__name__}"
+        for domain in domains:
+            if not isinstance(domain, str) or not HOSTNAME_RE.fullmatch(domain):
+                return False, (
+                    f"allowed_domains entry {domain!r} is not a plain hostname "
+                    "(no scheme, path, port, wildcard or whitespace; e.g. fonts.gstatic.com)"
+                )
 
     return True, "Skill is valid!"
 
