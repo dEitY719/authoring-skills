@@ -9,9 +9,11 @@ from pathlib import Path
 
 import yaml
 
-# Dot-separated labels of letters, digits and inner hyphens: rejects `/`, `:`,
-# `*` and whitespace, so URLs, ports and wildcards cannot slip through.
-HOSTNAME_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*")
+# Dot-separated labels (1-63 chars) of letters, digits and inner hyphens:
+# rejects `/`, `:`, `*` and whitespace, so URLs, ports and wildcards cannot
+# slip through. The 253-char total cap is checked at the call site.
+_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+HOSTNAME_RE = re.compile(rf"{_LABEL}(?:\.{_LABEL})*")
 
 
 def validate_skill(skill_path):
@@ -106,7 +108,7 @@ def validate_skill(skill_path):
         if not isinstance(domains, list):
             return False, f"allowed_domains must be a list of hostnames, got {type(domains).__name__}"
         for domain in domains:
-            if not isinstance(domain, str) or not HOSTNAME_RE.fullmatch(domain):
+            if not isinstance(domain, str) or len(domain) > 253 or not HOSTNAME_RE.fullmatch(domain):
                 return False, (
                     f"allowed_domains entry {domain!r} is not a plain hostname "
                     "(no scheme, path, port, wildcard or whitespace; e.g. fonts.gstatic.com)"
