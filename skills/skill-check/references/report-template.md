@@ -53,7 +53,7 @@ References dir: <exists / missing>
 
 Recommended tier: haiku — read-only audit, bounded output (declared: none yet)
 
-Score: 6/16 checks passed (7 warnings, 3 fails, 2 N/A)
+Score: 7/17 checks passed (7 warnings, 3 fails, 2 N/A)
 Verdict: NEEDS WORK — fix FAIL items before shipping
 
 ## Sub-skill Model Plan
