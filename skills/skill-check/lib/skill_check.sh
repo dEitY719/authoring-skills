@@ -34,12 +34,9 @@
 # scope for this audit run -- that judgment call stays with the auditor; this
 # script only ever emits FAIL (key absent) or N/A (key present), never the
 # stale-entry WARN.
-# ponytail: $scan_files/$port_files are built via unquoted word-splitting, so a
-# path containing a space would break them. Every skill/file name in this
-# repo's marketplace convention is kebab-case with no spaces (naming-
-# convention.md), so this is accepted rather than reworked into a POSIX-sh
-# array substitute. Upgrade path if that convention ever breaks: switch to
-# NUL-delimited `find -print0` and a `while IFS= read -r -d ''` loop.
+# File lists ($scan_files, $scripts, $port_files) are newline-delimited and
+# consumed either by a `while IFS= read -r` loop or by `IFS=<newline>; set -f;
+# set -- $list` (issue #85), so a path containing a space stays one path.
 
 set -eu
 
@@ -191,7 +188,8 @@ fm=$(awk '
 # find, not a bare */*.md glob -- also catches emoji in nested reference
 # subdirectories (codex PR #16 FOLLOW-UP).
 ref_scan=$(scan_tree "$refdir" -type f -name '*.md')
-scan_files="$file $(scanned "$ref_scan")"
+scan_files="$file
+$(scanned "$ref_scan")"
 ref_links=$(skipped "$ref_scan" "$dir/" "$refdir")
 # Portable (non-PCRE) stand-in for grep -P '[\x{1F000}-\x{1FAFF}\x{FE0F}]':
 # BSD/POSIX grep ships no -P at all, and GNU grep needs a PCRE build that
@@ -205,12 +203,16 @@ ref_links=$(skipped "$ref_scan" "$dir/" "$refdir")
 emoji_lead=$(printf '\360\237')
 emoji_vs16=$(printf '\357\270\217')
 emoji_hits=0
-for f in $scan_files; do
+# Newline-split, not word-split, so a reference file with a space in its path is still scanned.
+while IFS= read -r f; do
+  [ -f "$f" ] || continue
   # -o (occurrences), not -c (matching lines) -- a line with two glyphs must
   # count as two, not one (agy PR #16 BLOCKER, round 2).
   c=$( { LC_ALL=C grep -oF -e "$emoji_lead" -e "$emoji_vs16" "$f" 2>/dev/null || true; } | wc -l | tr -d ' ')
   emoji_hits=$((emoji_hits + c))
-done
+done <<EOF
+$scan_files
+EOF
 if [ "$emoji_hits" -eq 0 ]; then
   r11=PASS; n11='no emoji glyphs in body or references'
 else
@@ -342,8 +344,11 @@ EOF
 # Loopback, the RFC 2606 example.{com,org,net} domains and dotless
 # placeholders (a URL whose host is just `host`, in a comment) are not destinations.
 # SKILL.md names a host only as a whole host-shaped token, so neither
-# `notacme.io` nor `sub.acme.io` counts as naming `acme.io`.
-named=$(grep -oE '[A-Za-z0-9_][A-Za-z0-9._-]*' "$file" | sed 's/\.*$//' | tr '[:upper:]' '[:lower:]')
+# `notacme.io` nor `sub.acme.io` counts as naming `acme.io`. A host may carry
+# an underscore inside (my_svc.acme.io), but markdown `_emphasis_` wraps a
+# token in underscores that are not part of it, so wrapping ones are
+# stripped like a sentence-final dot.
+named=$(grep -oE '[A-Za-z0-9_][A-Za-z0-9._-]*' "$file" | sed -E 's/^_+//; s/[._]+$//' | tr '[:upper:]' '[:lower:]')
 undeclared=''
 for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
   case $h in
@@ -361,10 +366,12 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
   # at a non-host character -- so sub.<host>, a /<host>/ path segment or a
   # bare mention elsewhere does not get the blame.
   hre=$(printf '%s' "$h" | sed 's/\./\\./g')
-  src=$(printf '%s\n' "$scripts" | while IFS= read -r s; do
-    [ -n "$s" ] || continue
-    grep -liE -e "(//|@)$hre\\.?([^a-z0-9._-]|\$)" "$s" 2>/dev/null || :
-  done | sort | head -n 1)
+  # One grep over every helper: $scripts is split on newline only (IFS is a
+  # newline, globbing off) so a spaced path stays one argument.
+  # shellcheck disable=SC2086 # split on newline on purpose, see above
+  src=$(IFS='
+'; set -f; set -- $scripts; [ "$#" -gt 0 ] || exit 0
+    grep -liE -e "(//|@)$hre\\.?([^a-z0-9._-]|\$)" "$@" 2>/dev/null | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }
@@ -486,8 +493,12 @@ port_links=$(cd "$dir" && skipped "$port_scan_out" "" references lib scripts)
 # same file -- sibling skills put it in the prose paragraph or section
 # around the fence, rarely in the same blank-line paragraph.
 port_scan() {
-  # shellcheck disable=SC2086 # $port_files is word-split on purpose (see header ponytail)
-  (cd "$dir" && awk -v mode="$1" '
+  ps_mode=$1
+  # $port_files is split on newline only (IFS is a newline, globbing off) so a
+  # spaced path reaches awk as one file name.
+  # shellcheck disable=SC2086 # split on newline on purpose, see above
+  (cd "$dir" && IFS='
+' && set -f && set -- $port_files && awk -v mode="$ps_mode" '
     # Only a path naming a file (`name.ext`; callers drop `#anchor`) is a
     # bundle dependency; a bare `../..` or `../../.git` in prose is shell talk.
     function isfile(t) { return t ~ /[^.\/]\.[A-Za-z0-9]+$/ }
@@ -563,7 +574,7 @@ port_scan() {
       }
     }
     END { if (mode == "root") { flush(); if (uses) print "USES" } }
-  ' $port_files)
+  ' "$@")
 }
 
 # summarize <hits> -- first five hits joined by "; ", plus "(+N more)".

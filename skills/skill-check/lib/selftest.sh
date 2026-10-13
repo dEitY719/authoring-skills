@@ -545,24 +545,43 @@ esac
 ln -s "$work/host/undoc" "$work/host/undoc-link"
 eq "host: 15 a symlinked skill dir is still scanned" "$(row "$(sh "$here/skill_check.sh" "$work/host/undoc-link/SKILL.md")" 15)" WARN
 # Issue #85: a helper path with a space is still scanned (newline-split, not word-split).
-# Kept outside lib/references/scripts: Check 17/18's $port_files still word-splits (header ponytail).
 eq "host: 15 helper in a spaced path still WARNs" "$(host spaced 'acme/my pkg/net.py' 'Calls an API.')" WARN
 case $(note "$(sh "$here/skill_check.sh" "$work/host/spaced/SKILL.md")" 15) in
   *"api.acme.io (acme/my pkg/net.py)"*) ok "host: 15 note names the spaced helper path" ;;
   *) no "host: 15 note names the spaced helper path" "missing api.acme.io (acme/my pkg/net.py)" ;;
 esac
+# A spaced path under lib/ also reaches Checks 17/18's $port_files: the
+# word-split fragment `lib/my` once made awk fail and the whole report abort.
+host spacedlib 'lib/my pkg/net.py' 'Calls an API.' >/dev/null
+o=$(sh "$here/skill_check.sh" "$work/host/spacedlib/SKILL.md")
+case "$(row "$o" 15) $(note "$o" 15)" in
+  WARN*"api.acme.io (lib/my pkg/net.py)"*) ok "host: 15 helper in a spaced lib/ path is scanned" ;;
+  *) no "host: 15 helper in a spaced lib/ path is scanned" "$(row "$o" 15) $(note "$o" 15)" ;;
+esac
+eq "host: 17 a spaced lib/ path still yields a Check 17 row" "$(row "$o" 17)" PASS
+eq "host: 18 a spaced lib/ path still yields a Check 18 row" "$(row "$o" 18)" 'N/A'
+# ...and a spaced path under references/ reaches Check 11's $scan_files: an
+# emoji there was silently skipped (false PASS), not counted.
+mkskill "$work/host/spacedlib/references/my notes.md" <<EOF
+Party $emoji here.
+EOF
+eq "host: 11 emoji in a spaced references/ path is counted" "$(row "$(sh "$here/skill_check.sh" "$work/host/spacedlib/SKILL.md")" 11)" FAIL
 # Issue #85: an underscore in a host does not truncate it to a dotless prefix.
 host under lib/net.py 'Calls an API.' >/dev/null
 mkskill "$work/host/under/lib/net.py" <<'EOF'
 import requests
 requests.get("https://my_svc.acme.io/x")
 EOF
-case $(sh "$here/skill_check.sh" "$work/host/under/SKILL.md" | awk -F'\t' '$1 == 15 { print $2 " " $3 }') in
+d=$(sh "$here/skill_check.sh" "$work/host/under/SKILL.md")
+case "$(row "$d" 15) $(note "$d" 15)" in
   WARN*"my_svc.acme.io (lib/net.py)"*) ok "host: 15 a host with an underscore is checked whole" ;;
   *) no "host: 15 a host with an underscore is checked whole" "my_svc.acme.io (lib/net.py) not reported" ;;
 esac
 printf 'Calls my_svc.acme.io.\n' >> "$work/host/under/SKILL.md"
 eq "host: 15 SKILL.md naming an underscore host PASSes" "$(row "$(sh "$here/skill_check.sh" "$work/host/under/SKILL.md")" 15)" PASS
+# Markdown emphasis wraps a token in underscores that are not part of the host.
+eq "host: 15 SKILL.md naming the host in _emphasis_ PASSes" "$(host emph lib/net.py 'Calls _api.acme.io_ for data.')" PASS
+eq "host: 15 SKILL.md naming the host in __strong__ PASSes" "$(host strong lib/net.py 'Calls __api.acme.io__ for data.')" PASS
 # ---------- issue #77: symlinked dirs inside a skill are reported, not followed ----------
 mkskill "$work/lnk/shared/refs/a.md" <<EOF
 Party $emoji here.
@@ -693,6 +712,9 @@ n_arity=$(sed -nE 's/^if \[ "\$#" -eq ([0-9]+) \]; then$/\1/p' "$here/skill_chec
 n_mech=$(tr '\n' ' ' < "$skill_dir/references/checks.md" | sed -nE 's/.*extracts its own [a-z]+ mechanical checks \(([^)]*)\).*/\1/p' | grep -oE '[0-9]+' | wc -l | tr -d ' ')
 eq "drift: full-form arity = 1 + judged checks" "$n_arity" "$((n_judged + 1))"
 eq "drift: judged + mechanical checks = checks.md" "$((n_judged + n_mech))" "$n_defined"
+# The --help echo carries its own copy of the j-list; it must match the header.
+n_usage=$(sed -nE 's/^ *echo "usage: skill_check\.sh <SKILL\.md-path> \[(j[0-9 j]*)\]"$/\1/p' "$here/skill_check.sh" | wc -w | tr -d ' ')
+eq "drift: --help j-list = header j-list" "$n_usage" "$n_judged"
 
 # ---------- mechanical-only mode: no score row without all eleven judgments ----------
 solo=$(sh "$here/skill_check.sh" "$good")
