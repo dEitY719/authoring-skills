@@ -34,9 +34,14 @@ fixture() {
   printf '%s' "$work/$1"
 }
 
+# A valid allowed_domains needs its compatibility.network pairing (issue #82).
+net='compatibility: {network: required}'
+
 expect "skill-create itself validates" 0 "$here/.."
 expect "no allowed_domains is fine" 0 "$(fixture none '')"
-expect "hostname list passes" 0 "$(fixture list 'allowed_domains: [fonts.googleapis.com, localhost]')"
+expect "hostname list passes" 0 "$(fixture list "$net
+allowed_domains: [fonts.googleapis.com, localhost]")"
+expect "allowed_domains without compatibility fails" 1 "$(fixture nocompat 'allowed_domains: [x.io]')" "(no compatibility.network)"
 expect "scalar fails" 1 "$(fixture scalar 'allowed_domains: fonts.gstatic.com')" "must be a list"
 expect "URL fails" 1 "$(fixture url 'allowed_domains: [https://fonts.gstatic.com/css]')" "not a plain hostname"
 expect "wildcard fails" 1 "$(fixture wild 'allowed_domains: ["*.x.io"]')" "not a plain hostname"
@@ -44,10 +49,12 @@ expect "port fails" 1 "$(fixture port 'allowed_domains: [example.com:443]')" "no
 expect "whitespace fails" 1 "$(fixture space 'allowed_domains: ["a b.io"]')" "not a plain hostname"
 expect "non-string entry fails" 1 "$(fixture num 'allowed_domains: [42]')" "not a plain hostname"
 label63=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-expect "63-char label passes" 0 "$(fixture l63 "allowed_domains: [$label63.io]")"
+expect "63-char label passes" 0 "$(fixture l63 "$net
+allowed_domains: [$label63.io]")"
 expect "64-char label fails" 1 "$(fixture l64 "allowed_domains: [${label63}a.io]")" "not a plain hostname"
 expect "258-char hostname fails (253 cap)" 1 "$(fixture l254 "allowed_domains: [$label63.$label63.$label63.$label63.io]")" "not a plain hostname"
-expect "punycode IDN passes" 0 "$(fixture idn 'allowed_domains: [xn--mnchen-3ya.de]')"
+expect "punycode IDN passes" 0 "$(fixture idn "$net
+allowed_domains: [xn--mnchen-3ya.de]")"
 expect "empty string fails" 1 "$(fixture empty 'allowed_domains: [""]')" "not a plain hostname"
 expect "trailing dot fails" 1 "$(fixture dot 'allowed_domains: [example.com.]')" "not a plain hostname"
 expect "leading hyphen fails" 1 "$(fixture hyph 'allowed_domains: [-a.io]')" "not a plain hostname"
