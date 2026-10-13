@@ -579,6 +579,17 @@ case "$(row "$d" 15) $(note "$d" 15)" in
 esac
 printf 'Calls my_svc.acme.io.\n' >> "$work/host/under/SKILL.md"
 eq "host: 15 SKILL.md naming an underscore host PASSes" "$(row "$(sh "$here/skill_check.sh" "$work/host/under/SKILL.md")" 15)" PASS
+# ...and in a helper, emphasis around a URL must not glue `_` onto its host.
+host emphurl lib/net.py 'Calls an API.' >/dev/null
+mkskill "$work/host/emphurl/lib/net.py" <<'EOF'
+# see _https://api.acme.io_ for the schema
+EOF
+d=$(sh "$here/skill_check.sh" "$work/host/emphurl/SKILL.md")
+case "$(row "$d" 15) $(note "$d" 15)" in
+  *"acme.io_"*) no "host: 15 a trailing emphasis underscore is not part of the host" "$(note "$d" 15)" ;;
+  WARN*"api.acme.io (lib/net.py)"*) ok "host: 15 a trailing emphasis underscore is not part of the host" ;;
+  *) no "host: 15 a trailing emphasis underscore is not part of the host" "$(row "$d" 15) $(note "$d" 15)" ;;
+esac
 # Markdown emphasis wraps a token in underscores that are not part of the host.
 eq "host: 15 SKILL.md naming the host in _emphasis_ PASSes" "$(host emph lib/net.py 'Calls _api.acme.io_ for data.')" PASS
 eq "host: 15 SKILL.md naming the host in __strong__ PASSes" "$(host strong lib/net.py 'Calls __api.acme.io__ for data.')" PASS
@@ -711,7 +722,11 @@ n_judged=$(sed -nE 's/^# Usage: skill_check\.sh <SKILL\.md-path> \[(j[0-9 j]*)\]
 n_arity=$(sed -nE 's/^if \[ "\$#" -eq ([0-9]+) \]; then$/\1/p' "$here/skill_check.sh" | head -n1)
 n_mech=$(tr '\n' ' ' < "$skill_dir/references/checks.md" | sed -nE 's/.*extracts its own [a-z]+ mechanical checks \(([^)]*)\).*/\1/p' | grep -oE '[0-9]+' | wc -l | tr -d ' ')
 eq "drift: full-form arity = 1 + judged checks" "$n_arity" "$((n_judged + 1))"
-eq "drift: judged + mechanical checks = checks.md" "$((n_judged + n_mech))" "$n_defined"
+if [ "$n_mech" -gt 0 ]; then
+  eq "drift: judged + mechanical checks = checks.md" "$((n_judged + n_mech))" "$n_defined"
+else
+  no "drift: judged + mechanical checks = checks.md" "checks.md no longer says 'extracts its own <N> mechanical checks (...)'; update the n_mech pattern"
+fi
 # The --help echo carries its own copy of the j-list; it must match the header.
 n_usage=$(sed -nE 's/^ *echo "usage: skill_check\.sh <SKILL\.md-path> \[(j[0-9 j]*)\]"$/\1/p' "$here/skill_check.sh" | wc -w | tr -d ' ')
 eq "drift: --help j-list = header j-list" "$n_usage" "$n_judged"

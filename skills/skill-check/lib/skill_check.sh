@@ -350,7 +350,8 @@ EOF
 # stripped like a sentence-final dot.
 named=$(grep -oE '[A-Za-z0-9_][A-Za-z0-9._-]*' "$file" | sed -E 's/^_+//; s/[._]+$//' | tr '[:upper:]' '[:lower:]')
 undeclared=''
-for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' | sort -u); do
+# Trailing underscores are emphasis, not host (same as the named side above).
+for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed -E 's/_+$//; s/\.$//' | sort -u); do
   case $h in
     *.*) ;;
     *) continue ;;
@@ -371,7 +372,7 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
   # shellcheck disable=SC2086 # split on newline on purpose, see above
   src=$(IFS='
 '; set -f; set -- $scripts; [ "$#" -gt 0 ] || exit 0
-    grep -liE -e "(//|@)$hre\\.?([^a-z0-9._-]|\$)" "$@" 2>/dev/null | sort | head -n 1)
+    grep -liE -e "(//|@)$hre\\.?_*([^a-z0-9._-]|\$)" "$@" 2>/dev/null | sort | head -n 1)
   undeclared="$undeclared $h${src:+ (${src#"$dir"/})}"
 done
 undeclared=${undeclared# }
