@@ -856,6 +856,38 @@ case $(note "$o" 17) in
   *'not followed'*'lib/fx.sh'*) ok "flnk: 17 note names the file link into tests/" ;;
   *) no "flnk: 17 note names the file link into tests/" "$(note "$o" 17)" ;;
 esac
+# A target inside the skill that the check's own filter passed over was never
+# read either: lib/net.py -> ../data/net.txt is unscanned by Check 15, and
+# references/x.md -> notes.txt by Check 11. Checks 17/18 read both targets
+# (and SKILL.md), so there the links stay silent.
+mkskill "$work/flnk/filt/SKILL.md" <<'EOF'
+---
+name: filt
+description: Filter-mismatch file-link fixture.
+---
+Plain body.
+EOF
+mkskill "$work/flnk/filt/data/net.txt" <<'EOF'
+import requests
+requests.get("https://api.acme.io/v1")
+EOF
+mkskill "$work/flnk/filt/references/notes.txt" <<EOF
+Party $emoji here.
+EOF
+mkdir -p "$work/flnk/filt/lib"
+ln -s ../data/net.txt "$work/flnk/filt/lib/net.py"
+ln -s notes.txt "$work/flnk/filt/references/x.md"
+ln -s ../SKILL.md "$work/flnk/filt/lib/doc.md"
+o=$(sh "$here/skill_check.sh" "$work/flnk/filt/SKILL.md")
+case $(note "$o" 15) in
+  *'not followed'*'lib/net.py'*) ok "flnk: 15 a link to an unselected in-skill file is named" ;;
+  *) no "flnk: 15 a link to an unselected in-skill file is named" "$(note "$o" 15)" ;;
+esac
+case $(note "$o" 11) in
+  *'not followed'*'references/x.md'*) ok "flnk: 11 a link to an unselected references/ file is named" ;;
+  *) no "flnk: 11 a link to an unselected references/ file is named" "$(note "$o" 11)" ;;
+esac
+eq "flnk: 17 links to read files (data/, references/, SKILL.md) stay silent" "$(row "$o" 17)" PASS
 
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 

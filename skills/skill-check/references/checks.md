@@ -404,10 +404,13 @@ file that the check's own file filter selects (`*.md` for Check 11,
 unread target cannot show whether it is text), is named in that check's note
 (`symlink(s) not followed, unscanned: <path>`), and a PASS or N/A (Check 11's allowlisted N/A excepted)
 becomes WARN — content an installer that follows links would ship went
-unread. A link whose target lies inside a directory the same scan already
+unread. A dir link whose target lies inside a directory the same scan already
 walks (`lib/current -> v2`) is not reported: that content was read under its
-real path (`lib/alias.sh -> run.sh` likewise) — unless the target sits under a pruned directory (`lib/fx ->
-../tests/fx`, Checks 15, 17, 18): the scan never read it, so it is reported. The audited skill directory itself is still dereferenced (Check 15).
+real path. A file link is likewise not reported when its target is itself a
+file the scan read (`lib/alias.sh -> run.sh`); a target the filter passed over
+(`lib/net.py -> ../data/net.txt`, a self-test name) was never read, so its link
+is reported. So is a dir link whose target sits under a pruned directory
+(`lib/fx -> ../tests/fx`, Checks 15, 17, 18): the scan never read it. The audited skill directory itself is still dereferenced (Check 15).
 
 ### Check 17: Bundle Self-containment
 Extract every relative path token starting with `../` (after a `(`, backtick,
