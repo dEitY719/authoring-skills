@@ -237,7 +237,8 @@ net_pattern='requests|httpx|urllib|http\.client|socket|aiohttp|curl|wget|fetch\(
 # external scanners. Test trees, caches and vendored deps are pruned, and
 # self-test/fixture files are excluded -- they exercise capability words in
 # synthetic examples, not the skill's own runtime surface.
-scripts=$(find "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \) -prune \
+scripts=$(find "$dir" \( -name tests -o -name __pycache__ -o -name .git -o -name node_modules \
+  -o -name .venv -o -name venv -o -name site-packages \) -prune \
   -o -type f \( -name '*.sh' -o -name '*.py' \) ! -iname '*selftest*' ! -iname 'test_*' ! -iname '*_test.*' -print 2>/dev/null)
 net_hit=0
 hosts=''
@@ -250,8 +251,9 @@ for s in $scripts; do
   # variants like '_pattern =').
   body=$(grep -vE '_pattern[[:space:]]*=' "$s" 2>/dev/null || true)
   printf '%s\n' "$body" | grep -qE "$net_pattern" && net_hit=1
+  # Skip any user[:token]@ so the host, not the user name, is what gets checked.
   hosts="$hosts
-$(printf '%s\n' "$body" | grep -oE 'https?://[A-Za-z0-9.-]+' | sed -E 's|^https?://||')"
+$(printf '%s\n' "$body" | grep -oiE 'https?://([^/?#@[:space:]"]*@)?[A-Za-z0-9.-]+' | sed -E 's|^[A-Za-z]+://||; s|^.*@||')"
 done
 # Literal hosts the SKILL.md never names (scanner UNDECLARED_NETWORK_DESTINATION).
 # Loopback and the RFC 2606 example.{com,org,net} domains are not destinations.
@@ -260,7 +262,8 @@ for h in $(printf '%s\n' "$hosts" | tr '[:upper:]' '[:lower:]' | sed 's/\.$//' |
   case $h in
     localhost|127.*|0.0.0.0|example.com|example.org|example.net|*.example.com|*.example.org|*.example.net) continue ;;
   esac
-  grep -qiF "$h" "$file" || undeclared="$undeclared $h"
+  # -w: `acme.io` must not count as named just because `notacme.io` is.
+  grep -qiwF -e "$h" "$file" || undeclared="$undeclared $h"
 done
 undeclared=${undeclared# }
 # The compatibility: block only -- checking "network:" against the whole

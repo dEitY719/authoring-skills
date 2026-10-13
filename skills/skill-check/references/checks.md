@@ -251,7 +251,8 @@ Scan every `*.sh` / `*.py` anywhere under the skill directory, recursively —
 `lib/`, legacy `scripts/`, top-level files, and package directories such as
 `<pkg>/constants.py` alike — for network-capability signals and compare against
 the `compatibility.network` declaration. Skipped: `tests/`, `__pycache__/`,
-`.git/` and `node_modules/` directories, plus self-test/fixture files
+`.git/`, `node_modules/` and virtualenv (`.venv/`, `venv/`, `site-packages/`)
+directories, plus self-test/fixture files
 (`*selftest*`, `test_*`, `*_test.*`). 1st-scope is **network only** — the
 capability the external scanner actually flags
 (`TOOL_ABUSE_UNDECLARED_NETWORK`).
