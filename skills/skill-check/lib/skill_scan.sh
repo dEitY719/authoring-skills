@@ -66,7 +66,8 @@ parse_url() {
   # server gh knows: resolve it to its HostName. A host gh already knows stays
   # as is -- its HostName may be a transport detour (ssh.github.com:443), not
   # the API host (issue #91). Env tokens are blanked: gh hands them out for any
-  # host name, so they would make every alias look logged in.
+  # host name, so they would make every alias look logged in. github.com is
+  # kept even when gh is not logged in to it, where the token check would fail.
   case $1 in
     http://*|https://*) ;;
     *) if [ "$h" != github.com ] && ! GH_TOKEN='' GITHUB_TOKEN='' GH_ENTERPRISE_TOKEN='' GITHUB_ENTERPRISE_TOKEN='' \

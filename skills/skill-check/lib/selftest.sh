@@ -571,7 +571,8 @@ printf 'Host github.com\n  HostName ssh.github.com\n  Port 443\nHost github.com-
 # Like real gh, the stub hands an env token out for any host name.
 cat > "$work/gh-hosts" <<'EOF'
 #!/bin/sh
-[ -n "$GH_ENTERPRISE_TOKEN" ] || [ "$*" = "auth token --hostname ghe.known.example" ]
+[ -n "$GH_TOKEN$GITHUB_TOKEN$GH_ENTERPRISE_TOKEN$GITHUB_ENTERPRISE_TOKEN" ] ||
+  [ "$*" = "auth token --hostname ghe.known.example" ]
 EOF
 chmod +x "$work/gh-hosts"
 export SKILL_CHECK_SSH_CONFIG="$work/ssh_config" SKILL_CHECK_GH="$work/gh-hosts"
@@ -601,7 +602,10 @@ eq "scan: parse https form" "$(sh "$scan" parse-url https://example.com/o/r.git)
 eq "scan: github.com kept despite HostName ssh.github.com" "$(sh "$scan" parse-url git@github.com:o/r.git)" "$(printf 'github.com\to/r')"
 eq "scan: ssh alias resolves to its HostName" "$(sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
 eq "scan: gh-logged-in host kept despite HostName" "$(sh "$scan" parse-url ssh://git@ghe.known.example/o/r)" "$(printf 'ghe.known.example\to/r')"
-eq "scan: an env token does not hide an alias" "$(GH_ENTERPRISE_TOKEN=x sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+for v in GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN; do
+  eq "scan: $v does not hide an alias" "$(env "$v=x" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+done
+eq "scan: alias resolves when gh is missing" "$(SKILL_CHECK_GH="$work/no-gh" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
 eq "scan: parse rejects a host that reads as an option" "$(rc sh "$scan" parse-url git@-oFoo:o/r)" 2
 eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
 
