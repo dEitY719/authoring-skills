@@ -46,8 +46,12 @@ def validate_skill(skill_path):
     except yaml.YAMLError as e:
         return False, f"Invalid YAML in frontmatter: {e}"
 
-    # Define allowed properties
-    ALLOWED_PROPERTIES = {"name", "description", "license", "allowed-tools", "metadata", "compatibility", "allowed_domains"}
+    # Define allowed properties. user-invocable, argument-hint and
+    # disable-model-invocation mirror skill-check Check 3's known attributes.
+    ALLOWED_PROPERTIES = {
+        "name", "description", "license", "allowed-tools", "metadata", "compatibility", "allowed_domains",
+        "user-invocable", "argument-hint", "disable-model-invocation",
+    }
 
     # Check for unexpected properties (excluding nested keys under metadata)
     unexpected_keys = set(frontmatter.keys()) - ALLOWED_PROPERTIES
