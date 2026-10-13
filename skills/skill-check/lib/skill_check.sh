@@ -196,11 +196,14 @@ bundle_prune_re=$(printf '%s\n' $bundle_prune_names | sed 's/[.]/[.]/g' | paste 
 
 # skipped [-p] <scan_tree-output> <prefix> [root]... -- the skipped links as one
 # comma-separated list, <prefix> stripped, sorted (find walks in readdir
-# order, which differs across filesystems); empty when none. A link (to a dir
-# or a file) whose target lies inside one of the scan's own non-symlink
-# <root>s is dropped:
-# that content was already scanned under its real path (`lib/current -> v2`).
-# -p: the scan was a bundle_scan, so a target under a pruned dir (`tests/`)
+# order, which differs across filesystems); empty when none. A link already
+# covered is dropped: a dir link whose target lies inside one of the scan's own
+# non-symlink <root>s (`lib/current -> v2`), and a file link whose target is
+# itself one of the scan's `F` files (`lib/alias.sh -> run.sh`) -- that content
+# was read under its real path. A file target the filter did not select
+# (`lib/net.py -> ../data/net.txt`, a self-test name, a pruned dir) was never
+# read, so its link is still reported.
+# -p: the scan was a bundle_scan, so a dir target under a pruned dir (`tests/`)
 # was never read and its link is still reported.
 skipped() {
   sk_re=''
@@ -212,11 +215,23 @@ skipped() {
     sk_r=$(real "$sk_r") && [ -n "$sk_r" ] && sk_roots="$sk_roots$sk_r
 "
   done
+  sk_files='' sk_fdone=''
   printf '%s\n' "$sk_out" | awk -F'\t' '$1 == "L" { print $2 }' | while IFS= read -r sk_l; do
-    sk_t=$(real_target "$sk_l")
-    printf '%s' "$sk_roots" | awk -v t="$sk_t/" -v re="$sk_re" '
-      index(t, $0 "/") == 1 && (re == "" || substr(t, length($0) + 1) !~ re) { f = 1 }
-      END { exit !f }' && continue
+    sk_t=$(real_target "$sk_l") || sk_t=''
+    if [ -d "$sk_l" ]; then
+      printf '%s' "$sk_roots" | awk -v t="$sk_t/" -v re="$sk_re" '
+        index(t, $0 "/") == 1 && (re == "" || substr(t, length($0) + 1) !~ re) { f = 1 }
+        END { exit !f }' && continue
+    elif [ -n "$sk_t" ]; then
+      # The scanned files' physical paths, resolved once, on the first file link.
+      [ -n "$sk_fdone" ] || {
+        # `|| :` -- under set -e a failed lookup must not end this loop early.
+        sk_files=$(scanned "$sk_out" | while IFS= read -r sk_f; do
+          [ -z "$sk_f" ] || real_target "$sk_f" || :; done)
+        sk_fdone=1
+      }
+      printf '%s\n' "$sk_files" | grep -qxF -- "$sk_t" && continue
+    fi
     printf '%s\n' "${sk_l#"$sk_pre"}"
   done | LC_ALL=C sort | awk '{ s = s (s == "" ? "" : ", ") $0 } END { print s }'
 }
@@ -535,7 +550,9 @@ port_files=$(
   cd "$dir" && printf 'SKILL.md\n%s\n' "$(scanned "$port_scan_out")" | awk 'NF' |
     tr '\n' '\0' | xargs -0 grep -Il -e . -- | sort
 )
-port_links=$(cd "$dir" && skipped -p "$port_scan_out" "" .)
+# SKILL.md heads the read set but not the scan, so it is added as an `F` file:
+# a file link to it was read and is not reported.
+port_links=$(cd "$dir" && skipped -p "$(printf 'F\tSKILL.md\n%s' "$port_scan_out")" "" .)
 
 # port_scan <mode> -- one awk pass over $port_files, run from $dir.
 #   mode=escape: print `file:line -> path` for every `../` token (after a
