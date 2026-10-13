@@ -61,7 +61,7 @@ function report(got) {
   t = " " s
   while (match(t, "[^a-z-]" words noun)) {
     m = substr(t, RSTART + 1, RLENGTH - 1)
-    sub(/[ -](structure|checks?|criteria|check definitions|total).*$/, "", m)
+    sub(noun ".*$", "", m)
     report(num[m] + 0)
     t = substr(t, RSTART + RLENGTH)
   }
