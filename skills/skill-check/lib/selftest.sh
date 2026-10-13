@@ -9,7 +9,9 @@ set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+# The i87 unreadable-subdir fixture is mode 000 while it runs; restore it first
+# so an interrupt there cannot leave an undeletable temp dir behind.
+trap 'chmod u+rwx "$work/unread/build" 2>/dev/null; rm -rf "$work"' EXIT
 fails=0
 
 ok() { printf 'ok   %s\n' "$1"; }
@@ -615,9 +617,10 @@ EOF
 eq "i87: 15 host... matches the host SKILL.md names" "$(row "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15)" PASS
 sed 's/Calls api.acme.io for data./Calls an API./' "$work/host/ellip/SKILL.md" > "$work/host/ellip/SKILL.md.new"
 mv "$work/host/ellip/SKILL.md.new" "$work/host/ellip/SKILL.md"
-case $(note "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15) in
+o=$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")
+case $(note "$o" 15) in
   *"api.acme.io (lib/net.sh)"*) ok "i87: 15 an undeclared host... is named without its dots" ;;
-  *) no "i87: 15 an undeclared host... is named without its dots" "$(note "$(sh "$here/skill_check.sh" "$work/host/ellip/SKILL.md")" 15)" ;;
+  *) no "i87: 15 an undeclared host... is named without its dots" "$(note "$o" 15)" ;;
 esac
 # Finding 6: the Check 17/18 scan set is recursive, as Check 15's is -- a
 # helper at <pkg>/run.sh is part of the bundle; a tests/ copy is still pruned.
@@ -753,9 +756,33 @@ o=$(sh "$here/skill_check.sh" "$work/lnk/quiet/SKILL.md")
 eq "lnk: 15 links inside the skill / dangling stay silent" "$(row "$o" 15)" PASS
 eq "lnk: 17 links inside the skill / dangling stay silent" "$(row "$o" 17)" PASS
 eq "lnk: 18 links inside the skill / dangling stay silent" "$(row "$o" 18)" 'N/A'
-# Check 15 prunes node_modules/ before the link test; 17/18 do not prune it.
+# Checks 15 and 17/18 share one prune list (issue #87): node_modules/ is
+# pruned before the link test, so the link itself is never met.
 ln -s ../../shared/lib "$work/lnk/quiet/node_modules"
-eq "lnk: 15 a link under a pruned name stays silent" "$(row "$(sh "$here/skill_check.sh" "$work/lnk/quiet/SKILL.md")" 15)" PASS
+o=$(sh "$here/skill_check.sh" "$work/lnk/quiet/SKILL.md")
+eq "lnk: 15 a link under a pruned name stays silent" "$(row "$o" 15)" PASS
+eq "lnk: 17 a link under a pruned name stays silent" "$(row "$o" 17)" PASS
+# A link INTO a pruned dir is not "already scanned": the scan never read its
+# target, so it is reported even though the target lies inside the skill.
+mkskill "$work/lnk/intotests/SKILL.md" <<'EOF'
+---
+name: intotests
+description: Link-into-pruned-dir fixture.
+---
+EOF
+mkskill "$work/lnk/intotests/tests/fx/run.sh" <<'EOF'
+#!/bin/sh
+echo hi
+EOF
+mkdir -p "$work/lnk/intotests/lib"
+ln -s ../tests/fx "$work/lnk/intotests/lib/fx"
+o=$(sh "$here/skill_check.sh" "$work/lnk/intotests/SKILL.md")
+eq "lnk: 15 a link into a pruned tests/ dir WARNs" "$(row "$o" 15)" WARN
+eq "lnk: 17 a link into a pruned tests/ dir WARNs" "$(row "$o" 17)" WARN
+case $(note "$o" 17) in
+  *'not followed'*'lib/fx'*) ok "lnk: 17 note names the link into tests/" ;;
+  *) no "lnk: 17 note names the link into tests/" "$(note "$o" 17)" ;;
+esac
 
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
