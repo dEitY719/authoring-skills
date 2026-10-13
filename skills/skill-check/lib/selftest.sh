@@ -543,13 +543,13 @@ mkdir -p "$work/lnk/scrlink/lib"
 ln -s ../../shared/scripts "$work/lnk/scrlink/lib/scripts"
 ln -s ../shared/scripts "$work/lnk/scrlink/scripts"
 o=$(sh "$here/skill_check.sh" "$work/lnk/reflink/SKILL.md")
-case $(row "$o" 11) in PASS) no "lnk: 11 symlinked references/ is not PASS" PASS ;; *) ok "lnk: 11 symlinked references/ is not PASS" ;; esac
+eq "lnk: 11 symlinked references/ is WARN, not a silent PASS" "$(row "$o" 11)" WARN
 case $(note "$o" 11) in
   *'not followed'*references*) ok "lnk: 11 note names the skipped references link" ;;
   *) no "lnk: 11 note names the skipped references link" "$(note "$o" 11)" ;;
 esac
 o=$(sh "$here/skill_check.sh" "$work/lnk/liblink/SKILL.md")
-eq "lnk: 15 symlinked lib/ with an undeclared host WARNs, not N/A" "$(row "$o" 15)" WARN
+eq "lnk: 15 symlinked lib/ (its helpers unscanned) WARNs, not N/A" "$(row "$o" 15)" WARN
 case $(note "$o" 15) in
   *'not followed'*lib*) ok "lnk: 15 note names the skipped lib link" ;;
   *) no "lnk: 15 note names the skipped lib link" "$(note "$o" 15)" ;;
