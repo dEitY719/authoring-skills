@@ -267,8 +267,9 @@ snapshot() {
 # --snapshot the working tree is audited; with it, the target's default branch.
 emit() {
   top=$1; sub=${2#"$1"}; only=${3:-}
-  t=$(target "$top")
-  host=$(printf '%s' "$t" | cut -f1); repo=$(printf '%s' "$t" | cut -f2); src=$(printf '%s' "$t" | cut -f3)
+  IFS="$tab" read -r host repo src <<EOF
+$(target "$top")
+EOF
   root=$top; ref=worktree
   if [ "$snap" = 1 ] && [ "$src" != none ]; then
     root=$(mktemp -d "$tmp/snap.XXXXXX")
