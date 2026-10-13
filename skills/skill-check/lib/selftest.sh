@@ -630,6 +630,11 @@ eq "key: bare <skill> without one" "$(sh "$scan" key "$work/t/none/skills/s/SKIL
 # ---------- snapshot: a dirty feature branch never reaches the issue ----------
 git init -q --bare -b main "$work/snap/up.git"
 repo "$work/snap/local" upstream "$work/snap/up.git"
+# export-ignore must not strip the snapshot (git archive would honour it).
+mkskill "$work/snap/local/skills/s/references/r.md" </dev/null
+printf 'skills/s/references export-ignore\n' > "$work/snap/local/.gitattributes"
+git -C "$work/snap/local" add -A
+git -C "$work/snap/local" commit -q -m refs
 git -C "$work/snap/local" push -q upstream main
 git -C "$work/snap/local" fetch -q upstream
 git -C "$work/snap/local" remote set-head upstream main
@@ -648,6 +653,9 @@ eq "snapshot: audited file is the default-branch copy" "$(grep -c LOCAL-ONLY "$(
 eq "snapshot: working tree untouched" "$(grep -c LOCAL-ONLY "$work/snap/local/skills/s/SKILL.md")" 2
 o=$(sh "$scan" scan single "$work/snap/local/skills/s/SKILL.md" --snapshot --tmp "$st" 2>/dev/null)
 eq "snapshot: single mode maps into the snapshot" "$(grep -c LOCAL-ONLY "$(col "$o" 2)" || true)" 0
+eq "snapshot: export-ignore paths are kept" "$(test -f "$(dirname "$(col "$o" 2)")/references/r.md" && echo yes)" yes
+# No manifest in the repo: the key walk-up stops at the snapshot root.
+eq "snapshot: key walk-up stops at the snapshot root" "$(sh "$scan" key "$(col "$o" 2)")" s
 eq "snapshot: --snapshot without --tmp is usage" "$(rc sh "$scan" scan dir "$work/snap/local" --snapshot)" 2
 mkskill "$work/snap/local/extra/skills/e/SKILL.md" </dev/null
 o=$(sh "$scan" scan dir "$work/snap/local/extra" --snapshot --tmp "$st" 2>/dev/null)
@@ -690,6 +698,7 @@ case $(sh "$scan" args "$good" --recursive 2>&1 || true) in
 esac
 eq "args: old <path> --recursive exits 2" "$(rc sh "$scan" args "$good" --recursive)" 2
 eq "args: --recursive <file> exits 2" "$(rc sh "$scan" args --recursive "$good")" 2
+eq "args: --recursive <skill dir> exits 2" "$(rc sh "$scan" args --recursive "$(dirname "$good")")" 2
 
 # ---------- resolve: path, local checkout, installed plugin, flat link ----------
 rs="$work/res"
@@ -723,6 +732,25 @@ eq "resolve: bare name in an installed plugin" "$(res bar)" "inst/gamma/skills/b
 eq "resolve: flat skill link" "$(res baz)" "home/.claude/skills/baz/SKILL.md"
 eq "resolve: a directory means its SKILL.md" "$(res "$rs/cwd/p1/skills/s")" "cwd/p1/skills/s/SKILL.md"
 eq "resolve: unknown name" "$(rc in_rs sh "$scan" resolve nope)" 2
+# Two checkouts of one manifest-less repo are one candidate, not ambiguous.
+repo "$rs/cwd/p3" origin git@example.com:o/p3.git
+mkskill "$rs/cwd/p3/skills/solo/SKILL.md" </dev/null
+git -C "$rs/cwd/p3" add -A && git -C "$rs/cwd/p3" commit -q -m solo
+git -C "$rs/cwd/p3" worktree add -q "$rs/cwd/p3-claude-1" 2>/dev/null
+eq "resolve: worktree of a manifest-less repo is not ambiguous" "$(res solo)" "cwd/p3/skills/solo/SKILL.md"
+
+# ---------- key matches Check 11's allowlist key (two copies of one rule) ----------
+mkskill "$work/k/.claude-plugin/plugin.json" <<'EOF'
+{"name": "kp"}
+EOF
+mkskill "$work/k/skills/ks/SKILL.md" <<EOF
+---
+name: ks
+description: Key fixture $emoji
+---
+EOF
+eq "key: same key as skill_check.sh Check 11" "$(sh "$scan" key "$work/k/skills/ks/SKILL.md")" \
+  "$(note "$(sh "$here/skill_check.sh" "$work/k/skills/ks/SKILL.md")" 11 | sed -n "s/.*key '\([^']*\)'.*/\1/p")"
 
 # ---------- file_issue.sh against a stub gh ----------
 stub="$work/stub"; mkdir -p "$stub"

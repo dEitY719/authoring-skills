@@ -19,7 +19,8 @@
 #       mode) or worktree. A status row has skill_md "-", target_source dup or
 #       skip, and the reason in snapshot_ref. repo mode and --snapshot need
 #       --tmp: a directory the caller made with mktemp and deletes afterwards.
-#       repo mode with --snapshot clones a fork's parent, the issue target.
+#       repo mode with --snapshot clones a fork's parent, the issue target;
+#       without it no gh call is made and target_source is origin.
 #   skill_scan.sh parse-url <git-url>    print host<TAB>owner/repo
 #   skill_scan.sh key <SKILL.md>         print the dedup key <plugin>:<skill>
 #
@@ -58,6 +59,13 @@ parse_url() {
   esac
   p=${p%/}; p=${p%.git}
   case $h in ''|*/*) return 1 ;; esac
+  # An ssh host alias (git@github.com-work:o/r) names a Host block, not a
+  # server gh knows: resolve it to its HostName.
+  case $1 in
+    http://*|https://*) ;;
+    *) a=$(ssh -G "$h" 2>/dev/null | awk '$1 == "hostname" { print $2; exit }') || a=
+       [ -z "$a" ] || h=$a ;;
+  esac
   case $p in */*/*|/*|*/) return 1 ;; ?*/?*) ;; *) return 1 ;; esac
   printf '%s\t%s\n' "$h" "$p"
 }
@@ -110,11 +118,11 @@ args() {
         esac
         shift 2 ;;
       -R|--recursive)
-        # No value, or a file where a root dir belongs, is the pre-rename
+        # No value, or a SKILL.md / skill dir where a root dir belongs, is the pre-rename
         # `<path> --recursive` form -- say so instead of a bare usage error.
         if [ $# -lt 2 ]; then die "$migrate"; fi
         case $2 in -*|'') die "$migrate" ;; esac
-        [ ! -f "$2" ] || die "$migrate"
+        if [ -f "$2" ] || [ -f "$2/SKILL.md" ]; then die "$migrate"; fi
         [ -d "$2" ] || die "$1: not a directory: $2"
         set_mode recursive "$2"; shift 2 ;;
       --issue) set_issue on; shift ;;
@@ -199,7 +207,10 @@ $(child_repos .)"
     [ -f "$f" ] || continue
     p=$(plugin_name "$r")
     [ -z "$plugin" ] || [ "$p" = "$plugin" ] || continue
-    printf '%s\t%s\n' "${p:-$(basename "$r")}" "$f"
+    # No manifest: the origin URL identifies the repo, so two checkouts of it
+    # still count as one candidate.
+    [ -n "$p" ] || p=$(git -C "$r" remote get-url origin 2>/dev/null) || p=$(basename "$r")
+    printf '%s\t%s\n' "$p" "$f"
   done | pick "$a") || rc=$?
   hit $rc && return
 
@@ -249,11 +260,22 @@ target() {
 snapshot() {
   stale=
   git -C "$1" fetch --quiet "$2" 2>/dev/null || stale=1
+  # Default branch: the remote-tracking HEAD (absent after a plain
+  # `remote add` + fetch), then the server's HEAD symref, then gh.
   b=$(git -C "$1" symbolic-ref --short "refs/remotes/$2/HEAD" 2>/dev/null) ||
-    b=$2/$(GH_HOST=$3 "$GH" repo view "$4" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null) ||
-    return 1
+    b=$2/$(git -C "$1" ls-remote --symref "$2" HEAD 2>/dev/null |
+      awk '$1 == "ref:" { sub("refs/heads/", "", $2); print $2; exit }') ||
+    b=
+  case $b in ''|*/) b=$2/$(GH_HOST=$3 "$GH" repo view "$4" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null) || return 1 ;; esac
   sha=$(git -C "$1" rev-parse --verify -q "$b^{commit}") || return 1
-  git -C "$1" archive "$sha" | tar -x -C "$5" || return 1
+  # Through a private index rather than `git archive | tar`: archive honours
+  # export-ignore (a snapshot missing references/ would fail Checks 2/4) and
+  # its failure hides behind tar's exit status.
+  GIT_INDEX_FILE=$5.idx git -C "$1" read-tree "$sha" || return 1
+  GIT_INDEX_FILE=$5.idx git -C "$1" checkout-index -a --prefix="$5/" || return 1
+  # Stand-in repo root: walk-ups (dedup key, Checks 11/14) stop here instead of
+  # climbing into the temp dir's parents.
+  mkdir "$5/.git" || return 1
   ref="$b@$(git -C "$1" rev-parse --short "$sha")"
   if [ -n "$stale" ]; then
     when=$(git -C "$1" log -1 --format=%cs "$sha")
@@ -339,7 +361,9 @@ $k$tab$c"
       t=$(parse_url "$tgt") || die "not a git URL: $tgt"
       host=$(printf '%s' "$t" | cut -f1); repo=$(printf '%s' "$t" | cut -f2)
       # A fresh clone has no upstream remote: a fork parent stands in for it.
-      parent=$(GH_HOST=$host "$GH" repo view "$repo" --json parent \
+      # Only an issue-filing (--snapshot) run needs the target, and the gh call.
+      parent=
+      [ "$snap" = 0 ] || parent=$(GH_HOST=$host "$GH" repo view "$repo" --json parent \
         --jq 'if .parent then .parent.owner.login + "/" + .parent.name else "" end' 2>/dev/null || true)
       url=$tgt; src=origin
       if [ -n "$parent" ]; then
