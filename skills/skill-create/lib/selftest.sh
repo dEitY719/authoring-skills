@@ -64,6 +64,7 @@ expect "mapping compatibility with network: required passes" 0 "$(fixture netreq
 expect "mapping compatibility without network fails" 1 "$(fixture nonet "$(printf 'compatibility:\n  tools: [python3]\nallowed_domains: [x.io]')")" "requires compatibility.network: required"
 expect "mapping compatibility with other network value fails" 1 "$(fixture netopt "$(printf 'compatibility:\n  network: optional\nallowed_domains: [x.io]')")" "got network: 'optional'"
 expect "string compatibility skips pairing" 0 "$(fixture netstr "$(printf 'compatibility: needs python3\nallowed_domains: [x.io]')")"
+expect "whitespace-only compatibility does not skip pairing" 1 "$(fixture netws "$(printf 'compatibility: "  "\nallowed_domains: [x.io]')")" "(no compatibility.network)"
 expect "user-invocable key passes" 0 "$(fixture uinv 'user-invocable: false')"
 expect "argument-hint key passes" 0 "$(fixture ahint 'argument-hint: "<n>"')"
 expect "disable-model-invocation key passes" 0 "$(fixture dmi 'disable-model-invocation: true')"
