@@ -568,7 +568,12 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com GIT_COMMITTER_NAME=t GIT
 # parse_url reads this ssh config, not ~/.ssh/config, and asks this gh which
 # hosts it is logged in to (only ghe.known.example), so no developer setup leaks in.
 printf 'Host github.com\n  HostName ssh.github.com\n  Port 443\nHost github.com-work\n  HostName github.com\nHost ghe.known.example\n  HostName ssh.ghe.known.example\n' > "$work/ssh_config"
-printf '#!/bin/sh\n[ "$*" = "auth token --hostname ghe.known.example" ]\n' > "$work/gh-hosts"; chmod +x "$work/gh-hosts"
+# Like real gh, the stub hands an env token out for any host name.
+cat > "$work/gh-hosts" <<'EOF'
+#!/bin/sh
+[ -n "$GH_ENTERPRISE_TOKEN" ] || [ "$*" = "auth token --hostname ghe.known.example" ]
+EOF
+chmod +x "$work/gh-hosts"
 export SKILL_CHECK_SSH_CONFIG="$work/ssh_config" SKILL_CHECK_GH="$work/gh-hosts"
 # rc <cmd...> -- exit status of a command, never tripping set -e.
 rc() { "$@" >/dev/null 2>&1 && echo 0 || echo $?; }
@@ -596,6 +601,8 @@ eq "scan: parse https form" "$(sh "$scan" parse-url https://example.com/o/r.git)
 eq "scan: github.com kept despite HostName ssh.github.com" "$(sh "$scan" parse-url git@github.com:o/r.git)" "$(printf 'github.com\to/r')"
 eq "scan: ssh alias resolves to its HostName" "$(sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
 eq "scan: gh-logged-in host kept despite HostName" "$(sh "$scan" parse-url ssh://git@ghe.known.example/o/r)" "$(printf 'ghe.known.example\to/r')"
+eq "scan: an env token does not hide an alias" "$(GH_ENTERPRISE_TOKEN=x sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+eq "scan: parse rejects a host that reads as an option" "$(rc sh "$scan" parse-url git@-oFoo:o/r)" 2
 eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
 
 # ---------- issue target: upstream first, origin fallback, none ----------

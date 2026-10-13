@@ -60,14 +60,17 @@ parse_url() {
     *) return 1 ;;
   esac
   p=${p%/}; p=${p%.git}
-  case $h in ''|*/*) return 1 ;; esac
+  # A leading - would reach ssh/gh as an option.
+  case $h in ''|*/*|-*) return 1 ;; esac
   # An ssh host alias (git@github.com-work:o/r) names a Host block, not a
   # server gh knows: resolve it to its HostName. A host gh already knows stays
   # as is -- its HostName may be a transport detour (ssh.github.com:443), not
-  # the API host (issue #91).
+  # the API host (issue #91). Env tokens are blanked: gh hands them out for any
+  # host name, so they would make every alias look logged in.
   case $1 in
     http://*|https://*) ;;
-    *) if [ "$h" != github.com ] && ! "$GH" auth token --hostname "$h" >/dev/null 2>&1; then
+    *) if [ "$h" != github.com ] && ! GH_TOKEN='' GITHUB_TOKEN='' GH_ENTERPRISE_TOKEN='' GITHUB_ENTERPRISE_TOKEN='' \
+           "$GH" auth token --hostname "$h" >/dev/null 2>&1; then
          a=$(ssh ${SKILL_CHECK_SSH_CONFIG:+-F "$SKILL_CHECK_SSH_CONFIG"} -G "$h" 2>/dev/null |
            awk '$1 == "hostname" { print $2; exit }') || a=
          [ -z "$a" ] || h=$a
