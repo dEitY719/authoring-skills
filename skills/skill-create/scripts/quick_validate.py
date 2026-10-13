@@ -23,7 +23,8 @@ ALLOWED_PROPERTIES = frozenset({
     "name", "description", "license", "allowed-tools", "metadata", "compatibility", "allowed_domains",
     "user-invocable", "argument-hint", "disable-model-invocation",
 })
-# Value types the harness expects for the invocation-control keys.
+# Claude Code's invocation-control keys (other harnesses ignore them) take a
+# YAML boolean.
 BOOL_PROPERTIES = ("user-invocable", "disable-model-invocation")
 
 
@@ -115,12 +116,8 @@ def validate_skill(skill_path):
     # skill meant to be hidden would silently stay invocable.
     for key in BOOL_PROPERTIES:
         if key in frontmatter and not isinstance(frontmatter[key], bool):
-            return False, f"{key} must be a boolean (true/false), got {type(frontmatter[key]).__name__}"
-    if "argument-hint" in frontmatter and not isinstance(frontmatter["argument-hint"], str):
-        return False, (
-            f"argument-hint must be a string, got {type(frontmatter['argument-hint']).__name__} "
-            '(quote bracketed hints: argument-hint: "[issue-number]")'
-        )
+            got = "an empty value" if frontmatter[key] is None else repr(frontmatter[key])
+            return False, f"{key} must be an unquoted true or false, got {got}"
 
     # Validate allowed_domains if present: a list of literal hostnames, as
     # skill-check's Check 3 requires (no wildcards, no URLs); this script is
