@@ -81,7 +81,8 @@ N/A — the key IS in the allowlist (`[N/A] allowlisted in references/allowed-em
 WARN — allowlist file missing, or an allowlist entry resolves to nothing in the
 audited scope (see "Stale entries" below), or a symlinked dir under
 `references/` went unscanned (see "Symlinked directories" under Checks 17–18;
-it turns a PASS or N/A into WARN). Degrade rather than block;
+it turns a PASS into WARN; an allowlisted N/A stays N/A with the note).
+Degrade rather than block;
 authoring:skill-check stays read-only.
 
 Rationale: CLAUDE.md "No emojis anywhere" policy with one exception — the
@@ -396,9 +397,11 @@ Scan set for both: `SKILL.md` plus every text file under `references/`,
 symlinked directory inside the skill (issue #32 keeps results deterministic),
 but it never skips one silently either (dEitY719/authoring-skills#77): every
 symlinked dir a scan met and did not enter is named in that check's note
-(`symlinked dir(s) not followed, unscanned: <path>`), and a PASS or N/A
+(`symlinked dir(s) not followed, unscanned: <path>`), and a PASS or N/A (Check 11's allowlisted N/A excepted)
 becomes WARN — content an installer that follows links would ship went
-unread. The audited skill directory itself is still dereferenced (Check 15).
+unread. A link whose target lies inside a directory the same scan already
+walks (`lib/current -> v2`) is not reported: that content was read under its
+real path. The audited skill directory itself is still dereferenced (Check 15).
 
 ### Check 17: Bundle Self-containment
 Extract every relative path token starting with `../` (after a `(`, backtick,
@@ -423,7 +426,7 @@ violation. Two more forms are extracted the same way (dEitY719/authoring-skills#
 | Result | Criteria |
 |---|---|
 | PASS | no path escapes the skill directory |
-| WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`) |
+| WARN | one or more do — the note lists `file:line -> path` (first five, then `+N more`); OR a symlinked dir in the scan set went unscanned (see "Symlinked directories" above) |
 
 Not violations: plain `../` paths inside a markdown code fence (``` / ~~~ —
 illustrative examples), `http(s)://` URLs, and bare directory talk such as
@@ -456,8 +459,8 @@ when any of these holds:
 | Result | Criteria |
 |---|---|
 | PASS | every use is protected |
-| WARN | one or more unprotected uses — the note lists `file:line` |
-| N/A | no executing use of `CLAUDE_PLUGIN_ROOT` |
+| WARN | one or more unprotected uses — the note lists `file:line`; OR a symlinked dir in the scan set went unscanned (see "Symlinked directories" above) |
+| N/A | no executing use of `CLAUDE_PLUGIN_ROOT`, and no symlinked dir went unscanned |
 
 Recommended pattern to quote in the report — tier 1 is Hermes' skill-relative
 dir, tier 2 the guarded plugin root, else `[FAIL]` (canonical shape:

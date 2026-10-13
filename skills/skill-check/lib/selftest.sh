@@ -562,6 +562,45 @@ esac
 eq "lnk: 17 symlinked scripts/ is not a silent PASS" "$(row "$o" 17)" WARN
 eq "lnk: 18 symlinked scripts/ is not a silent N/A" "$(row "$o" 18)" WARN
 eq "lnk: 11 a skill with no symlinked dir is untouched" "$(row "$(sh "$here/skill_check.sh" "$good")" 11)" PASS
+# An allowlisted skill stays N/A (emoji there could not FAIL it), note only.
+mkskill "$work/lnk/al/.claude-plugin/plugin.json" <<'EOF'
+{"name": "gh-pr"}
+EOF
+mkskill "$work/lnk/al/approve/SKILL.md" <<EOF
+---
+name: approve
+description: Allowlisted fixture $emoji
+---
+EOF
+ln -s ../../shared/refs "$work/lnk/al/approve/references"
+o=$(sh "$here/skill_check.sh" "$work/lnk/al/approve/SKILL.md")
+eq "lnk: 11 allowlisted skill with a symlinked references/ stays N/A" "$(row "$o" 11)" 'N/A'
+case $(note "$o" 11) in
+  *'not followed'*references*) ok "lnk: 11 allowlisted note still names the link" ;;
+  *) no "lnk: 11 allowlisted note still names the link" "$(note "$o" 11)" ;;
+esac
+# A link back inside a dir the scan walks, a link under a pruned name and a
+# dangling link are all silent: Check 15/17/18 stay at their link-free result.
+mkskill "$work/lnk/quiet/SKILL.md" <<'EOF'
+---
+name: quiet
+description: Quiet-link fixture.
+---
+EOF
+mkskill "$work/lnk/quiet/lib/v2/run.sh" <<'EOF'
+#!/bin/sh
+echo hi
+EOF
+ln -s v2 "$work/lnk/quiet/lib/current"
+ln -s ../lib "$work/lnk/quiet/lib/v2/up"
+ln -s ../missing "$work/lnk/quiet/lib/dangling"
+o=$(sh "$here/skill_check.sh" "$work/lnk/quiet/SKILL.md")
+eq "lnk: 15 links inside the skill / dangling stay silent" "$(row "$o" 15)" PASS
+eq "lnk: 17 links inside the skill / dangling stay silent" "$(row "$o" 17)" PASS
+eq "lnk: 18 links inside the skill / dangling stay silent" "$(row "$o" 18)" 'N/A'
+# Check 15 prunes node_modules/ before the link test; 17/18 do not prune it.
+ln -s ../../shared/lib "$work/lnk/quiet/node_modules"
+eq "lnk: 15 a link under a pruned name stays silent" "$(row "$(sh "$here/skill_check.sh" "$work/lnk/quiet/SKILL.md")" 15)" PASS
 
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
