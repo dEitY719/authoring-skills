@@ -785,6 +785,77 @@ case $(note "$o" 17) in
   *'not followed'*'lib/fx'*) ok "lnk: 17 note names the link into tests/" ;;
   *) no "lnk: 17 note names the link into tests/" "$(note "$o" 17)" ;;
 esac
+# ---------- issue #98: symlinked FILES are reported too, not followed ----------
+# A link to a regular file the check's own name filter selects is named, its
+# target unread; a non-matching one (assets/logo.png for Check 15) is not.
+mkskill "$work/flnk/shared/net.py" <<'EOF'
+import requests
+requests.get("https://api.acme.io/v1")
+EOF
+mkskill "$work/flnk/shared/x.md" <<EOF
+Party $emoji here.
+EOF
+printf 'PNG' > "$work/flnk/shared/logo.png"
+for k in pylink mdlink pnglink; do
+  mkskill "$work/flnk/$k/SKILL.md" <<EOF
+---
+name: $k
+description: Symlinked-file fixture.
+---
+Plain body.
+EOF
+done
+mkdir -p "$work/flnk/pylink/lib" "$work/flnk/mdlink/references" "$work/flnk/pnglink/assets"
+ln -s ../../shared/net.py "$work/flnk/pylink/lib/net.py"
+ln -s ../../shared/x.md "$work/flnk/mdlink/references/x.md"
+ln -s ../../shared/logo.png "$work/flnk/pnglink/assets/logo.png"
+o=$(sh "$here/skill_check.sh" "$work/flnk/pylink/SKILL.md")
+eq "flnk: 15 symlinked lib/net.py (undeclared host unread) is WARN" "$(row "$o" 15)" WARN
+case $(note "$o" 15) in
+  *'not followed'*'lib/net.py'*) ok "flnk: 15 note names lib/net.py" ;;
+  *) no "flnk: 15 note names lib/net.py" "$(note "$o" 15)" ;;
+esac
+o=$(sh "$here/skill_check.sh" "$work/flnk/mdlink/SKILL.md")
+eq "flnk: 11 symlinked references/x.md is WARN, not a silent PASS" "$(row "$o" 11)" WARN
+case $(note "$o" 11) in
+  *'not followed'*'references/x.md'*) ok "flnk: 11 note names references/x.md" ;;
+  *) no "flnk: 11 note names references/x.md" "$(note "$o" 11)" ;;
+esac
+o=$(sh "$here/skill_check.sh" "$work/flnk/pnglink/SKILL.md")
+eq "flnk: 15 a symlinked non-matching assets/logo.png leaves Check 15 unchanged" "$(row "$o" 15)" 'N/A'
+case $(note "$o" 15) in
+  *'not followed'*) no "flnk: 15 note does not name the png link" "$(note "$o" 15)" ;;
+  *) ok "flnk: 15 note does not name the png link" ;;
+esac
+# Covered target: a file link back inside a dir the scan walks stays silent,
+# as does a dangling one.
+mkskill "$work/flnk/quiet/SKILL.md" <<'EOF'
+---
+name: quiet
+description: Quiet file-link fixture.
+---
+EOF
+mkskill "$work/flnk/quiet/lib/run.sh" <<'EOF'
+#!/bin/sh
+echo hi
+EOF
+ln -s run.sh "$work/flnk/quiet/lib/alias.sh"
+ln -s ../missing.sh "$work/flnk/quiet/lib/dangling.sh"
+o=$(sh "$here/skill_check.sh" "$work/flnk/quiet/SKILL.md")
+eq "flnk: 15 a file link inside the skill / dangling stays silent" "$(row "$o" 15)" PASS
+eq "flnk: 17 a file link inside the skill / dangling stays silent" "$(row "$o" 17)" PASS
+# A file link into a pruned dir was never read, so it is still reported.
+mkskill "$work/flnk/quiet/tests/fx.sh" <<'EOF'
+#!/bin/sh
+echo hi
+EOF
+ln -s ../tests/fx.sh "$work/flnk/quiet/lib/fx.sh"
+o=$(sh "$here/skill_check.sh" "$work/flnk/quiet/SKILL.md")
+eq "flnk: 15 a file link into a pruned tests/ dir WARNs" "$(row "$o" 15)" WARN
+case $(note "$o" 17) in
+  *'not followed'*'lib/fx.sh'*) ok "flnk: 17 note names the file link into tests/" ;;
+  *) no "flnk: 17 note names the file link into tests/" "$(note "$o" 17)" ;;
+esac
 
 eq "self: 15 skill-check's git/gh helpers declare compatibility.network" "$(row "$(sh "$here/skill_check.sh" "$here/../SKILL.md")" 15)" PASS
 
