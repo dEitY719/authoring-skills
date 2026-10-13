@@ -22,8 +22,8 @@ Known attributes: `name`, `description`, `allowed-tools`, `compatibility`,
 `allowed_domains`.
 **`allowed_domains`**: a non-empty list of literal hostnames (no wildcards, URLs,
 ports or whitespace; IDNs in punycode) that scopes the skill's outbound network
-access; it pairs with `compatibility.network: required`. Security scanners read it from frontmatter,
-so never recommend moving it into body prose.
+access; it pairs with `compatibility.network: required`. Security scanners read
+it from frontmatter, so never recommend moving it into body prose.
 **Naming**: read `references/naming-convention.md` — `category:action` colon
 form is the SSOT convention and reports as PASS, not WARN. Folder/name
 kebab-vs-colon mismatch is also PASS when folder is the kebab form of the

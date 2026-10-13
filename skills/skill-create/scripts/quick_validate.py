@@ -136,13 +136,13 @@ def validate_skill(skill_path):
                     "(ASCII labels only: no scheme, path, port, wildcard, whitespace or trailing dot; e.g. fonts.gstatic.com)"
                 )
         # Check 3 pairs allowed_domains with `compatibility.network: required`.
-        # Only the mapping form is checked: a free-text compatibility string
-        # cannot be parsed reliably, so it is left alone.
-        if isinstance(compatibility, dict) and compatibility.get("network") != "required":
-            return False, (
-                "allowed_domains requires compatibility.network: required "
-                f"(got network: {compatibility.get('network')!r})"
-            )
+        # A free-text compatibility string cannot be parsed reliably, so it is
+        # left alone; a missing, empty or mapping-form compatibility is checked.
+        if not (isinstance(compatibility, str) and compatibility.strip()):
+            network = compatibility.get("network") if isinstance(compatibility, dict) else None
+            if network != "required":
+                got = "no compatibility.network" if network is None else f"got network: {network!r}"
+                return False, f"allowed_domains requires compatibility.network: required ({got})"
 
     return True, "Skill is valid!"
 
