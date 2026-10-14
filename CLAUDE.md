@@ -120,6 +120,11 @@ have not changed the other — and when CI fails, the fix is in the tree or in
   tracked scripts directly under the repo-root `tests/`, so a check left beside
   its helper never runs. See harness-skills' README, "Where a repo's tests
   live".
+- **bats suites live in `tests/bats/`** and run in their own workflow
+  (`.github/workflows/bats.yml`), separate from the shared validate call.
+  Fixtures in `tests/bats/fixtures/` wrap the shipped `skills/*/lib/` scripts —
+  never a hand copy of their logic. Run locally with
+  `BATS_LIB_PATH=<dir holding bats-support,bats-assert> bats -r tests/bats`.
 
 ## Emojis
 
