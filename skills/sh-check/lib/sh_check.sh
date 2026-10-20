@@ -136,7 +136,7 @@ fi
 # Two passes over the file. The first collects every non-empty var="..."
 # assignment, so a "$var" NEXT can be resolved; the second yields, per function
 # definition:
-#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net
+#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net<TAB>table
 # vocab is the number of distinct literal states (first printf argument) among
 # the function's fixed-line printf '%s\n%s\n...' returns, `?` when a state is
 # not a literal, `-` when the function has no such return. next-* judge the last
@@ -150,6 +150,8 @@ fi
 # net counts calls to a transfer command (call_pattern) in command position that
 # no enclosing if/elif or case arm gates on an opt-in token (issue #42):
 # `"gh pr view 1"` as a NEXT string, `command -v gh` and comments are not calls.
+# table is 1 when the body calls ux_table_row -- a help-table renderer such as
+# `_gwt_help_rows_status`, which Check 9 must not mistake for a verdict (#104).
 # The command names live only in the call_pattern assignment, which skill-check
 # Check 15 skips as a *_pattern line -- keep them out of comments (issue #84).
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
@@ -171,7 +173,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
   }
   function flush(   voc) {
     voc = nfixed == 0 ? "-" : (dyn ? "?" : nvoc)
-    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net
+    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net, tbl
     cur = ""
   }
   function judge(v) {
@@ -207,6 +209,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     if (line ~ /(^|[^A-Za-z_])[A-Za-z_][A-Za-z0-9_]*\+?=\(/) needs = 1
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
+    if (line ~ /(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -244,7 +247,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     needs = 0
     guarded = 0
     nfixed = 0; nvoc = 0; dyn = 0; n = 0; ok = 0; blank = 0
-    net = 0; gd = 0; arm = 0
+    net = 0; gd = 0; arm = 0; tbl = 0
     opened = 0
     depth = 0
     body($0)
@@ -311,7 +314,47 @@ for h in $(printf '%s\n' "$funcs" | grep -E 'help$' || true); do
     help_fn=1; break
   fi
 done
+# A thin wrapper hands "$@" to another executable -- `"$_exe" "$@"` or
+# `.../x.sh "$@"` (dotfiles#2195) -- so its --help lives in that file (#104).
+# The target's literal tail (after the last `}` / `$VAR`) is looked up under
+# each ancestor directory of the audited file, nearest first.
+# shortcut: only the first such call and a one-line var assignment are read;
+# widen when a wrapper builds its path over several lines.
+deleg='' deleg_expr=''
 if ! has "$help_arm"; then
+  lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?'
+  deleg_expr=$(grep -E "$lead"'("?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|[^[:space:]]*/[^[:space:]]+)[[:space:]]+"\$@"' "$file" 2>/dev/null |
+    head -1 | sed -E "s/$lead//"'; s/[[:space:]]+"\$@".*//' || true)
+fi
+if [ -n "$deleg_expr" ]; then
+  tgt=$(printf '%s' "$deleg_expr" | tr -d '"')
+  if printf '%s' "$tgt" | grep -qE '^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$'; then
+    v=$(printf '%s' "$tgt" | tr -d '${}')
+    tgt=$(grep -E "(^|[[:space:]])$v=" "$file" 2>/dev/null | head -1 |
+      sed -E "s/.*(^|[[:space:]])$v=//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
+  fi
+  tail=$(printf '%s' "$tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
+  case $tgt in
+    /*) [ "$tail" != "$tgt" ] || { [ -f "$tgt" ] && deleg=$tgt; } ;;
+  esac
+  if [ -z "$deleg" ] && [ -n "$tail" ]; then
+    d=$(cd "$(dirname "$file")" && pwd)
+    while :; do
+      if [ -f "$d/${tail#/}" ]; then deleg="$d/${tail#/}"; break; fi
+      [ "$d" != / ] || break
+      d=$(dirname "$d")
+    done
+  fi
+fi
+if [ -n "$deleg" ]; then
+  if grep -qE -e "$help_arm" "$deleg" 2>/dev/null; then
+    r6=PASS; n6="delegates --help to $deleg"
+  else
+    r6=FAIL; n6="delegates to $deleg, which has no -h/--help handling"
+  fi
+elif [ -n "$deleg_expr" ]; then
+  r6=FAIL; n6="no -h/--help handling, delegate target $deleg_expr not found"
+elif ! has "$help_arm"; then
   r6=FAIL; n6='no -h/--help handling'
 elif [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
@@ -338,7 +381,9 @@ fi
 # state vocabulary with `case`, is rendered by a separate caller through
 # $(...), documents its first-match priority as `a > b > c`, and calls the
 # network only behind an opt-in flag (FUNCS column 8).
-vfn=$(printf '%s\n' "$funcs" | grep -E 'status|verdict' | head -1 || true)
+# A function with no fixed-line printf that renders ux_table_row is a help
+# table (`_gwt_help_rows_status`), not a verdict, whatever its name (#104).
+vfn=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 ~ /status|verdict/ && !($4 == "-" && $9 == 1) { print $1; exit }')
 lines2="printf '%s\\\\n%s\\\\n"
 if [ -z "$vfn" ]; then
   r9='N/A'; n9='no status/verdict function'

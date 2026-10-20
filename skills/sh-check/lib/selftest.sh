@@ -436,6 +436,49 @@ EOF
 eq "spaced_flag: a --help equality test counts as flag handling" \
   "$(row "$(sh "$here/sh_check.sh" "$spaced_flag")" 6)" PASS
 
+# ---------- Check 9/10: a help-table renderer is not a verdict (#104) ----------
+rows=$work/rows.sh
+cat > "$rows" <<'EOF'
+#!/bin/sh
+_rw_help_rows_status() {
+    ux_table_row "syntax" "rw status" "Per-item diagnostic"
+    ux_table_row "verdict" "dirty/clean" "+ Next action hint"
+}
+EOF
+rw=$(sh "$here/sh_check.sh" "$rows")
+eq "rows: ux_table_row-only *_status is not a verdict (9)" "$(row "$rw" 9)" 'N/A'
+eq "rows: ux_table_row-only *_status is not a verdict (10)" "$(row "$rw" 10)" 'N/A'
+cat "$vpass" > "$work/vrows.sh"
+printf '%s\n' '_vt_status_rows() { ux_table_row "a" "b"; }' >> "$work/vrows.sh"
+eq "vrows: the real verdict still decides 9 beside a table renderer" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/vrows.sh")" 9)" PASS
+
+# ---------- Check 6: a thin wrapper delegating "$@" (#104, dotfiles#2195) ----------
+mkdir -p "$work/dotfiles/shell-common/tools/custom"
+wtool=$work/dotfiles/shell-common/tools/custom/wtool.sh
+printf '#!/bin/bash\ncase "$1" in help | -h | --help) echo usage ;; esac\n' > "$wtool"
+wrap=$work/dotfiles/shell-common/functions/wtool.sh
+cat > "$wrap" <<'EOF'
+#!/bin/sh
+wtool() {
+    local _exe="${SHELL_COMMON:-${DOTFILES_ROOT:-$HOME/dotfiles}/shell-common}"/tools/custom/wtool.sh
+    "$_exe" "$@"
+}
+EOF
+w=$(sh "$here/sh_check.sh" "$wrap")
+eq "wrap: \$_exe \"\$@\" credits the target's --help" "$(row "$w" 6)" PASS
+eq "wrap: the note names the target" \
+  "$(printf '%s\n' "$w" | awk -F'\t' '$1 == 6 { print $3 }')" "delegates --help to $wtool"
+wlit=$work/dotfiles/shell-common/functions/wlit.sh
+printf '#!/bin/sh\nwlit() { "${SHELL_COMMON}"/tools/custom/wtool.sh "$@"; }\n' > "$wlit"
+eq "wlit: a one-line .../x.sh \"\$@\" credits the target's --help" \
+  "$(row "$(sh "$here/sh_check.sh" "$wlit")" 6)" PASS
+printf '#!/bin/bash\necho no help here\n' > "$wtool"
+eq "wrap: a target without --help is FAIL" "$(row "$(sh "$here/sh_check.sh" "$wrap")" 6)" FAIL
+wgone=$work/dotfiles/shell-common/functions/wgone.sh
+printf '#!/bin/sh\nwgone() {\n    _exe="$HOME"/nowhere/wgone-missing.sh\n    "$_exe" "$@"\n}\n' > "$wgone"
+eq "wgone: an unresolved target stays FAIL" "$(row "$(sh "$here/sh_check.sh" "$wgone")" 6)" FAIL
+
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
   no "usage: no argument" "exited 0, expected 2"
