@@ -238,9 +238,11 @@ grep -nE 'Unknown option|Missing argument|Required' "$FILE"
 **What to look for**
 A status/diagnostic function (name contains `status` or `verdict`) computes a
 fixed-line verdict and hands rendering to a separate caller. A function with no
-fixed-line `printf` that calls `ux_table_row` is a help-table renderer — e.g.
-`_gwt_help_rows_status`, the help rows of the `gwt status` subcommand — and is
-not a verdict candidate whatever its name (issue #104). The gwt contract,
+fixed-line `printf` is a help renderer, not a verdict candidate, when it calls
+`ux_table_row` — e.g. `_gwt_help_rows_status`, the help rows of the
+`gwt status` subcommand — or is named `*_help_*`, such as
+`_ssl_help_rows_status`, which prints `ux_success` lines (issue #104). A
+`*_help_*` function that does return fixed lines is still checked. The gwt contract,
 excerpted verbatim from `dEitY719/dotfiles@89c2763`
 `shell-common/functions/git_worktree.sh`:
 

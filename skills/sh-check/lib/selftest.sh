@@ -448,6 +448,10 @@ EOF
 rw=$(sh "$here/sh_check.sh" "$rows")
 eq "rows: ux_table_row-only *_status is not a verdict (9)" "$(row "$rw" 9)" 'N/A'
 eq "rows: ux_table_row-only *_status is not a verdict (10)" "$(row "$rw" 10)" 'N/A'
+hrow=$work/hrow.sh
+printf '#!/bin/sh\n_hr_help_rows_status() { ux_success "key set"; }\n' > "$hrow"
+eq "hrow: a *_help_* renderer without fixed lines is not a verdict" \
+  "$(row "$(sh "$here/sh_check.sh" "$hrow")" 9)" 'N/A'
 cat "$vpass" > "$work/vrows.sh"
 printf '%s\n' '_vt_status_rows() { ux_table_row "a" "b"; }' >> "$work/vrows.sh"
 eq "vrows: the real verdict still decides 9 beside a table renderer" \

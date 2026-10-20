@@ -381,9 +381,10 @@ fi
 # state vocabulary with `case`, is rendered by a separate caller through
 # $(...), documents its first-match priority as `a > b > c`, and calls the
 # network only behind an opt-in flag (FUNCS column 8).
-# A function with no fixed-line printf that renders ux_table_row is a help
-# table (`_gwt_help_rows_status`), not a verdict, whatever its name (#104).
-vfn=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 ~ /status|verdict/ && !($4 == "-" && $9 == 1) { print $1; exit }')
+# A function with no fixed-line printf is a help renderer, not a verdict, when
+# it calls ux_table_row (`_gwt_help_rows_status`) or is named *_help_* (the
+# `_ssl_help_rows_status` that prints ux_success lines) -- issue #104.
+vfn=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 ~ /status|verdict/ && !($4 == "-" && ($9 == 1 || $1 ~ /(^|_)help_/)) { print $1; exit }')
 lines2="printf '%s\\\\n%s\\\\n"
 if [ -z "$vfn" ]; then
   r9='N/A'; n9='no status/verdict function'
