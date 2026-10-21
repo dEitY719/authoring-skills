@@ -336,7 +336,10 @@ if [ -n "$deleg_expr" ]; then
   tail=$(printf '%s' "$tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
   # A literal absolute path is the target itself, never a tail to re-root.
   case $tgt in
-    /*) [ "$tail" != "$tgt" ] || { [ ! -f "$tgt" ] || deleg=$tgt; tail=''; } ;;
+    /*) if [ "$tail" = "$tgt" ]; then
+          if [ -f "$tgt" ]; then deleg=$tgt; fi
+          tail=''
+        fi ;;
   esac
   if [ -z "$deleg" ] && [ -n "$tail" ]; then
     d=$(cd "$(dirname "$file")" && pwd)
