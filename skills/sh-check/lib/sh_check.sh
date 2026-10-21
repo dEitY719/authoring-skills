@@ -331,11 +331,12 @@ if [ -n "$deleg_expr" ]; then
   if printf '%s' "$tgt" | grep -qE '^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$'; then
     v=$(printf '%s' "$tgt" | tr -d '${}')
     tgt=$(grep -E "(^|[[:space:]])$v=" "$file" 2>/dev/null | head -1 |
-      sed -E "s/.*(^|[[:space:]])$v=//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
+      sed -E "s/.*(^|[[:space:]])$v=//; s/[[:space:]]+#.*//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
   fi
   tail=$(printf '%s' "$tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
+  # A literal absolute path is the target itself, never a tail to re-root.
   case $tgt in
-    /*) [ "$tail" != "$tgt" ] || { [ -f "$tgt" ] && deleg=$tgt; } ;;
+    /*) [ "$tail" != "$tgt" ] || { [ ! -f "$tgt" ] || deleg=$tgt; tail=''; } ;;
   esac
   if [ -z "$deleg" ] && [ -n "$tail" ]; then
     d=$(cd "$(dirname "$file")" && pwd)
@@ -347,7 +348,8 @@ if [ -n "$deleg_expr" ]; then
   fi
 fi
 if [ -n "$deleg" ]; then
-  if grep -qE -e "$help_arm" "$deleg" 2>/dev/null; then
+  # -I: a compiled binary target (`/usr/bin/git "$@"`) is not grepped as text.
+  if grep -qIE -e "$help_arm" "$deleg" 2>/dev/null; then
     r6=PASS; n6="delegates --help to $deleg"
   else
     r6=FAIL; n6="delegates to $deleg, which has no -h/--help handling"
