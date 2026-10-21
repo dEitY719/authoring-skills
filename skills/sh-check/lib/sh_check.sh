@@ -209,7 +209,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     if (line ~ /(^|[^A-Za-z_])[A-Za-z_][A-Za-z0-9_]*\+?=\(/) needs = 1
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
-    if (line ~ /(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
+    if (line ~ /^[^#]*(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -317,7 +317,8 @@ done
 # A thin wrapper hands "$@" to another executable -- `"$_exe" "$@"` or
 # `.../x.sh "$@"` (dotfiles#2195) -- so its --help lives in that file (#104).
 # The target's literal tail (after the last `}` / `$VAR`) is looked up under
-# each ancestor directory of the audited file, nearest first.
+# each ancestor directory of the audited file, nearest first, stopping at the
+# file's git top level when it has one (else at /).
 # shortcut: only the first such call and a one-line var assignment are read;
 # widen when a wrapper builds its path over several lines.
 deleg='' deleg_expr=''
@@ -342,10 +343,11 @@ if [ -n "$deleg_expr" ]; then
         fi ;;
   esac
   if [ -z "$deleg" ] && [ -n "$tail" ]; then
-    d=$(cd "$(dirname "$file")" && pwd)
+    d=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
+    top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null || echo /)
     while :; do
       if [ -f "$d/${tail#/}" ]; then deleg="$d/${tail#/}"; break; fi
-      [ "$d" != / ] || break
+      [ "$d" != / ] && [ "$d" != "$top" ] || break
       d=$(dirname "$d")
     done
   fi
