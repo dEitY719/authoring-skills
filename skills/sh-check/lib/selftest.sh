@@ -440,14 +440,14 @@ eq "spaced_flag: a --help equality test counts as flag handling" \
 rows=$work/rows.sh
 cat > "$rows" <<'EOF'
 #!/bin/sh
-_rw_help_rows_status() {
+_rw_rows_status() {
     ux_table_row "syntax" "rw status" "Per-item diagnostic"
     ux_table_row "verdict" "dirty/clean" "+ Next action hint"
 }
 EOF
 rw=$(sh "$here/sh_check.sh" "$rows")
-eq "rows: ux_table_row-only *_status is not a verdict (9)" "$(row "$rw" 9)" 'N/A'
-eq "rows: ux_table_row-only *_status is not a verdict (10)" "$(row "$rw" 10)" 'N/A'
+eq "rows: ux_table_row-only *_status (no _help_ in name) is not a verdict (9)" "$(row "$rw" 9)" 'N/A'
+eq "rows: ux_table_row-only *_status (no _help_ in name) is not a verdict (10)" "$(row "$rw" 10)" 'N/A'
 hrow=$work/hrow.sh
 printf '#!/bin/sh\n_hr_help_rows_status() { ux_success "key set"; }\n' > "$hrow"
 eq "hrow: a *_help_* renderer without fixed lines is not a verdict" \
@@ -482,6 +482,17 @@ eq "wrap: a target without --help is FAIL" "$(row "$(sh "$here/sh_check.sh" "$wr
 wgone=$work/dotfiles/shell-common/functions/wgone.sh
 printf '#!/bin/sh\nwgone() {\n    _exe="$HOME"/nowhere/wgone-missing.sh\n    "$_exe" "$@"\n}\n' > "$wgone"
 eq "wgone: an unresolved target stays FAIL" "$(row "$(sh "$here/sh_check.sh" "$wgone")" 6)" FAIL
+wcom=$work/dotfiles/shell-common/functions/wcom.sh
+printf '#!/bin/sh\nwcom() {\n    _exe="${SHELL_COMMON}"/tools/custom/wtool.sh # the tool\n    "$_exe" "$@"\n}\n' > "$wcom"
+eq "wcom: a trailing comment on the assignment still resolves" \
+  "$(sh "$here/sh_check.sh" "$wcom" | awk -F'\t' '$1 == 6 { print $3 }')" \
+  "delegates to $wtool, which has no -h/--help handling"
+mkdir -p "$work/dotfiles/nowhere-abs"
+printf '#!/bin/bash\ncase "$1" in -h | --help) echo usage ;; esac\n' > "$work/dotfiles/nowhere-abs/wtool.sh"
+wabs=$work/dotfiles/shell-common/functions/wabs.sh
+printf '#!/bin/sh\nwabs() { /nowhere-abs/wtool.sh "$@"; }\n' > "$wabs"
+eq "wabs: a missing literal absolute target is not re-rooted under ancestors" \
+  "$(row "$(sh "$here/sh_check.sh" "$wabs")" 6)" FAIL
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then

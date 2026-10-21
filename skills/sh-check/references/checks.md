@@ -179,8 +179,9 @@ aicron() {
 When the file has no flag of its own, the helper reads the first such call —
 `"$_exe" "$@"` with `_exe` assigned on one line, or a one-line
 `.../x.sh "$@"` — takes the literal path tail after the last `}` / `$VAR`, and
-looks it up under each ancestor directory of the audited file, nearest first.
-A found target with `-h|--help` in option position is PASS
+looks it up under each ancestor directory of the audited file, nearest first
+(a literal absolute path is checked as is, never re-rooted; a binary target
+never matches). A found target with `-h|--help` in option position is PASS
 (`delegates --help to <path>`); a found target without it is FAIL; a target it
 cannot resolve stays FAIL, with the expression named in the note.
 
