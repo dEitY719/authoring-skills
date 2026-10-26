@@ -362,7 +362,8 @@ resolve_deleg() {
   done
 }
 deleg='' deleg_nohelp='' deleg_lost=''
-if ! has "$help_arm"; then
+arm=0; if has "$help_arm"; then arm=1; fi
+if [ "$arm" -eq 0 ]; then
   # Resolved once, not per call: every call walks up from the same file.
   file_dir=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
   file_top=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null || echo /)
@@ -389,8 +390,9 @@ fi
 # read their arguments, minus `*_help` renderers -- asking a help function for
 # --help is circular. A sourced file with none of them has no command to check;
 # that N/A only replaces the FAIL, so help a file does handle still scores.
-pub=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/' | grep -c . || true)
-cand=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/ && $1 !~ /_help$/ && $10 == 1' | grep -c . || true)
+read -r pub cand <<PUB
+$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/ { p++; if ($1 !~ /_help$/ && $10 == 1) c++ } END { print p+0, c+0 }')
+PUB
 # The N/A is only safe when FUNCS saw every definition -- not `function f {`,
 # an indented or a hyphenated `f-x()` -- no alias exposes a _private function
 # as the public command, and the file is no tools/custom entrypoint (executed).
@@ -406,9 +408,9 @@ elif [ -n "$deleg_lost" ]; then
   r6=FAIL; n6="no -h/--help handling, delegate target $deleg_lost not found"
 elif [ -n "$deleg" ]; then
   r6=PASS; n6="delegates --help to $deleg"
-elif has "$help_arm" && [ "$help_fn" -eq 1 ]; then
+elif [ "$arm" -eq 1 ] && [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
-elif has "$help_arm"; then
+elif [ "$arm" -eq 1 ]; then
   r6=WARN; n6='help handled inline, not via a help function'
 elif [ "$na_ok" -eq 1 ] && [ "$pub" -eq 0 ]; then
   r6='N/A'; n6='no public command'
