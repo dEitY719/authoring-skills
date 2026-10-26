@@ -161,7 +161,7 @@ fi
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
 # ponytail: opt-in is a name match on the condition (remote|network|online),
 # not data flow -- widen opt_in when a real flag name keeps landing in WARN.
-next_cmds='gwt|git|gh|ps|tail|ls|cat'
+next_cmds='gwt|git|gh|ps'
 opt_in='remote|network|online'
 call_pattern='(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)'
 FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
@@ -185,6 +185,9 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     # `cd <arg> && rest` is judged by rest (issue #47).
     while (sub(/^cd [^ ;&|]+ && /, "", v)) ;
     if (v == "-" || v ~ ("^(" cmds ")(-[a-z0-9]+)* ") || v ~ /^\/[a-z0-9-]+:[a-z0-9-]+/) ok++
+    # tail/ls/cat are English words too: only a flag, quote, $var or path
+    # argument makes them a command (`tail -40 x`, not `tail the log`) -- #106.
+    else if (v ~ /^(tail|ls|cat) [-\047"$\/~.]/) ok++
   }
   # One fixed-line return: count its state, judge its NEXT.
   function verdict(line,   s, v, k, m, i, vs) {
@@ -215,7 +218,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     if (line ~ /^[^#]*(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
     # Single-quoted text (an awk/sed program), `\$1` and `${#var}` are not
     # argument reads; getopts, shift and `for x; do` read them implicitly.
-    t = line; gsub(/\047[^\047]*\047/, "", t)
+    t = line; gsub(/\047[^\047"]*\047/, "", t)
     if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9@*]|#([^A-Za-z_{]|$)|\{#[@*}])/) args = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) args = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) args = 1
@@ -313,8 +316,10 @@ fi
 # it. A bare `--help` anywhere also matched prose in comments and strings, and
 # missed the spacing variants (`-h )`, `"--help" ]`). A `|` only continues a
 # case pattern when single words separated by `|` run on to its `)`: `free -h |
-# awk ...` is a pipe, not a pattern (#106).
-help_arm='^[^#]*(^|[^-[:alnum:]_])(-h|--help)["'"'"']?(([[:space:]]*[|][[:space:]]*[^[:space:]|)]+)*[[:space:]]*[)]|[[:space:]]*])'
+# awk ...` is a pipe, not a pattern (#106). Nor is anything inside `$(...)` or
+# `<(...)` (`x=$(free -h | sort)`). Glob arms (`*--help*)`, `--help=*)`,
+# `-h* ]]`) still count.
+help_arm='^([^#$<]|[$<][^(#])*(^|[^-[:alnum:]_])(-h|--help)[*=]*["'"'"']?(([[:space:]]*[|][[:space:]]*[^[:space:]|)]+)*[[:space:]]*[)]|[[:space:]]*])'
 # A `*help` function only counts as delegation when something calls it: a
 # defined-but-unreferenced `render_help` used to satisfy this on its name alone.
 # Which *public commands* route to it is not decidable here -- that stays with
@@ -342,7 +347,11 @@ resolve_deleg() {
   _tgt=$(printf '%s' "$2" | tr -d '"')
   if printf '%s' "$_tgt" | grep -qE '^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$'; then
     _v=$(printf '%s' "$_tgt" | tr -d '${}')
-    _tgt=$(head -n "$1" "$file" | grep -E "(^|[[:space:]])$_v=" | tail -1 |
+    # Nearest assignment above the call; else the first one anywhere (a
+    # top-level `_exe=` below the function definitions).
+    _asg=$(head -n "$1" "$file" | grep -E "(^|[[:space:]])$_v=" | tail -1 || true)
+    [ -n "$_asg" ] || _asg=$(grep -E "(^|[[:space:]])$_v=" "$file" | head -1 || true)
+    _tgt=$(printf '%s\n' "$_asg" |
       sed -E "s/.*(^|[[:space:]])$_v=//; s/[[:space:]]+#.*//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
   fi
   _tail=$(printf '%s' "$_tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
@@ -404,10 +413,11 @@ if [ "$sourced" -eq 1 ] && [ "$custom_entry" -eq 0 ] && [ "$defs" -le "$nfunc" ]
 fi
 if [ -n "$deleg_nohelp" ]; then
   r6=FAIL; n6="delegates to $deleg_nohelp, which has no -h/--help handling"
+elif [ -n "$deleg" ]; then
+  # An unresolvable call beside a resolved one (`"$EDITOR" "$@"`) is no wrapper.
+  r6=PASS; n6="delegates --help to $deleg"
 elif [ -n "$deleg_lost" ]; then
   r6=FAIL; n6="no -h/--help handling, delegate target $deleg_lost not found"
-elif [ -n "$deleg" ]; then
-  r6=PASS; n6="delegates --help to $deleg"
 elif [ "$arm" -eq 1 ] && [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
 elif [ "$arm" -eq 1 ]; then

@@ -192,9 +192,15 @@ eq "vcdp: cd X && <prose> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vcdp
 eq "vcdb: cd X && <nothing> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vcdb")" 10)" WARN
 eq "vthen: review ..., then <command> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vthen")" 10)" WARN
 # Read-only commands and the gh- hyphen family are command-shaped (#106).
+# (gh-pr-approve already matched the gh- family rule; pinned here.)
 for c in "tail -40 '\$_dir/log'" "ls -la '\$_dir'" "cat '\$_dir/out'" 'gh-pr-approve prune 1'; do
   verdict_fixture "$work/vro.sh" "$c"
   eq "vro: '$c' NEXT is a command (issue #106)" "$(row "$(sh "$here/sh_check.sh" "$work/vro.sh")" 10)" PASS
+done
+# ...but prose that merely opens with one of those words stays WARN.
+for c in 'tail the log until it settles' 'cat output looks wrong, investigate'; do
+  verdict_fixture "$work/vro.sh" "$c"
+  eq "vro: '$c' prose NEXT stays WARN" "$(row "$(sh "$here/sh_check.sh" "$work/vro.sh")" 10)" WARN
 done
 eq "vprose: prose NEXT is WARN, not FAIL" "$(row "$(sh "$here/sh_check.sh" "$vprose")" 10)" WARN
 eq "vblank: blank NEXT is WARN" "$(row "$(sh "$here/sh_check.sh" "$vblank")" 10)" WARN
@@ -587,6 +593,39 @@ eq "unseen: definitions FUNCS cannot parse are not N/A no public command" \
 printf '#!/bin/sh\nalias gs=_gs\n_gs() { git status "$@"; }\n' > "$fns/alias.sh"
 eq "alias: an alias exposing a _private function is still asked" \
   "$(row "$(sh "$here/sh_check.sh" "$fns/alias.sh")" 6)" FAIL
+
+# ---------- PR #107 review: glob arms, subshell pipes, assignment order ----------
+for arm in '*--help*)' '--help=*)' '-h*)'; do
+  printf '#!/bin/sh\nglob_cmd() {\n    case "$1" in %s ux_info usage; return 0 ;; esac\n}\n' "$arm" > "$fns/glob.sh"
+  eq "glob: '$arm' is flag handling" "$(row "$(sh "$here/sh_check.sh" "$fns/glob.sh")" 6)" WARN
+done
+printf '#!/bin/bash\nm=$(free -h | sort)\nn=$(du -h|tail)\n' > "$work/subp.sh"; chmod +x "$work/subp.sh"
+eq "subp: '-h | word)' closing \$(...) is not flag handling" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/subp.sh")" 6)" FAIL
+cat > "$fns/wlate.sh" <<'EOF2'
+#!/bin/sh
+wlate() {
+    "$_wl_exe" "$@"
+}
+_wl_exe="${SHELL_COMMON}"/tools/custom/wtool.sh
+EOF2
+eq "wlate: a top-level assignment below the call still resolves" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/wlate.sh")" 6)" PASS
+cat > "$fns/wmix.sh" <<'EOF2'
+#!/bin/sh
+wmix() {
+    local _exe="${SHELL_COMMON}"/tools/custom/wtool.sh
+    "$_exe" "$@"
+}
+wedit() {
+    "$EDITOR" "$@"
+}
+EOF2
+eq "wmix: an unresolvable call beside a resolved wrapper does not FAIL it" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/wmix.sh")" 6)" PASS
+printf '#!/bin/sh\nsay_it() {\n    echo "don'"'"'t" "$1" '"'"'x'"'"'\n}\n' > "$fns/dq.sh"
+eq "dq: an apostrophe inside double quotes does not hide \$1" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/dq.sh")" 6)" FAIL
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
