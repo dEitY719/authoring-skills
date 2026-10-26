@@ -152,7 +152,8 @@ fi
 # `"gh pr view 1"` as a NEXT string, `command -v gh` and comments are not calls.
 # table is 1 when the body calls ux_table_row -- a help-table renderer such as
 # `_gwt_help_rows_status`, which Check 9 must not mistake for a verdict (#104).
-# args is 1 when the body reads its arguments ($1..$9, $@, $*, $#) -- a function
+# args is 1 when the body reads its arguments ($1..$9, $@, $*, $#, or getopts /
+# shift / `for x; do`; single-quoted text and ${#var} do not count) -- a function
 # that never does takes no arguments, so Check 6 has no --help to ask of it (#106).
 # The command names live only in the call_pattern assignment, which skill-check
 # Check 15 skips as a *_pattern line -- keep them out of comments (issue #84).
@@ -205,14 +206,19 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
   # checks.md Check 5 requires the guard for `local`, arrays *and* `set -x`,
   # so all three mark the function -- zsh traces and word-splits every one of
   # them differently, not just `local`.
-  function body(line) {
+  function body(line,   t) {
     if (line ~ /(^|[^A-Za-z_])local[ \t]/) needs = 1
     if (line ~ /(^|[^A-Za-z_])set[ \t]+-[A-Za-z]*x([ \t]|$)/) needs = 1
     if (line ~ /(^|[^A-Za-z_])[A-Za-z_][A-Za-z0-9_]*\+?=\(/) needs = 1
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
     if (line ~ /^[^#]*(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
-    if (line ~ /^[^#]*\$\{?([1-9@*#])/) args = 1
+    # Single-quoted text (an awk/sed program), `\$1` and `${#var}` are not
+    # argument reads; getopts, shift and `for x; do` read them implicitly.
+    t = line; gsub(/\047[^\047]*\047/, "", t)
+    if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9@*]|#([^A-Za-z_{]|$)|\{#[@*}])/) args = 1
+    if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) args = 1
+    if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) args = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -322,7 +328,7 @@ done
 # A thin wrapper hands "$@" to another executable -- `"$_exe" "$@"` or
 # `.../x.sh "$@"` (dotfiles#2195) -- so its --help lives in that file (#104).
 # The call may carry env assignments (`VAR="$x" "$_exe" "$@"`) or run the
-# target through an interpreter (`bash "$script" "$@"`) -- issue #106.
+# target through an interpreter (`bash|sh|zsh "$script" "$@"`) -- issue #106.
 # Every such call is judged: a `$var` target resolves through the nearest
 # assignment above the call, so `local script=...` reused across functions
 # (mytool's install_*) points each call at its own file. The target's literal
@@ -348,17 +354,19 @@ resolve_deleg() {
         fi ;;
   esac
   [ -n "$_tail" ] || return 0
-  _d=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
-  _top=$(git -C "$_d" rev-parse --show-toplevel 2>/dev/null || echo /)
+  _d=$file_dir
   while :; do
     if [ -f "$_d/${_tail#/}" ]; then printf '%s\n' "$_d/${_tail#/}"; return 0; fi
-    [ "$_d" != / ] && [ "$_d" != "$_top" ] || return 0
+    [ "$_d" != / ] && [ "$_d" != "$file_top" ] || return 0
     _d=$(dirname "$_d")
   done
 }
 deleg='' deleg_nohelp='' deleg_lost=''
 if ! has "$help_arm"; then
-  lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=("[^"]*"|[^[:space:]"]*)[[:space:]]+)*((bash|sh)[[:space:]]+)?'
+  # Resolved once, not per call: every call walks up from the same file.
+  file_dir=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
+  file_top=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null || echo /)
+  lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=("[^"]*"|[^[:space:]"]*)[[:space:]]+)*((ba|z)?sh[[:space:]]+)?'
   calls=$(grep -nE "$lead"'("?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|[^[:space:]]*/[^[:space:]]+)[[:space:]]+"\$@"' "$file" 2>/dev/null || true)
   while IFS= read -r c; do
     [ -n "$c" ] || continue
@@ -383,6 +391,15 @@ fi
 # that N/A only replaces the FAIL, so help a file does handle still scores.
 pub=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/' | grep -c . || true)
 cand=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/ && $1 !~ /_help$/ && $10 == 1' | grep -c . || true)
+# The N/A is only safe when FUNCS saw every definition -- not `function f {`,
+# an indented or a hyphenated `f-x()` -- no alias exposes a _private function
+# as the public command, and the file is no tools/custom entrypoint (executed).
+defs=$(count '^[[:space:]]*(function[[:space:]]+[A-Za-z_]|[A-Za-z_][-A-Za-z0-9_:]*[[:space:]]*\(\))')
+na_ok=0
+if [ "$sourced" -eq 1 ] && [ "$custom_entry" -eq 0 ] && [ "$defs" -le "$nfunc" ] &&
+  ! has '^[[:space:]]*alias[[:space:]]+[^=]+=["'"'"']?_'; then
+  na_ok=1
+fi
 if [ -n "$deleg_nohelp" ]; then
   r6=FAIL; n6="delegates to $deleg_nohelp, which has no -h/--help handling"
 elif [ -n "$deleg_lost" ]; then
@@ -393,9 +410,9 @@ elif has "$help_arm" && [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
 elif has "$help_arm"; then
   r6=WARN; n6='help handled inline, not via a help function'
-elif [ "$sourced" -eq 1 ] && [ "$pub" -eq 0 ]; then
+elif [ "$na_ok" -eq 1 ] && [ "$pub" -eq 0 ]; then
   r6='N/A'; n6='no public command'
-elif [ "$sourced" -eq 1 ] && [ "$cand" -eq 0 ]; then
+elif [ "$na_ok" -eq 1 ] && [ "$cand" -eq 0 ]; then
   r6='N/A'; n6='no public command takes arguments (help renderers excluded)'
 else
   r6=FAIL; n6='no -h/--help handling'

@@ -170,12 +170,16 @@ continues a case pattern only when bare words separated by `|` run on to its
 
 **Who is asked** (#106). In a sourced file the helper asks only *public*
 functions (no leading `_`) that read their arguments (`$1`..`$9`, `$@`, `$*`,
-`$#`), and never a `*_help` renderer — asking a help function for `--help` is
-circular. When the file handles no flag of its own and no wrapper call is
-found, a sourced file with no public function is N/A (`no public command`),
-and one whose public functions are all excluded is N/A too. Help a file *does*
-handle still scores PASS/WARN — the N/A only replaces a FAIL. An executed
-script is always asked, whatever its functions are called.
+`$#`, or implicitly via `getopts`, `shift`, `for x; do` — a `$1` inside a
+single-quoted awk/sed program and `${#var}` do not count), and never a
+`*_help` renderer — asking a help function for `--help` is circular. When the
+file handles no flag of its own and no wrapper call is found, a sourced file
+with no public function is N/A (`no public command`), and one whose public
+functions are all excluded is N/A too. Help a file *does* handle still scores
+PASS/WARN — the N/A only replaces a FAIL. An executed script (or a
+`tools/custom/*.sh` entrypoint) is always asked, whatever its functions are
+called, and so is a file with an `alias x=_fn` or a definition the helper
+cannot parse (`function f {`, an indented or hyphenated `f-x()`).
 
 An init hook that takes an argument (dotfiles' `dotfiles_init_summary
 <file_count>`, called by the loader, not typed by a user) is not caught by
@@ -197,7 +201,7 @@ command that changes the caller's cwd is forced into:
 
 ```sh
 GHES_MIRROR_CD_FILE="$_gm_cd_file" "$_gm_exe" "$@"
-bash "$script" "$@"          # or sh "$script" "$@"
+bash "$script" "$@"          # or sh / zsh "$script" "$@"
 ```
 
 When the file has no flag of its own, the helper reads every such call —
