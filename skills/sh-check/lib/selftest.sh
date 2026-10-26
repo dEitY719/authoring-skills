@@ -515,7 +515,6 @@ eq "wabs: a missing literal absolute target is not re-rooted under ancestors" \
   "$(row "$(sh "$here/sh_check.sh" "$wabs")" 6)" FAIL
 
 # ---------- Check 6: env-prefixed and interpreter wrappers (#106) ----------
-printf '#!/bin/bash\ncase "$1" in help | -h | --help) echo usage ;; esac\n' > "$wtool"
 wenv=$work/dotfiles/shell-common/functions/wenv.sh
 cat > "$wenv" <<'EOF2'
 #!/bin/sh
@@ -571,6 +570,23 @@ eq "hhelp: help a file does handle still scores PASS, not N/A" \
 printf '#!/bin/sh\n_main() { echo hi; }\n_main\n' > "$work/exe.sh"; chmod +x "$work/exe.sh"
 eq "exe: an executable script with only _helpers is still asked for --help" \
   "$(row "$(sh "$here/sh_check.sh" "$work/exe.sh")" 6)" FAIL
+cat > "$fns/quoted.sh" <<'EOF2'
+#!/bin/sh
+ps_top() {
+    ps aux | awk '{print $2}' | head -n "${#PATH}"
+}
+EOF2
+eq "quoted: \$2 in an awk program and \${#var} are not argument reads -> N/A" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/quoted.sh")" 6)" 'N/A'
+printf '#!/bin/sh\nopt_cmd() {\n    while getopts v o; do :; done\n}\nloop_cmd() {\n    for a; do :; done\n}\n' > "$fns/implicit.sh"
+eq "implicit: getopts / for a; do read arguments -> FAIL, not N/A" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/implicit.sh")" 6)" FAIL
+printf '#!/bin/sh\nfunction kw {\n    echo "$1"\n}\nif true; then\n    ind() { echo "$1"; }\nfi\n' > "$fns/unseen.sh"
+eq "unseen: definitions FUNCS cannot parse are not N/A no public command" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/unseen.sh")" 6)" FAIL
+printf '#!/bin/sh\nalias gs=_gs\n_gs() { git status "$@"; }\n' > "$fns/alias.sh"
+eq "alias: an alias exposing a _private function is still asked" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/alias.sh")" 6)" FAIL
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
