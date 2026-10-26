@@ -191,6 +191,11 @@ eq "vcd: cd X && <command> is a command (issue #47)" "$(row "$(sh "$here/sh_chec
 eq "vcdp: cd X && <prose> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vcdp")" 10)" WARN
 eq "vcdb: cd X && <nothing> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vcdb")" 10)" WARN
 eq "vthen: review ..., then <command> is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vthen")" 10)" WARN
+# Read-only commands and the gh- hyphen family are command-shaped (#106).
+for c in "tail -40 '\$_dir/log'" "ls -la '\$_dir'" "cat '\$_dir/out'" 'gh-pr-approve prune 1'; do
+  verdict_fixture "$work/vro.sh" "$c"
+  eq "vro: '$c' NEXT is a command (issue #106)" "$(row "$(sh "$here/sh_check.sh" "$work/vro.sh")" 10)" PASS
+done
 eq "vprose: prose NEXT is WARN, not FAIL" "$(row "$(sh "$here/sh_check.sh" "$vprose")" 10)" WARN
 eq "vblank: blank NEXT is WARN" "$(row "$(sh "$here/sh_check.sh" "$vblank")" 10)" WARN
 
@@ -508,6 +513,64 @@ wabs=$work/dotfiles/shell-common/functions/wabs.sh
 printf '#!/bin/sh\nwabs() { /nowhere-abs/wtool.sh "$@"; }\n' > "$wabs"
 eq "wabs: a missing literal absolute target is not re-rooted under ancestors" \
   "$(row "$(sh "$here/sh_check.sh" "$wabs")" 6)" FAIL
+
+# ---------- Check 6: env-prefixed and interpreter wrappers (#106) ----------
+printf '#!/bin/bash\ncase "$1" in help | -h | --help) echo usage ;; esac\n' > "$wtool"
+wenv=$work/dotfiles/shell-common/functions/wenv.sh
+cat > "$wenv" <<'EOF2'
+#!/bin/sh
+wenv() {
+    local _exe="${SHELL_COMMON}"/tools/custom/wtool.sh
+    local _cd_file
+    _cd_file=$(mktemp) || return 1
+    WENV_CD_FILE="$_cd_file" "$_exe" "$@"
+    cd "$(cat "$_cd_file")" || return 1
+}
+EOF2
+eq "wenv: VAR=... \"\$_exe\" \"\$@\" is delegation (A-1)" \
+  "$(sh "$here/sh_check.sh" "$wenv" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" "PASS delegates --help to $wtool"
+nohelp=$work/dotfiles/shell-common/tools/custom/nohelp.sh
+printf '#!/bin/bash\nread -r t u < <(free -h | awk "NR==2 {print \\$2}")\n' > "$nohelp"; chmod +x "$nohelp"
+wbash=$work/dotfiles/shell-common/functions/wbash.sh
+cat > "$wbash" <<'EOF2'
+#!/bin/sh
+wone() {
+    local script="${SHELL_COMMON}/tools/custom/wtool.sh"
+    [ -f "$script" ] || return 2
+    bash "$script" "$@"
+}
+wtwo() {
+    local script="${SHELL_COMMON}/tools/custom/nohelp.sh"
+    [ -f "$script" ] || return 2
+    sh "$script" "$@"
+}
+EOF2
+eq "wbash: bash/sh \"\$var\" \"\$@\" judges every call by its nearest assignment (A-2)" \
+  "$(sh "$here/sh_check.sh" "$wbash" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" \
+  "FAIL delegates to $nohelp, which has no -h/--help handling"
+eq "nohelp: '-h | awk' is a pipe, not a case pattern" \
+  "$(row "$(sh "$here/sh_check.sh" "$nohelp")" 6)" FAIL
+
+# ---------- Check 6: who is asked for --help (#106) ----------
+fns=$work/dotfiles/shell-common/functions
+printf '#!/bin/sh\n_priv_run() { echo "$1"; }\n_priv_sum() { echo "$@"; }\n' > "$fns/priv.sh"
+eq "priv: only _private helpers -> N/A no public command (B)" \
+  "$(sh "$here/sh_check.sh" "$fns/priv.sh" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" 'N/A no public command'
+printf '#!/bin/sh\nzsh_switch() {\n    exec zsh -i\n}\n' > "$fns/noarg.sh"
+eq "noarg: a public command reading no \$1/\$@/\$# -> N/A (C-a)" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/noarg.sh")" 6)" 'N/A'
+printf '#!/bin/sh\nthing_help() {\n    ux_info "usage: thing $1"\n}\n' > "$fns/thing_help.sh"
+eq "thelp: a *_help renderer is not asked for --help (C-b)" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/thing_help.sh")" 6)" 'N/A'
+printf '#!/bin/sh\ninit_summary() {\n    local n="${1:-0}"\n    ux_success "$n"\n}\n' > "$fns/hook.sh"
+eq "hook: an init hook taking an argument stays FAIL (auditor may override)" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/hook.sh")" 6)" FAIL
+printf '#!/bin/sh\nshow_help() {\n    case "$1" in -h|--help) ux_info "usage"; return 0 ;; esac\n}\nx() { show_help; }\n' > "$fns/hhelp.sh"
+eq "hhelp: help a file does handle still scores PASS, not N/A" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/hhelp.sh")" 6)" PASS
+printf '#!/bin/sh\n_main() { echo hi; }\n_main\n' > "$work/exe.sh"; chmod +x "$work/exe.sh"
+eq "exe: an executable script with only _helpers is still asked for --help" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/exe.sh")" 6)" FAIL
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
