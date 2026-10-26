@@ -136,7 +136,7 @@ fi
 # Two passes over the file. The first collects every non-empty var="..."
 # assignment, so a "$var" NEXT can be resolved; the second yields, per function
 # definition:
-#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net<TAB>table
+#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net<TAB>table<TAB>args
 # vocab is the number of distinct literal states (first printf argument) among
 # the function's fixed-line printf '%s\n%s\n...' returns, `?` when a state is
 # not a literal, `-` when the function has no such return. next-* judge the last
@@ -152,13 +152,15 @@ fi
 # `"gh pr view 1"` as a NEXT string, `command -v gh` and comments are not calls.
 # table is 1 when the body calls ux_table_row -- a help-table renderer such as
 # `_gwt_help_rows_status`, which Check 9 must not mistake for a verdict (#104).
+# args is 1 when the body reads its arguments ($1..$9, $@, $*, $#) -- a function
+# that never does takes no arguments, so Check 6 has no --help to ask of it (#106).
 # The command names live only in the call_pattern assignment, which skill-check
 # Check 15 skips as a *_pattern line -- keep them out of comments (issue #84).
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
 # Decisions); widen next_cmds when a real command keeps landing in WARN.
 # ponytail: opt-in is a name match on the condition (remote|network|online),
 # not data flow -- widen opt_in when a real flag name keeps landing in WARN.
-next_cmds='gwt|git|gh|ps'
+next_cmds='gwt|git|gh|ps|tail|ls|cat'
 opt_in='remote|network|online'
 call_pattern='(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)'
 FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
@@ -173,7 +175,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
   }
   function flush(   voc) {
     voc = nfixed == 0 ? "-" : (dyn ? "?" : nvoc)
-    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net, tbl
+    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net, tbl, args
     cur = ""
   }
   function judge(v) {
@@ -210,6 +212,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     if (line ~ /\$\{?[A-Za-z_][A-Za-z0-9_]*\[/) needs = 1
     if (line ~ /emulate -L sh/) guarded = 1
     if (line ~ /^[^#]*(^|[^A-Za-z0-9_])ux_table_row([^A-Za-z0-9_]|$)/) tbl = 1
+    if (line ~ /^[^#]*\$\{?([1-9@*#])/) args = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -247,7 +250,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     needs = 0
     guarded = 0
     nfixed = 0; nvoc = 0; dyn = 0; n = 0; ok = 0; blank = 0
-    net = 0; gd = 0; arm = 0; tbl = 0
+    net = 0; gd = 0; arm = 0; tbl = 0; args = 0
     opened = 0
     depth = 0
     body($0)
@@ -302,8 +305,10 @@ fi
 # The flag has to sit where an option is read -- a case pattern (`-h)`, `-h|`,
 # `--help)`) or a test (`[ "$1" = "--help" ]`) -- on a line with no `#` before
 # it. A bare `--help` anywhere also matched prose in comments and strings, and
-# missed the spacing variants (`-h )`, `"--help" ]`).
-help_arm='^[^#]*(^|[^-[:alnum:]_])(-h|--help)[^[:alnum:]]*[])|]'
+# missed the spacing variants (`-h )`, `"--help" ]`). A `|` only continues a
+# case pattern when single words separated by `|` run on to its `)`: `free -h |
+# awk ...` is a pipe, not a pattern (#106).
+help_arm='^[^#]*(^|[^-[:alnum:]_])(-h|--help)["'"'"']?(([[:space:]]*[|][[:space:]]*[^[:space:]|)]+)*[[:space:]]*[)]|[[:space:]]*])'
 # A `*help` function only counts as delegation when something calls it: a
 # defined-but-unreferenced `render_help` used to satisfy this on its name alone.
 # Which *public commands* route to it is not decidable here -- that stays with
@@ -316,57 +321,84 @@ for h in $(printf '%s\n' "$funcs" | grep -E 'help$' || true); do
 done
 # A thin wrapper hands "$@" to another executable -- `"$_exe" "$@"` or
 # `.../x.sh "$@"` (dotfiles#2195) -- so its --help lives in that file (#104).
-# The target's literal tail (after the last `}` / `$VAR`) is looked up under
-# each ancestor directory of the audited file, nearest first, stopping at the
-# file's git top level when it has one (else at /).
-# shortcut: only the first such call and a one-line var assignment are read;
-# widen when a wrapper builds its path over several lines.
-deleg='' deleg_expr=''
-if ! has "$help_arm"; then
-  lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?'
-  deleg_expr=$(grep -E "$lead"'("?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|[^[:space:]]*/[^[:space:]]+)[[:space:]]+"\$@"' "$file" 2>/dev/null |
-    head -1 | sed -E "s/$lead//"'; s/[[:space:]]+"\$@".*//' || true)
-fi
-if [ -n "$deleg_expr" ]; then
-  tgt=$(printf '%s' "$deleg_expr" | tr -d '"')
-  if printf '%s' "$tgt" | grep -qE '^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$'; then
-    v=$(printf '%s' "$tgt" | tr -d '${}')
-    tgt=$(grep -E "(^|[[:space:]])$v=" "$file" 2>/dev/null | head -1 |
-      sed -E "s/.*(^|[[:space:]])$v=//; s/[[:space:]]+#.*//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
+# The call may carry env assignments (`VAR="$x" "$_exe" "$@"`) or run the
+# target through an interpreter (`bash "$script" "$@"`) -- issue #106.
+# Every such call is judged: a `$var` target resolves through the nearest
+# assignment above the call, so `local script=...` reused across functions
+# (mytool's install_*) points each call at its own file. The target's literal
+# tail (after the last `}` / `$VAR`) is looked up under each ancestor directory
+# of the audited file, nearest first, stopping at the file's git top level when
+# it has one (else at /).
+# shortcut: a one-line var assignment only; widen when a wrapper builds its
+# path over several lines.
+# resolve_deleg <line-number> <expr> -> the target file, or nothing.
+resolve_deleg() {
+  _tgt=$(printf '%s' "$2" | tr -d '"')
+  if printf '%s' "$_tgt" | grep -qE '^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$'; then
+    _v=$(printf '%s' "$_tgt" | tr -d '${}')
+    _tgt=$(head -n "$1" "$file" | grep -E "(^|[[:space:]])$_v=" | tail -1 |
+      sed -E "s/.*(^|[[:space:]])$_v=//; s/[[:space:]]+#.*//; s/[[:space:];]+\$//" | tr -d "\"'" || true)
   fi
-  tail=$(printf '%s' "$tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
+  _tail=$(printf '%s' "$_tgt" | sed -E 's/.*\}//; s/^\$[A-Za-z_][A-Za-z0-9_]*//')
   # A literal absolute path is the target itself, never a tail to re-root.
-  case $tgt in
-    /*) if [ "$tail" = "$tgt" ]; then
-          if [ -f "$tgt" ]; then deleg=$tgt; fi
-          tail=''
+  case $_tgt in
+    /*) if [ "$_tail" = "$_tgt" ]; then
+          [ ! -f "$_tgt" ] || printf '%s\n' "$_tgt"
+          return 0
         fi ;;
   esac
-  if [ -z "$deleg" ] && [ -n "$tail" ]; then
-    d=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
-    top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null || echo /)
-    while :; do
-      if [ -f "$d/${tail#/}" ]; then deleg="$d/${tail#/}"; break; fi
-      [ "$d" != / ] && [ "$d" != "$top" ] || break
-      d=$(dirname "$d")
-    done
-  fi
+  [ -n "$_tail" ] || return 0
+  _d=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
+  _top=$(git -C "$_d" rev-parse --show-toplevel 2>/dev/null || echo /)
+  while :; do
+    if [ -f "$_d/${_tail#/}" ]; then printf '%s\n' "$_d/${_tail#/}"; return 0; fi
+    [ "$_d" != / ] && [ "$_d" != "$_top" ] || return 0
+    _d=$(dirname "$_d")
+  done
+}
+deleg='' deleg_nohelp='' deleg_lost=''
+if ! has "$help_arm"; then
+  lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=("[^"]*"|[^[:space:]"]*)[[:space:]]+)*((bash|sh)[[:space:]]+)?'
+  calls=$(grep -nE "$lead"'("?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|[^[:space:]]*/[^[:space:]]+)[[:space:]]+"\$@"' "$file" 2>/dev/null || true)
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    ln=${c%%:*}
+    dexpr=$(printf '%s\n' "${c#*:}" | sed -E "s/$lead//"'; s/[[:space:]]+"\$@".*//')
+    t=$(resolve_deleg "$ln" "$dexpr")
+    if [ -z "$t" ]; then
+      [ -n "$deleg_lost" ] || deleg_lost=$dexpr
+    # -I: a compiled binary target (`/usr/bin/git "$@"`) is not grepped as text.
+    elif ! grep -qIE -e "$help_arm" "$t" 2>/dev/null; then
+      [ -n "$deleg_nohelp" ] || deleg_nohelp=$t
+    else
+      [ -n "$deleg" ] || deleg=$t
+    fi
+  done <<CALLS
+$calls
+CALLS
 fi
-if [ -n "$deleg" ]; then
-  # -I: a compiled binary target (`/usr/bin/git "$@"`) is not grepped as text.
-  if grep -qIE -e "$help_arm" "$deleg" 2>/dev/null; then
-    r6=PASS; n6="delegates --help to $deleg"
-  else
-    r6=FAIL; n6="delegates to $deleg, which has no -h/--help handling"
-  fi
-elif [ -n "$deleg_expr" ]; then
-  r6=FAIL; n6="no -h/--help handling, delegate target $deleg_expr not found"
-elif ! has "$help_arm"; then
-  r6=FAIL; n6='no -h/--help handling'
-elif [ "$help_fn" -eq 1 ]; then
+# Who Check 6 asks for --help (#106): public (no leading `_`) functions that
+# read their arguments, minus `*_help` renderers -- asking a help function for
+# --help is circular. A sourced file with none of them has no command to check;
+# that N/A only replaces the FAIL, so help a file does handle still scores.
+pub=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/' | grep -c . || true)
+cand=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/ && $1 !~ /_help$/ && $10 == 1' | grep -c . || true)
+if [ -n "$deleg_nohelp" ]; then
+  r6=FAIL; n6="delegates to $deleg_nohelp, which has no -h/--help handling"
+elif [ -n "$deleg_lost" ]; then
+  r6=FAIL; n6="no -h/--help handling, delegate target $deleg_lost not found"
+elif [ -n "$deleg" ]; then
+  r6=PASS; n6="delegates --help to $deleg"
+elif has "$help_arm" && [ "$help_fn" -eq 1 ]; then
   r6=PASS; n6='-h/--help delegates to a help function'
-else
+elif has "$help_arm"; then
   r6=WARN; n6='help handled inline, not via a help function'
+elif [ "$sourced" -eq 1 ] && [ "$pub" -eq 0 ]; then
+  r6='N/A'; n6='no public command'
+elif [ "$sourced" -eq 1 ] && [ "$cand" -eq 0 ]; then
+  r6='N/A'; n6='no public command takes arguments (help renderers excluded)'
+else
+  r6=FAIL; n6='no -h/--help handling'
 fi
 
 # ---------- Check 7: UX Lib Usage ----------
