@@ -710,6 +710,12 @@ if [ "${x#*/}" = "$#" ]; then rm -rf "$y"; fi
 EOF
 eq "shift: arithmetic << is no heredoc, \$# and \${x#} no comment" "$(safety "$sf/shift.sh" 14)" WARN
 eq "shift: arithmetic > is no redirect" "$(safety "$sf/shift.sh" 12)" 'N/A'
+scr "$sf/arith.sh" <<'EOF'
+#!/bin/bash
+(( x = 1 << n ))
+rm -rf "$HOME/x"
+EOF
+eq "arith: a plain (( << )) opens no heredoc" "$(safety "$sf/arith.sh" 14)" WARN
 
 # Check 11.
 scr "$sf/tmp_ok.sh" <<'EOF'
@@ -732,6 +738,15 @@ main() {
 main
 EOF
 eq "11: rm in a function the trap calls, transitively, is PASS" "$(safety "$sf/tmp_fn.sh" 11)" PASS
+scr "$sf/tmp_ml.sh" <<'EOF'
+#!/bin/sh
+cleanup() {
+    rm -f "$t"
+}
+t=$(mktemp)
+trap cleanup EXIT
+EOF
+eq "11: rm on its own line of a cleanup function is PASS" "$(safety "$sf/tmp_ml.sh" 11)" PASS
 scr "$sf/tmp_dq.sh" <<'EOF'
 #!/bin/bash
 t=$(mktemp -d)
@@ -747,6 +762,15 @@ trap '
 ' EXIT
 EOF
 eq "11: a multi-line trap body counts" "$(safety "$sf/tmp_multi.sh" 11)" PASS
+scr "$sf/tmp_mc.sh" <<'EOF'
+#!/bin/bash
+t=$(mktemp)
+trap '
+    echo bye
+    rm -f "$t"
+' EXIT
+EOF
+eq "11: rm on a later line of a trap body counts" "$(safety "$sf/tmp_mc.sh" 11)" PASS
 scr "$sf/tmp_cont.sh" <<'EOF'
 #!/bin/bash
 t=$(mktemp)
@@ -892,11 +916,25 @@ ls > "$1.tmp"
 mv "$1.tmp" "$1"
 EOF
 eq "12: a redirect target later moved away is a temp file" "$(safety "$sf/at_lit.sh" 12)" 'N/A'
+scr "$sf/at_redir.sh" <<'EOF'
+#!/bin/sh
+out=$1
+tmp=$(mktemp "$out.XXXXXX")
+mv "$tmp" "$out" 2>/dev/null
+EOF
+eq "12: a redirect after mv is not its target" "$(safety "$sf/at_redir.sh" 12)" PASS
+scr "$sf/at_arith.sh" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$(( n + 1 ))" > "$1"
+EOF
+eq "12: an arithmetic expansion hides no redirect on its line" "$(safety "$sf/at_arith.sh" 12)" WARN
 
 # Check 13.
 printf '#!/bin/sh\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_sh.sh"; chmod +x "$sf/sig_sh.sh"
 printf '#!/bin/bash\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_bash.sh"; chmod +x "$sf/sig_bash.sh"
 eq "13: #!/bin/sh EXIT trap alone is WARN" "$(safety "$sf/sig_sh.sh" 13)" WARN
+printf '#!/bin/sh -eu\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_args.sh"; chmod +x "$sf/sig_args.sh"
+eq "13: a #!/bin/sh line with options is still sh" "$(safety "$sf/sig_args.sh" 13)" WARN
 eq "13: the same code under #!/bin/bash is N/A" "$(safety "$sf/sig_bash.sh" 13)" 'N/A'
 scr "$sf/sig_nohup.sh" <<'EOF'
 #!/bin/sh
@@ -921,6 +959,16 @@ d 2>&1 | e
 f "x & y"
 EOF
 eq "13: &&, &>, >& and a quoted & are no background job" "$(safety "$sf/sig_fg.sh" 13)" 'N/A'
+scr "$sf/sig_op.sh" <<'EOF'
+#!/bin/bash
+case "$1" in
+    a) b ;&
+    c) d ;;&
+    *) e ;;
+esac
+if (( flags & 1 )); then f; fi
+EOF
+eq "13: ;&, ;;& and an arithmetic & are no background job" "$(safety "$sf/sig_op.sh" 13)" 'N/A'
 scr "$sf/sig_one.sh" <<'EOF'
 #!/bin/sh
 cmd &
@@ -935,6 +983,16 @@ trap _stop SIGINT SIGTERM
 wait
 EOF
 eq "13: both signals and kill in the cleanup path is PASS" "$(safety "$sf/sig_ok.sh" 13)" PASS
+scr "$sf/sig_ml.sh" <<'EOF'
+#!/bin/sh
+_stop() {
+    kill "$_pid"
+}
+cmd & _pid=$!
+trap _stop INT TERM
+wait
+EOF
+eq "13: kill on its own line of a cleanup function is PASS" "$(safety "$sf/sig_ml.sh" 13)" PASS
 scr "$sf/sig_chain.sh" <<'EOF'
 #!/bin/sh
 cmd & _pid=$!
@@ -1009,6 +1067,26 @@ done
 git reset --hard HEAD
 EOF
 eq "14: a getopts n arm is option position" "$(safety "$sf/dry_opts.sh" 14)" PASS
+scr "$sf/dry_name.sh" <<'EOF'
+#!/bin/sh
+case "$1" in
+    -n|--name) name=$2 ;;
+esac
+[ -n "$name" ] && rm -rf "$HOME/$name"
+EOF
+eq "14: -n|--name is a value option, no dry-run flag" "$(safety_note "$sf/dry_name.sh" 14)" \
+  '1 mutating command(s), first rm, no --dry-run/--apply'
+scr "$sf/dry_nval.sh" <<'EOF'
+#!/bin/sh
+while getopts n: o; do
+    case $o in
+        n) name=$OPTARG ;;
+    esac
+done
+[ -n "$name" ] && rm -rf "$HOME/$name"
+EOF
+eq "14: getopts n: takes a value, no dry-run flag" "$(safety_note "$sf/dry_nval.sh" 14)" \
+  '1 mutating command(s), first rm, no --dry-run/--apply'
 scr "$sf/dry_test.sh" <<'EOF'
 #!/bin/sh
 if [ "$1" != "--apply" ]; then
@@ -1049,6 +1127,14 @@ rm -f "$t"
 rm -f "$d/one" "$copy"
 EOF
 eq "14: rm of mktemp variables only is N/A" "$(safety "$sf/dry_tmp.sh" 14)" 'N/A'
+scr "$sf/dry_redir.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp)
+trap 'rm -f "$t"' EXIT
+rm -f "$t" 2>/dev/null
+rm -f "$t" >/dev/null 2>&1
+EOF
+eq "14: a redirect on rm is no argument" "$(safety "$sf/dry_redir.sh" 14)" 'N/A'
 scr "$sf/dry_mix.sh" <<'EOF'
 #!/bin/sh
 t=$(mktemp)

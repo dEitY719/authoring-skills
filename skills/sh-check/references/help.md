@@ -11,7 +11,7 @@ Arguments and options:
 | `[path]` | Shell script to audit. | search `./` for `*.sh`; ask if several |
 | `-h`, `--help`, `help` | Print this help and stop. No checks are run. | — |
 
-What it checks (10 criteria):
+What it checks (10 criteria + 4 Safety checks):
 
   Structure (1–5)
     1. Shebang + POSIX Hygiene   — #!/bin/sh, [ ], >/dev/null 2>&1

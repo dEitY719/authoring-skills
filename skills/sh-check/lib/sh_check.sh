@@ -519,7 +519,7 @@ fi
 # and a cleanup reached through a `"$1"` argument stay unseen; widen on a real
 # miss (issue #108 Decisions: 12 and 14 cap at WARN for that reason).
 safety_sh=0
-if printf '%s\n' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?(da)?sh$'; then safety_sh=1; fi
+if printf '%s\n' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?(da)?sh([[:space:]]|$)'; then safety_sh=1; fi
 SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   function put(s) { M = M s; C = C s }
   function hide(s,   n) { C = C s; n = length(s); while (n-- > 0) M = M "." }
@@ -572,6 +572,11 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
         } else hide(c)
         i++; continue
       }
+      # `(( ))` is arithmetic like `$(( ))`: its <<, > and & are operators.
+      if (c == "(" && d == "(") {
+        st[++sp] = "A"; dp[sp] = 0; put("(("); i += 2
+        continue
+      }
       if (c == "\047" || c == "\"") {
         st[++sp] = (c == "\"") ? "D" : "S"; put(c); i++
         if (substr(l, i, 5) == "/tmp/") { put("/tmp/"); i += 5 }
@@ -602,6 +607,12 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     }
   }
   function has_cmd(text, what) { return text ~ (pre what) }
+  # The argument words of a command: up to the next operator, no redirections.
+  function args_of(s) {
+    sub(/[;|&)].*/, "", s)
+    sub(/[ \t][0-9]*[<>].*/, "", s)
+    return s
+  }
   # Every $name in s goes into arr.
   function vars_into(s, arr,   t) {
     while (match(s, /\$\{?[A-Za-z_][A-Za-z0-9_]*/)) {
@@ -627,7 +638,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     t = text
     while (match(t, rm_re)) {
       rest = substr(t, RSTART + RLENGTH); t = rest
-      sub(/[;|&)].*/, "", rest)
+      rest = args_of(rest)
       n = split(rest, w, /[ \t]+/); flag = 0; path = ""
       anyrm = 1
       for (i = 1; i <= n; i++) {
@@ -646,7 +657,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     t = m
     while (match(t, mv_re)) {
       rest = substr(t, RSTART + RLENGTH); t = rest
-      sub(/[;|&)].*/, "", rest)
+      rest = args_of(rest)
       n = split(rest, w, /[ \t]+/); k = 0
       for (i = 1; i <= n; i++)
         if (w[i] != "" && w[i] != "--" && w[i] !~ /^-/) tok[++k] = w[i]
@@ -655,7 +666,6 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     }
   }
   function note_redirects(m, c,   t, i, n, p, a, b, rest) {
-    if (index(m, "((")) return
     t = m
     while (match(t, /\\./)) t = substr(t, 1, RSTART - 1) ".." substr(t, RSTART + 2)
     # `[[ $a > $b ]]` compares strings; the blank keeps the offsets into c.
@@ -703,7 +713,9 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
         body = substr(rest, 1, RLENGTH); p += RLENGTH
         if (body == "-" || body ~ /^-[a-zA-Z]/) continue
       }
-      if (body ~ /^[ \t]*$/) continue
+      if (body ~ /^[ \t\n]*$/) continue
+      # Each line of a multi-line body starts a command.
+      gsub(/\n/, ";", body)
       note_rm(body, 0)
       note_assigns(body)
       rest = substr(m, p); sub(/[;&|)}].*/, "", rest)
@@ -756,8 +768,10 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   # Option handling (Check 14): an arm or test naming the flag, then the variable
   # it sets -- the assignments up to the end of that arm or if.
   function note_flags(m, c,   hit, t, name) {
-    if (c ~ /getopts[ \t]+["\047]?:?[A-Za-z:]*n/) gopt = 1
+    if (c ~ /getopts[ \t]+["\047]?:?[A-Za-z:]*n([^:]|$)/) gopt = 1
     hit = (c ~ arm_re || (gopt && c ~ /^[ \t]*[(]?n[)]/)) ? 1 : (c ~ test_re) ? 2 : 0
+    # `-n|--name)` or `-n) n=$2`: a value option that only shares the letter.
+    if (hit == 1 && c !~ /--dry-run|--apply/ && c ~ /(^|[ \t(|])--[a-z]|[$][{]?2|OPTARG/) hit = 0
     if (hit) {
       flagged = 1; ftest = (hit == 2); fvar = 0
       fwin = (hit == 1) ? 4 : (m ~ /then[ \t]*$/) ? 2 : 1
@@ -784,7 +798,8 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       }
     }
     if (cur != "") {
-      fbody[cur] = fbody[cur] "\n" m
+      # Joined by `;`, not a newline: the ^ in pre matches only at string start.
+      fbody[cur] = fbody[cur] ";" m
       t = m; o = gsub(/[{]/, "", t)
       t = m; e = gsub(/[}]/, "", t)
       if (o > 0) opened = 1
@@ -796,7 +811,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       if (match(m, tmp_asg_re) || match(m, tmp_red_re)) {
         t = substr(c, RSTART + RLENGTH - 5)
         if (t ~ /^\/tmp\// && t !~ /XXX/) {
-          sub(/[ \t;|&"\047)].*/, "", t)
+          sub(/[ \t\n;|&"\047)].*/, "", t)
           if (nfixed++ == 0) fixed = t
         }
       }
@@ -818,7 +833,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     if (m ~ cond_re || m ~ /&&|[|][|]/) cond = cond "\n" m
     if (m ~ /^[ \t]*disown([ \t;]|$)/ && lastbg && ln - lastbg <= 2) { nbg--; lastbg = 0 }
     t = m
-    gsub(/\\./, "", t); gsub(/\$\{[^}]*\}/, "", t); gsub(/&&|[<>]&|&>|[|]&/, "", t)
+    gsub(/\\./, "", t); gsub(/\$\{[^}]*\}/, "", t); gsub(/&&|[<>;]&|&>|[|]&/, "", t)
     if (t ~ /&/ && m !~ /(^|[^A-Za-z0-9_-])(nohup|disown|setsid)([^A-Za-z0-9_-]|$)/) {
       nbg++; lastbg = ln
     }
@@ -833,7 +848,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     for (i = 1; i <= n; i++)
       if ((w[i] in fbody) && !(w[i] in seen)) {
         seen[w[i]] = 1
-        out = out "\n" reach(fbody[w[i]], d + 1)
+        out = out ";" reach(fbody[w[i]], d + 1)
       }
     return out
   }
@@ -864,7 +879,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   {
     scan($0)
     if (cont) next
-    if (st[sp] == "S" || st[sp] == "D") { put(" "); next }
+    if (st[sp] == "S" || st[sp] == "D") { hide("\n"); next }
     analyze(M, C)
     M = ""; C = ""
   }
