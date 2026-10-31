@@ -49,7 +49,7 @@ dry-run 개념 자체가 없습니다.
 1. **파일 특정** — 경로 검증(확장자 아님 → 경고 후 계속), `LINES`(`wc -l`)와
    `IS_SOURCED` 판정. `shell-common/functions/`·`bash/`·`zsh/` 아래이거나 상단에
    `case $- in *i*)` 가 있으면 sourced fragment, 아니면 executable script 로 분류.
-2. **10개 검사 수행** — `references/checks.md` 의 기준표와 grep 힌트를 사용해
+2. **14개 검사 수행** — `references/checks.md` 의 기준표와 grep 힌트를 사용해
    각 항목을 PASS / WARN / FAIL / N-A 로 판정.
 3. **리포트 출력** — `references/report-template.md` 형식 그대로.
    Structure 표 + UX 표 + Safety 표, `Score: X/10 checks passed (Y warnings, Z N/A)`,

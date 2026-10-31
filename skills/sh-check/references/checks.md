@@ -494,8 +494,10 @@ variable does not count.
 | WARN | A mutating command with no such flag. Or the flag is parsed and never read |
 | N/A | No mutating command in scope |
 
-`--apply` counts because a dry-run default is the standard shape here. No FAIL:
-a dry run is a recommendation.
+`--apply` counts because a dry-run default is the standard shape here. A `-n`
+that takes a value is some other option: `-n|--name)`, an arm reading `$2` or
+`$OPTARG`, and a `getopts` `n:` do not count. No FAIL: a dry run is a
+recommendation.
 
 ```sh
 _apply=0
