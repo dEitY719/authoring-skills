@@ -3,7 +3,7 @@
 > **한 줄 요약** — 셸 스크립트 파일 1개를 받아 10개 기준과 Safety 4종의 PASS/WARN/FAIL/N-A 감사 리포트를 생성합니다.
 
 ```
-check_port_registry.sh  ──▶  /authoring:sh-check  ──▶  10개 기준 감사 리포트
+check_port_registry.sh  ──▶  /authoring:sh-check  ──▶  10개 기준 + Safety 4종 감사 리포트
    (118 lines)                  (read-only)            표 3개 + Score + Safety + Verdict + Next Actions
 ```
 
