@@ -522,7 +522,8 @@ safety_sh=0
 if printf '%s\n' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?(da)?sh([[:space:]]|$)'; then safety_sh=1; fi
 SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   function put(s) { M = M s; C = C s }
-  function hide(s,   n) { C = C s; n = length(s); while (n-- > 0) M = M "." }
+  function dots(n,   s) { while (n-- > 0) s = s "."; return s }
+  function hide(s) { C = C s; M = M dots(length(s)) }
   function brace_end(s, i,   d, c, n) {
     d = 0; n = length(s)
     for (; i <= n; i++) {
@@ -622,24 +623,24 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     }
   }
   # head_var "$x/y" -> x, the variable a token starts with; else nothing.
-  function head_var(tok,   t) {
-    t = tok; gsub(/"/, "", t)
+  function head_var(t) {
+    gsub(/"/, "", t)
     if (!match(t, /^\$\{?[A-Za-z_][A-Za-z0-9_]*/)) return ""
     t = substr(t, 1, RLENGTH); gsub(/[${]/, "", t)
     return t
   }
-  function note_alias(lhs, rhs,   h) {
+  # A variable known to hold a temp path; "" (no variable) is in neither set.
+  function is_tmp(h) { return (h in mk) || (h in tmpv) }
+  function note_alias(lhs, rhs) {
     if (rhs !~ /\$/) return
-    h = head_var(rhs)
-    al[++an] = lhs; ar[an] = rhs; ah[an] = h
+    al[++an] = lhs; ar[an] = rhs; ah[an] = head_var(rhs)
   }
   # counted: an rm in the audited code, not one read from a trap body.
-  function note_rm(text, counted,   t, rest, n, w, i, flag, path) {
+  function note_rm(text, counted,   t, n, w, i, flag, path) {
     t = text
     while (match(t, rm_re)) {
-      rest = substr(t, RSTART + RLENGTH); t = rest
-      rest = args_of(rest)
-      n = split(rest, w, /[ \t]+/); flag = 0; path = ""
+      t = substr(t, RSTART + RLENGTH)
+      n = split(args_of(t), w, /[ \t]+/); flag = 0; path = ""
       anyrm = 1
       for (i = 1; i <= n; i++) {
         if (w[i] == "" || w[i] == "--") continue
@@ -653,12 +654,11 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       if (counted && flag && inscope) { nrm++; rmargs[nrm] = path }
     }
   }
-  function note_mv(m,   t, rest, n, w, i, k, tok) {
+  function note_mv(m,   t, n, w, i, k, tok) {
     t = m
     while (match(t, mv_re)) {
-      rest = substr(t, RSTART + RLENGTH); t = rest
-      rest = args_of(rest)
-      n = split(rest, w, /[ \t]+/); k = 0
+      t = substr(t, RSTART + RLENGTH)
+      n = split(args_of(t), w, /[ \t]+/); k = 0
       for (i = 1; i <= n; i++)
         if (w[i] != "" && w[i] != "--" && w[i] !~ /^-/) tok[++k] = w[i]
       if (k < 2) continue
@@ -669,11 +669,8 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     t = m
     while (match(t, /\\./)) t = substr(t, 1, RSTART - 1) ".." substr(t, RSTART + 2)
     # `[[ $a > $b ]]` compares strings; the blank keeps the offsets into c.
-    while (match(t, /\[\[.*\]\]/)) {
-      a = ""
-      for (p = 0; p < RLENGTH; p++) a = a "."
-      t = substr(t, 1, RSTART - 1) a substr(t, RSTART + RLENGTH)
-    }
+    while (match(t, /\[\[.*\]\]/))
+      t = substr(t, 1, RSTART - 1) dots(RLENGTH) substr(t, RSTART + RLENGTH)
     n = length(t)
     for (i = 1; i <= n; i++) {
       if (substr(t, i, 1) != ">") continue
@@ -748,7 +745,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     while (match(t, assign_re)) {
       lhs = substr(t, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_]/, "", lhs)
       t = substr(t, RSTART + RLENGTH)
-      if (substr(t, 1, 1) == "(") { match(t, /^[^)]*/) }
+      if (substr(t, 1, 1) == "(") match(t, /^[^)]*/)
       else match(t, /^[^ \t;|&]*/)
       rhs = substr(t, 1, RLENGTH)
       if (rhs ~ /dirname|%\//) dirvar[lhs] = 1
@@ -758,8 +755,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       } else note_alias(lhs, rhs)
     }
     if (match(m, /(^|[ \t;&|(])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]+in[ \t]/)) {
-      t = substr(m, RSTART, RLENGTH); sub(/^.*for[ \t]+/, "", t); sub(/[ \t].*/, "", t)
-      lhs = t
+      lhs = substr(m, RSTART, RLENGTH); sub(/^.*for[ \t]+/, "", lhs); sub(/[ \t].*/, "", lhs)
       t = substr(m, RSTART + RLENGTH); sub(/;.*/, "", t)
       n = split(t, w, /[ \t]+/)
       for (i = 1; i <= n; i++) note_alias(lhs, w[i])
@@ -788,7 +784,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     # A bare test gates the code itself: the option is read where it is parsed.
     if (fwin == 0 && ftest && !fvar) direct = 1
   }
-  function analyze(m, c,   t, o, e, name, is_mk) {
+  function analyze(m, c,   t, o, e) {
     ln++
     if (m ~ /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_-]*[ \t]*\(\)/ ||
         m ~ /^[ \t]*function[ \t]+[A-Za-z_]/) {
@@ -806,14 +802,11 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       depth += o - e
     }
     inscope = !sourced || (cur != "" && cur !~ /^_/)
-    is_mk = note_mktemp(m, c)
-    if (!is_mk) {
-      if (match(m, tmp_asg_re) || match(m, tmp_red_re)) {
-        t = substr(c, RSTART + RLENGTH - 5)
-        if (t ~ /^\/tmp\// && t !~ /XXX/) {
-          sub(/[ \t\n;|&"\047)].*/, "", t)
-          if (nfixed++ == 0) fixed = t
-        }
+    if (!note_mktemp(m, c) && (match(m, tmp_asg_re) || match(m, tmp_red_re))) {
+      t = substr(c, RSTART + RLENGTH - 5)
+      if (t ~ /^\/tmp\// && t !~ /XXX/) {
+        sub(/[ \t\n;|&"\047)].*/, "", t)
+        if (nfixed++ == 0) fixed = t
       }
     }
     note_traps(m, c)
@@ -826,10 +819,12 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     note_redirects(m, c)
     note_assigns(m)
     note_flags(m, c)
-    if (has_cmd(m, "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*push([ \t;|&)]|$)") && inscope) mutate("git push")
-    if (has_cmd(m, "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*reset[ \t]([^;|&]*[ \t])?--hard") && inscope) mutate("git reset --hard")
-    if (has_cmd(m, "sudo[ \t]") && inscope) mutate("sudo")
-    if (has_cmd(m, "gh[ \t]+((-R|--repo)[ \t]+[^ \t]+[ \t]+)?[a-z-]+[ \t]+(create|merge|delete)([ \t;|&)]|$)") && inscope) mutate("gh write")
+    if (inscope) {
+      if (has_cmd(m, git_re "push([ \t;|&)]|$)")) mutate("git push")
+      if (has_cmd(m, git_re "reset[ \t]([^;|&]*[ \t])?--hard")) mutate("git reset --hard")
+      if (has_cmd(m, "sudo[ \t]")) mutate("sudo")
+      if (has_cmd(m, "gh[ \t]+((-R|--repo)[ \t]+[^ \t]+[ \t]+)?[a-z-]+[ \t]+(create|merge|delete)([ \t;|&)]|$)")) mutate("gh write")
+    }
     if (m ~ cond_re || m ~ /&&|[|][|]/) cond = cond "\n" m
     if (m ~ /^[ \t]*disown([ \t;]|$)/ && lastbg && ln - lastbg <= 2) { nbg--; lastbg = 0 }
     t = m
@@ -862,6 +857,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     rm_re = pre "rm[ \t]+"
     mv_re = pre "mv[ \t]+"
     trap_re = pre "trap[ \t]+"
+    git_re = "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*"
     assign_re = "(^|[ \t;&|(){])[A-Za-z_][A-Za-z0-9_]*[+]?="
     tmp_asg_re = "(^|[ \t;&|(])[A-Za-z_][A-Za-z0-9_]*=[\"\047]?/tmp/"
     tmp_red_re = ">[>|]?[ \t]*[\"\047]?/tmp/"
@@ -892,7 +888,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     }
     for (pass_n = 0; pass_n < 4; pass_n++)
       for (i = 1; i <= an; i++) {
-        if (ah[i] != "" && ((ah[i] in mk) || (ah[i] in tmpv))) tmpv[al[i]] = 1
+        if (is_tmp(ah[i])) tmpv[al[i]] = 1
         if (al[i] in removed) vars_into(ar[i], removed)
       }
 
@@ -906,8 +902,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       if (!inner && unrem == "") unrem = name
     }
     split("", seen)
-    exit_code = reach(b_exit, 0)
-    exit_rm = (exit_code ~ rm_re)
+    exit_rm = (reach(b_exit, 0) ~ rm_re)
     if (mkn + unnamed + nfixed == 0) row(11, "N/A", "no mktemp or /tmp path")
     else if (nfixed) row(11, "FAIL", "predictable temp path " fixed)
     else if (unrem != "") row(11, "FAIL", "mktemp result $" unrem " is never removed")
@@ -922,15 +917,13 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     for (i = 1; i <= tn; i++) {
       t = tc[i]; gsub(/"|\047/, "", t)
       if (t ~ /^\/dev\// || t ~ /^\/tmp\//) continue
-      h = head_var(tm[i])
-      if (h != "" && ((h in mk) || (h in tmpv))) continue
-      if (tm[i] in mvtok) continue
+      if (is_tmp(head_var(tm[i])) || (tm[i] in mvtok)) continue
       if (direct_n++ == 0) sample = t
     }
     mv_same = 0; mv_cross = 0
     for (i = 1; i <= nmv; i++) {
       h = head_var(mvs[i])
-      if (h == "" || !((h in mk) || (h in tmpv))) continue
+      if (!is_tmp(h)) continue
       tpl = (h in mk) ? mk[h] : ""
       same = (tpl ~ /dirname|%\//)
       split("", parents); vars_into(tpl, parents)
@@ -959,8 +952,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       n = split(rmargs[i], w, /[ \t]+/); only_tmp = 0; other = 0
       for (j = 1; j <= n; j++) {
         if (w[j] == "") continue
-        h = head_var(w[j])
-        if (h != "" && ((h in mk) || (h in tmpv))) only_tmp = 1
+        if (is_tmp(head_var(w[j]))) only_tmp = 1
         else other = 1
       }
       if (!only_tmp || other) mutate("rm")

@@ -930,10 +930,10 @@ EOF
 eq "12: an arithmetic expansion hides no redirect on its line" "$(safety "$sf/at_arith.sh" 12)" WARN
 
 # Check 13.
-printf '#!/bin/sh\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_sh.sh"; chmod +x "$sf/sig_sh.sh"
-printf '#!/bin/bash\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_bash.sh"; chmod +x "$sf/sig_bash.sh"
+printf '#!/bin/sh\nt=x\ntrap "echo $t" EXIT\n' | scr "$sf/sig_sh.sh"
+printf '#!/bin/bash\nt=x\ntrap "echo $t" EXIT\n' | scr "$sf/sig_bash.sh"
 eq "13: #!/bin/sh EXIT trap alone is WARN" "$(safety "$sf/sig_sh.sh" 13)" WARN
-printf '#!/bin/sh -eu\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_args.sh"; chmod +x "$sf/sig_args.sh"
+printf '#!/bin/sh -eu\nt=x\ntrap "echo $t" EXIT\n' | scr "$sf/sig_args.sh"
 eq "13: a #!/bin/sh line with options is still sh" "$(safety "$sf/sig_args.sh" 13)" WARN
 eq "13: the same code under #!/bin/bash is N/A" "$(safety "$sf/sig_bash.sh" 13)" 'N/A'
 scr "$sf/sig_nohup.sh" <<'EOF'
