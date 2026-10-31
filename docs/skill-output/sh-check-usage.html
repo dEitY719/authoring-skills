@@ -343,7 +343,7 @@
     </span>
     <h1 class="animate delay-1">sh-check 사용 결과</h1>
     <p class="lede animate delay-2">
-      <strong>한 줄 요약</strong> — 셸 스크립트 파일 1개를 받아 10개 기준 PASS/WARN/FAIL/N-A 감사 리포트를 생성합니다.
+      <strong>한 줄 요약</strong> — 셸 스크립트 파일 1개를 받아 10개 기준과 Safety 4종의 PASS/WARN/FAIL/N-A 감사 리포트를 생성합니다.
     </p>
   </div>
 </header>
@@ -364,7 +364,7 @@
       <div class="arrow" aria-hidden="true">→</div>
       <div class="node">
         <div class="t">10개 기준 감사 리포트</div>
-        <div class="s">표 2개 + Score + Verdict + Next Actions</div>
+        <div class="s">표 3개 + Score + Safety + Verdict + Next Actions</div>
       </div>
     </div>
   </div>
@@ -490,6 +490,10 @@ db       = backend + 2</code></pre>
     <h3 style="font-size:1.125rem;margin:36px 0 12px;">리포트 발췌</h3>
     <pre data-reveal><code>| 6 | Help Flag              | FAIL   | no -h/--help arm; usage in source|
 Verdict: POOR — UX layer absent: no help flag and no ux_lib, so every message is raw echo</code></pre>
+    <p class="muted" style="margin-top:14px;">
+      <code>Safety: N/A</code> — 읽기만 하는 검증기라 임시 파일, 덮어쓰기, 백그라운드 작업, 변경성 명령이 없어
+      네 행 모두 N-A 입니다. Safety 는 Score 와 Verdict 에 합산되지 않습니다.
+    </p>
 
     <h3 style="font-size:1.125rem;margin:36px 0 0;">근거</h3>
     <div class="ev" data-reveal>
