@@ -334,7 +334,7 @@
     </span>
     <h1 class="animate delay-1">sh-check</h1>
     <p class="lede animate delay-2">
-      셸 스크립트(<code>*.sh</code>) 한 개를 dotfiles 품질 기준 10개 항목으로 감사하고,
+      셸 스크립트(<code>*.sh</code>) 한 개를 dotfiles 품질 기준 10개 항목과 Safety 점검 4종으로 감사하고,
       PASS/WARN/FAIL/N-A 표 · Score · Verdict · Next Actions 로 구성된 <strong>감사 리포트</strong>를 출력합니다.
       읽기 전용이라 대상 스크립트를 절대 수정하지 않습니다.
     </p>
@@ -480,8 +480,8 @@
       </li>
       <li>
         <strong>리포트 출력</strong> — <code>references/report-template.md</code> 형식 그대로.
-        Structure 표 + UX 표, <code>Score: X/10 checks passed (Y warnings, Z N/A)</code>,
-        Verdict 한 줄, WARN/FAIL 마다 한 줄씩인 Next Actions.
+        Structure 표 + UX 표 + Safety 표, <code>Score: X/10 checks passed (Y warnings, Z N/A)</code>,
+        <code>Safety: X/Y checks passed (W warnings, Z N/A)</code>, Verdict 한 줄, WARN/FAIL 마다 한 줄씩인 Next Actions.
       </li>
     </ol>
   </div>
@@ -565,6 +565,37 @@
       </div>
     </div>
 
+    <div class="crit-group" style="margin-top:24px;" data-reveal>
+      <h3 style="font-size:1.125rem;margin-bottom:12px;">Safety (11–14)</h3>
+      <p class="muted" style="margin-bottom:12px;">
+        실패·중단 시의 안전성을 정적으로 판정합니다. 해당 패턴이 없는 파일은 N-A 이고,
+        10점 Score 와 Verdict 에 합산하지 않으며 별도 <code>Safety:</code> 줄로만 나옵니다.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>검사</th><th>보는 것</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">11</td><td><strong>Temp File Cleanup</strong></td>
+              <td>임시 경로가 <code>mktemp</code> 산출이고 EXIT trap 에서 <code>rm</code> 으로 지워지는가. 고정 <code>/tmp/</code> 경로와 지우지 않는 <code>mktemp</code> 는 <span class="v v-fail">FAIL</span></td>
+            </tr>
+            <tr>
+              <td class="num">12</td><td><strong>Atomic Write</strong></td>
+              <td>대상과 같은 디렉터리의 <code>mktemp</code> + <code>mv</code> 로 교체하는가. 직접 <code>&gt;</code> 는 <span class="v v-warn">WARN</span>, FAIL 은 없음</td>
+            </tr>
+            <tr>
+              <td class="num">13</td><td><strong>Signal Handling</strong></td>
+              <td>INT · TERM 을 모두 trap 하고 백그라운드 작업을 정리하는가. trap 없는 백그라운드 작업은 <span class="v v-fail">FAIL</span>, <code>#!/bin/sh</code> 의 EXIT trap 단독은 <span class="v v-warn">WARN</span></td>
+            </tr>
+            <tr>
+              <td class="num">14</td><td><strong>Dry-run Support</strong></td>
+              <td>변경성 명령에 <code>--dry-run</code> / <code>-n</code> / <code>--apply</code> 가 있고 조건문에서 읽는가. 없으면 <span class="v v-warn">WARN</span>, FAIL 은 없음</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <h3 style="font-size:1.125rem;margin:36px 0 6px;">Verdict 산정</h3>
     <p class="muted" style="margin-bottom:16px;">
       Verdict 는 <code>PASS_COUNT / (10 - NA_COUNT)</code> 비율로 계산합니다.
@@ -601,7 +632,7 @@
         수정은 사람이 하거나 <code>/authoring:ux-guidelines</code> 가 합니다.
       </div>
       <div class="note">
-        <strong>10개 전부 보고.</strong> 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
+        <strong>14개 전부 보고.</strong> 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
         환경에 도구가 없어 못 돌린 검사는 조용히 넘기지 말고 사유를 적은 <span class="v v-na">N-A</span> 로 보고합니다.
       </div>
       <div class="note">

@@ -9,6 +9,9 @@ Checks 1, 2, 4, 5, 6, 7, 9 and 10 are decided mechanically by
 change lands in both. The other two (3 Section Anatomy, 8 Input Validation) are
 the auditor's judgment.
 
+Checks 11–14 (Safety) are decided by the same helper but scored apart: they
+never enter the 10-point score or the Verdict.
+
 Checks 9 and 10 are written against one reference implementation: gwt's
 `_gwt_compute_status` (`dEitY719/dotfiles`
 `shell-common/functions/git_worktree.sh`), whose contract `_gh_flow_verdict`
@@ -392,9 +395,124 @@ the score are computed as above.
 
 ---
 
+## Safety Checks (11–14)
+
+Does the script stay safe when it fails or is interrupted? The helper judges
+these statically and never runs the target. Each check is N/A unless its
+pattern is in the file, so a script that touches no temp file, background job
+or mutating command makes no noise.
+
+Every row reads code only: comment lines, trailing comments, heredoc bodies and
+quoted literal text are dropped first, so `/tmp/x` or `rm -rf` in help text is
+not a hit. An unclosed heredoc runs to end of file, which leans the row to N/A
+— a miss rather than a false alarm. A syntax error stops nothing: these are
+text patterns, not a parse. The sourced-fragment / executable class is the one
+from `SKILL.md` Step 1, so a script with a shebang and no execute bit is a
+sourced fragment here too.
+
+The helper prints `safety<TAB><id><TAB><result><TAB><note>` after the `fn` rows
+and `safety-score<TAB><pass>/<effective-total>` before the `score` row, with or
+without the two judgments. Safety adds no judged item.
+
+### Check 11 — Temp File Cleanup
+
+**Applies to** a `mktemp` call, or an assignment or redirect of a path starting
+`/tmp/` (a `mktemp` template holding `XXX` is not such a path).
+
+| Result | When |
+|--------|------|
+| PASS | Executed script: every temp path comes from `mktemp` and the EXIT trap's body, or a function it reaches, holds an `rm`. Sourced fragment: the `mktemp` variable is on an `rm` line and the file sets no EXIT trap |
+| WARN | The result is removed but no EXIT trap does it, so an early exit leaks it. Or a sourced fragment sets `trap ... EXIT`, replacing the caller shell's trap |
+| FAIL | A predictable fixed path (`/tmp/name`, `/tmp/x.$$`). Or a `mktemp` result nothing in the file removes |
+| N/A | Neither pattern is present |
+
+A result also counts as removed when it is the source of an `mv`, sits inside a
+removed `mktemp` directory, reaches an `rm` through another variable, array or
+`for` loop, or is printed by a function as its return value.
+
+```sh
+_dir=$(mktemp -d) || exit 1
+trap 'rm -rf "$_dir"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+```
+
+### Check 12 — Atomic Write
+
+**Applies to** a `>` overwrite of a variable or path, or an `mv` from a
+`mktemp` variable. Not counted: `>>`, `/dev/*`, file descriptors, and a target
+that is a temp variable, a `/tmp/` path or the source of a later `mv`.
+
+| Result | When |
+|--------|------|
+| PASS | The `mktemp` template is in the target's directory (it uses `dirname`, `${x%/*}`, a variable set from either, or the target itself) and `mv` replaces the target |
+| WARN | The target is overwritten directly with `>`. Or a default-template `mktemp` result is moved, and rename is not atomic across filesystems |
+| N/A | Neither pattern is present |
+
+No FAIL: the text cannot prove data loss, and a variable's name does not say
+whether it holds a temp file — the same policy as Check 10.
+
+```sh
+_tmp=$(mktemp "$(dirname "$_target")/.tmp.XXXXXX") || exit 1
+trap 'rm -f "$_tmp"' EXIT
+printf '%s\n' "$_content" > "$_tmp"
+mv "$_tmp" "$_target"
+```
+
+### Check 13 — Signal Handling
+
+**Applies to** a job started with `&` without `nohup`, `disown` or `setsid`, or
+a `trap ... EXIT` in a `#!/bin/sh` file. An EXIT trap in a `#!/bin/bash` file
+does not apply: bash runs it on SIGTERM, while dash does not, and `/bin/sh` is
+dash on WSL and Debian.
+
+| Result | When |
+|--------|------|
+| PASS | `trap` names INT and TERM (or SIGINT, SIGTERM), and with a background job the cleanup path holds a `kill` or `wait`. The cleanup path is every INT, TERM and EXIT trap body plus the functions they reach |
+| WARN | Only one of INT and TERM is named. Or a `#!/bin/sh` file has only an EXIT trap. Or both are trapped but the cleanup path holds neither `kill` nor `wait` |
+| FAIL | A background job with no INT or TERM trap |
+| N/A | Neither pattern is present |
+
+```sh
+_worker & _pid=$!
+trap 'kill "$_pid" 2>/dev/null' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+wait "$_pid"
+```
+
+### Check 14 — Dry-run Support
+
+**Applies to** an executed script, or a public function of a sourced fragment,
+calling `rm` with `-r` or `-f`, `git push`, `git reset --hard`, `sudo`, or
+`gh ... create|merge|delete`. An `rm` whose every argument is a `mktemp`
+variable does not count.
+
+| Result | When |
+|--------|------|
+| PASS | `--dry-run`, `-n` or `--apply` is handled at option position (a case arm, a `[ "$1" = --apply ]` test, or `getopts`) and its variable, `DRY_RUN` or any `*dry*` / `*apply*` variable is read in a condition. A test that gates the code directly reads itself |
+| WARN | A mutating command with no such flag. Or the flag is parsed and never read |
+| N/A | No mutating command in scope |
+
+`--apply` counts because a dry-run default is the standard shape here. No FAIL:
+a dry run is a recommendation.
+
+```sh
+_apply=0
+case "${1:-}" in
+    --apply) _apply=1 ;;
+esac
+if [ "$_apply" -eq 0 ]; then
+    ux_info "would delete $_target (pass --apply)"
+    exit 0
+fi
+```
+
+---
+
 ## Scoring
 
-After running all 10 checks, compute:
+After running the 10 scored checks, compute:
 
 - `PASS_COUNT` — number of PASS results
 - `WARN_COUNT` — number of WARN results
@@ -406,3 +524,7 @@ After running all 10 checks, compute:
 `lib/sh_check.sh` emits this arithmetic and the verdict as its final `score`
 row once it is given the two judgment results; the table it implements lives
 in `references/report-template.md`.
+
+Safety is scored apart, from its own rows. `safety-score` is
+`PASS_COUNT/(4 - NA_COUNT)` over checks 11–14 and has no verdict word; `0/0`
+means all four are N/A.

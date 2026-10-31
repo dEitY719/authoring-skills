@@ -20,6 +20,15 @@ row() { printf '%s\n' "$1" | awk -F'\t' -v id="$2" '$1 == id { print $2 }'; }
 verdict() { printf '%s\n' "$1" | awk -F'\t' '$1 == "score" { print $3 }'; }
 # fnrows <output> -> the per-verdict-function table rows, tag dropped
 fnrows() { printf '%s\n' "$1" | awk -F'\t' -v OFS=' ' '$1 == "fn" { $1 = ""; print substr($0, 2) }'; }
+# safety <file> <check-id> -> the result column of that file's Safety row;
+# safety_note the note column. The executable bit decides the class, so fixtures
+# meant as scripts are chmod +x (scr writes one).
+safety() { sh "$here/sh_check.sh" "$1" | awk -F'\t' -v id="$2" '$1 == "safety" && $2 == id { print $3 }'; }
+safety_note() { sh "$here/sh_check.sh" "$1" | awk -F'\t' -v id="$2" '$1 == "safety" && $2 == id { print $4 }'; }
+safety_score() { sh "$here/sh_check.sh" "$1" | awk -F'\t' '$1 == "safety-score" { print $2 }'; }
+# scr <path> -- stdin becomes an executed script; frag <path> a sourced fragment.
+scr() { cat > "$1"; chmod +x "$1"; }
+frag() { cat > "$1"; chmod -x "$1"; }
 
 # ---------- fixture 1: a clean sourced shell-common function ----------
 mkdir -p "$work/dotfiles/shell-common/functions"
@@ -182,8 +191,8 @@ vthen=$work/vthen.sh;   verdict_fixture "$vthen" "review 'x', then gh-flow prune
 v=$(sh "$here/sh_check.sh" "$vpass")
 eq "vpass: 9 gwt contract" "$(row "$v" 9)" PASS
 eq "vpass: 10 command-shaped NEXT, - for terminal" "$(row "$v" 10)" PASS
-eq "vpass: 9/10 rows are deterministic" "$(sh "$here/sh_check.sh" "$vpass" | tail -2)" \
-  "$(printf '%s\n' "$v" | tail -2)"
+eq "vpass: 9/10 rows are deterministic" "$(sh "$here/sh_check.sh" "$vpass" | grep -v '^safety' | tail -2)" \
+  "$(printf '%s\n' "$v" | grep -v '^safety' | tail -2)"
 eq "vskill: a /plugin:skill NEXT is a command" "$(row "$(sh "$here/sh_check.sh" "$vskill")" 10)" PASS
 eq "vfam: a gh-flow family NEXT is a command (issue #41)" "$(row "$(sh "$here/sh_check.sh" "$vfam")" 10)" PASS
 eq "vlook: a lookalike prefix is still WARN" "$(row "$(sh "$here/sh_check.sh" "$vlook")" 10)" WARN
@@ -209,7 +218,7 @@ eq "vblank: blank NEXT is WARN" "$(row "$(sh "$here/sh_check.sh" "$vblank")" 10)
 vt=$(sh "$here/sh_check.sh" "$vpass" PASS PASS)
 eq "vpass: fn row counts vocab and NEXT" "$(fnrows "$vt")" '_vt_compute_status 3 3/3 PASS'
 eq "vpass: fn table sits right before the score row" \
-  "$(printf '%s\n' "$vt" | tail -2 | cut -f1 | tr '\n' ' ')" 'fn score '
+  "$(printf '%s\n' "$vt" | grep -v '^safety' | tail -2 | cut -f1 | tr '\n' ' ')" 'fn score '
 eq "vprose: a prose NEXT makes the fn row WARN" \
   "$(fnrows "$(sh "$here/sh_check.sh" "$vprose")")" '_vt_compute_status 3 2/3 WARN'
 two=$work/two.sh
@@ -626,6 +635,473 @@ eq "wmix: an unresolvable call beside a resolved wrapper does not FAIL it" \
 printf '#!/bin/sh\nsay_it() {\n    echo "don'"'"'t" "$1" '"'"'x'"'"'\n}\n' > "$fns/dq.sh"
 eq "dq: an apostrophe inside double quotes does not hide \$1" \
   "$(row "$(sh "$here/sh_check.sh" "$fns/dq.sh")" 6)" FAIL
+
+# ---------- Safety checks 11-14 (issue #108) ----------
+sf=$work/safety
+mkdir -p "$sf"
+
+# The issue's own sample. The class comes from the execute bit, as everywhere.
+scr "$sf/risky.sh" <<'EOF'
+#!/bin/bash
+# Usage: risky.sh <dir>
+_show_help() { echo "usage"; }
+case "$1" in -h|--help) _show_help; exit 0 ;; esac
+target=$1
+cd $target
+tmp=/tmp/risky.$$
+for f in `ls *.log`; do
+    cat $f >> $tmp
+done
+rm -rf $target/*
+EOF
+eq "risky: 11 predictable path is FAIL" "$(safety "$sf/risky.sh" 11)" FAIL
+eq "risky: 11 note names the path" "$(safety_note "$sf/risky.sh" 11)" 'predictable temp path /tmp/risky.$$'
+eq "risky: 14 rm -rf with no flag is WARN" "$(safety "$sf/risky.sh" 14)" WARN
+eq "risky: 12 and 13 do not apply" "$(safety "$sf/risky.sh" 12) $(safety "$sf/risky.sh" 13)" 'N/A N/A'
+eq "risky: effective total drops N/A" "$(safety_score "$sf/risky.sh")" 0/2
+
+# Row order, and the contract with and without judgments.
+r=$(sh "$here/sh_check.sh" "$sf/risky.sh" PASS PASS)
+eq "safety: four rows, score row, then the 10-point score" \
+  "$(printf '%s\n' "$r" | tail -6 | cut -f1,2 | tr '\t\n' '  ')" \
+  'safety 11 safety 12 safety 13 safety 14 safety-score 0/2 score 5/5 '
+eq "safety: no judgments still prints every row" \
+  "$(sh "$here/sh_check.sh" "$sf/risky.sh" | grep -c '^safety')" 5
+eq "safety: never in the check column" \
+  "$(printf '%s\n' "$r" | awk -F'\t' '$1 ~ /^1[1-4]$/' | grep -c . || true)" 0
+
+# Empty file and all N/A.
+: > "$sf/empty.sh"
+eq "empty: 11-14 N/A" \
+  "$(for i in 11 12 13 14; do safety "$sf/empty.sh" "$i"; done | tr '\n' ' ')" 'N/A N/A N/A N/A '
+eq "empty: safety-score 0/0" "$(safety_score "$sf/empty.sh")" 0/0
+
+# Comments, heredocs and strings are not code.
+scr "$sf/prose.sh" <<'EOF'
+#!/bin/sh
+# never write to /tmp/foo or rm -rf /; sudo git push is fine in a comment
+cat <<USAGE
+tmp=/tmp/example
+rm -rf "$HOME/x"
+sudo git push origin main &
+USAGE
+cat <<-'INDENTED'
+	x=/tmp/y > /tmp/z
+	INDENTED
+ux_info "rm -rf /tmp/foo is how you would do it, trap 'x' EXIT"
+ux_info 'git push && gh pr create; sleep 9 &'
+EOF
+eq "prose: 11 N/A with /tmp only in comment, heredoc, string" "$(safety "$sf/prose.sh" 11)" 'N/A'
+eq "prose: 14 N/A with rm -rf only in comment, heredoc, string" "$(safety "$sf/prose.sh" 14)" 'N/A'
+eq "prose: 13 N/A with & only in heredoc, string" "$(safety "$sf/prose.sh" 13)" 'N/A'
+scr "$sf/openhd.sh" <<'EOF'
+#!/bin/sh
+cat <<NEVER
+rm -rf /
+tmp=/tmp/x
+EOF
+eq "openhd: an unclosed heredoc runs to EOF, rows lean N/A" \
+  "$(safety "$sf/openhd.sh" 11) $(safety "$sf/openhd.sh" 14)" 'N/A N/A'
+scr "$sf/shift.sh" <<'EOF'
+#!/bin/sh
+x=$(( 1 << n ))
+y=$(( a > b ))
+if [ "${x#*/}" = "$#" ]; then rm -rf "$y"; fi
+EOF
+eq "shift: arithmetic << is no heredoc, \$# and \${x#} no comment" "$(safety "$sf/shift.sh" 14)" WARN
+eq "shift: arithmetic > is no redirect" "$(safety "$sf/shift.sh" 12)" 'N/A'
+
+# Check 11.
+scr "$sf/tmp_ok.sh" <<'EOF'
+#!/bin/sh
+_dir=$(mktemp -d) || exit 1
+trap 'rm -rf "$_dir"' EXIT
+EOF
+eq "11: mktemp + rm in the EXIT trap is PASS" "$(safety "$sf/tmp_ok.sh" 11)" PASS
+scr "$sf/tmp_fn.sh" <<'EOF'
+#!/bin/bash
+_cleanup() {
+    _drop
+}
+_drop() { rm -f "$tmp"; }
+main() {
+    local tmp
+    tmp="$(mktemp)"
+    trap _cleanup EXIT INT TERM
+}
+main
+EOF
+eq "11: rm in a function the trap calls, transitively, is PASS" "$(safety "$sf/tmp_fn.sh" 11)" PASS
+scr "$sf/tmp_dq.sh" <<'EOF'
+#!/bin/bash
+t=$(mktemp -d)
+# shellcheck disable=SC2064
+trap "rm -rf $t" EXIT
+EOF
+eq "11: a double-quoted trap body counts" "$(safety "$sf/tmp_dq.sh" 11)" PASS
+scr "$sf/tmp_multi.sh" <<'EOF'
+#!/bin/bash
+t=$(mktemp)
+trap '
+    rm -f "$t"
+' EXIT
+EOF
+eq "11: a multi-line trap body counts" "$(safety "$sf/tmp_multi.sh" 11)" PASS
+scr "$sf/tmp_cont.sh" <<'EOF'
+#!/bin/bash
+t=$(mktemp)
+trap 'rm -f "$t"' \
+    EXIT
+EOF
+eq "11: signals on a continuation line count" "$(safety "$sf/tmp_cont.sh" 11)" PASS
+scr "$sf/tmp_warn.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp)
+work "$t"
+rm -f "$t"
+EOF
+eq "11: rm without a trap is WARN" "$(safety "$sf/tmp_warn.sh" 11)" WARN
+scr "$sf/tmp_leak.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp)
+work "$t"
+rm -f other
+EOF
+eq "11: a mktemp result nothing removes is FAIL" "$(safety "$sf/tmp_leak.sh" 11)" FAIL
+eq "11: the note names the variable" "$(safety_note "$sf/tmp_leak.sh" 11)" 'mktemp result $t is never removed'
+scr "$sf/tmp_two.sh" <<'EOF'
+#!/bin/sh
+a=$(mktemp)
+b=$(mktemp)
+trap 'rm -f "$b"' EXIT
+EOF
+eq "11: the trap must reach every mktemp result" "$(safety "$sf/tmp_two.sh" 11)" FAIL
+scr "$sf/tmp_alias.sh" <<'EOF'
+#!/bin/bash
+a=$(mktemp); b=$(mktemp -d)
+keep=("$a" "$b")
+trap 'for f in "${keep[@]}"; do rm -rf "$f"; done' EXIT
+EOF
+eq "11: removal through an array and a loop variable counts" "$(safety "$sf/tmp_alias.sh" 11)" PASS
+scr "$sf/tmp_in.sh" <<'EOF'
+#!/bin/sh
+d=$(mktemp -d)
+f=$(mktemp "$d/x.XXXXXX")
+trap 'rm -rf "$d"' EXIT
+EOF
+eq "11: a mktemp inside a removed mktemp directory is covered" "$(safety "$sf/tmp_in.sh" 11)" PASS
+scr "$sf/tmp_tpl.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp /tmp/app.XXXXXX)
+trap 'rm -f "$t"' EXIT
+u="/tmp/$(id -u).XXXXXX"
+EOF
+eq "11: a /tmp mktemp template is not a fixed path" "$(safety "$sf/tmp_tpl.sh" 11)" PASS
+scr "$sf/tmp_ret.sh" <<'EOF'
+#!/bin/sh
+_mk_temp() {
+    local _path
+    _path=$(mktemp) || return 1
+    printf '%s\n' "$_path"
+}
+EOF
+eq "11: a helper printing its mktemp path hands it to the caller" "$(safety "$sf/tmp_ret.sh" 11)" WARN
+scr "$sf/tmp_redir.sh" <<'EOF'
+#!/bin/sh
+date > "/tmp/stamp"
+EOF
+eq "11: a redirect to a fixed /tmp path is FAIL" "$(safety "$sf/tmp_redir.sh" 11)" FAIL
+frag "$sf/frag_ok.sh" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) return 0 ;; esac
+show() {
+    _t=$(mktemp)
+    cat "$_t"
+    rm -f "$_t"
+}
+EOF
+eq "11: sourced, mktemp on an rm line, no EXIT trap is PASS" "$(safety "$sf/frag_ok.sh" 11)" PASS
+frag "$sf/frag_trap.sh" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) return 0 ;; esac
+show() {
+    _t=$(mktemp)
+    trap 'rm -f "$_t"' EXIT
+}
+EOF
+eq "11: sourced EXIT trap overrides the caller, WARN" "$(safety "$sf/frag_trap.sh" 11)" WARN
+
+# Check 12.
+scr "$sf/at_ok.sh" <<'EOF'
+#!/bin/sh
+tmp=$(mktemp "$(dirname "$1")/.x.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+printf 'x' > "$tmp"
+mv "$tmp" "$1"
+EOF
+eq "12: same-directory mktemp + mv is PASS" "$(safety "$sf/at_ok.sh" 12)" PASS
+scr "$sf/at_pct.sh" <<'EOF'
+#!/bin/sh
+target=$1
+tmp=$(mktemp "${target%/*}/.x.XXXXXX")
+mv -f "$tmp" "$target"
+EOF
+eq "12: \${x%/*} in the template is PASS" "$(safety "$sf/at_pct.sh" 12)" PASS
+scr "$sf/at_var.sh" <<'EOF'
+#!/bin/sh
+dir=$(dirname "$1")
+tmp=$(mktemp "$dir/.x.XXXXXX")
+mv "$tmp" "$1"
+EOF
+eq "12: a dirname variable in the template is PASS" "$(safety "$sf/at_var.sh" 12)" PASS
+scr "$sf/at_pre.sh" <<'EOF'
+#!/bin/sh
+out=$1
+tmp=$(mktemp "$out.XXXXXX")
+mv "$tmp" "$out"
+EOF
+eq "12: a template built on the target is PASS" "$(safety "$sf/at_pre.sh" 12)" PASS
+scr "$sf/at_def.sh" <<'EOF'
+#!/bin/sh
+tmp=$(mktemp)
+printf 'x' > "$tmp"
+mv "$tmp" "$1"
+EOF
+eq "12: default template + mv is WARN" "$(safety "$sf/at_def.sh" 12)" WARN
+scr "$sf/at_dir.sh" <<'EOF'
+#!/bin/sh
+printf 'x' > "$1"
+EOF
+eq "12: a direct > is WARN" "$(safety "$sf/at_dir.sh" 12)" WARN
+scr "$sf/at_none.sh" <<'EOF'
+#!/bin/sh
+ls >/dev/null 2>&1
+ls > "/dev/null"
+ls >&2
+ls >> "$1"
+t=$(mktemp); trap 'rm -f "$t"' EXIT
+ls > "$t"
+ls > "$t.sorted"
+[[ "$a" > "$b" ]] && ls
+(( a > b )) && ls
+EOF
+eq "12: >>, /dev/*, fds, temp variables and comparisons are N/A" "$(safety "$sf/at_none.sh" 12)" 'N/A'
+scr "$sf/at_lit.sh" <<'EOF'
+#!/bin/sh
+ls > "$1.tmp"
+mv "$1.tmp" "$1"
+EOF
+eq "12: a redirect target later moved away is a temp file" "$(safety "$sf/at_lit.sh" 12)" 'N/A'
+
+# Check 13.
+printf '#!/bin/sh\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_sh.sh"; chmod +x "$sf/sig_sh.sh"
+printf '#!/bin/bash\nt=x\ntrap "echo $t" EXIT\n' > "$sf/sig_bash.sh"; chmod +x "$sf/sig_bash.sh"
+eq "13: #!/bin/sh EXIT trap alone is WARN" "$(safety "$sf/sig_sh.sh" 13)" WARN
+eq "13: the same code under #!/bin/bash is N/A" "$(safety "$sf/sig_bash.sh" 13)" 'N/A'
+scr "$sf/sig_nohup.sh" <<'EOF'
+#!/bin/sh
+nohup cmd >/dev/null 2>&1 &
+setsid cmd &
+cmd & disown
+cmd &
+disown
+EOF
+eq "13: nohup, setsid and disown are N/A" "$(safety "$sf/sig_nohup.sh" 13)" 'N/A'
+scr "$sf/sig_bg.sh" <<'EOF'
+#!/bin/sh
+cmd &
+wait
+EOF
+eq "13: a plain background job with no trap is FAIL" "$(safety "$sf/sig_bg.sh" 13)" FAIL
+scr "$sf/sig_fg.sh" <<'EOF'
+#!/bin/sh
+a && b
+c &> /dev/null
+d 2>&1 | e
+f "x & y"
+EOF
+eq "13: &&, &>, >& and a quoted & are no background job" "$(safety "$sf/sig_fg.sh" 13)" 'N/A'
+scr "$sf/sig_one.sh" <<'EOF'
+#!/bin/sh
+cmd &
+trap 'kill $!' INT
+EOF
+eq "13: only one of INT/TERM is WARN" "$(safety "$sf/sig_one.sh" 13)" WARN
+scr "$sf/sig_ok.sh" <<'EOF'
+#!/bin/sh
+_stop() { kill "$_pid"; }
+cmd & _pid=$!
+trap _stop SIGINT SIGTERM
+wait
+EOF
+eq "13: both signals and kill in the cleanup path is PASS" "$(safety "$sf/sig_ok.sh" 13)" PASS
+scr "$sf/sig_chain.sh" <<'EOF'
+#!/bin/sh
+cmd & _pid=$!
+trap 'kill "$_pid"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+EOF
+eq "13: the EXIT trap is part of the cleanup path" "$(safety "$sf/sig_chain.sh" 13)" PASS
+scr "$sf/sig_nokill.sh" <<'EOF'
+#!/bin/sh
+cmd &
+trap 'echo bye' INT TERM
+EOF
+eq "13: trapped but neither kill nor wait is WARN" "$(safety "$sf/sig_nokill.sh" 13)" WARN
+scr "$sf/sig_shok.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp)
+trap 'rm -f "$t"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+EOF
+eq "13: #!/bin/sh with EXIT, INT and TERM is PASS" "$(safety "$sf/sig_shok.sh" 13)" PASS
+scr "$sf/sig_rst.sh" <<'EOF'
+#!/bin/sh
+trap - EXIT
+trap '' INT
+EOF
+eq "13: a trap reset or ignore is no cleanup" "$(safety "$sf/sig_rst.sh" 13)" 'N/A'
+
+# Check 14.
+scr "$sf/dry_apply.sh" <<'EOF'
+#!/bin/sh
+apply=0
+case "${1:-}" in
+    --apply) apply=1 ;;
+esac
+if [ "$apply" = 1 ]; then
+    rm -rf "$HOME/x"
+fi
+EOF
+eq "14: --apply read in a condition is PASS" "$(safety "$sf/dry_apply.sh" 14)" PASS
+scr "$sf/dry_parse.sh" <<'EOF'
+#!/bin/sh
+apply=0
+case "${1:-}" in
+    --apply) apply=1 ;;
+esac
+rm -rf "$HOME/x"
+EOF
+eq "14: --apply parsed but never read is WARN" "$(safety "$sf/dry_parse.sh" 14)" WARN
+scr "$sf/dry_n.sh" <<'EOF'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -n|--dry-run)
+            DRY_RUN=1
+            ;;
+    esac
+    shift
+done
+if [ -n "${DRY_RUN:-}" ]; then echo plan; else git push; fi
+EOF
+eq "14: -n setting DRY_RUN, read in a condition, is PASS" "$(safety "$sf/dry_n.sh" 14)" PASS
+scr "$sf/dry_opts.sh" <<'EOF'
+#!/bin/sh
+while getopts nv o; do
+    case $o in
+        n) noop=1 ;;
+    esac
+done
+[ -n "$noop" ] && exit 0
+git reset --hard HEAD
+EOF
+eq "14: a getopts n arm is option position" "$(safety "$sf/dry_opts.sh" 14)" PASS
+scr "$sf/dry_test.sh" <<'EOF'
+#!/bin/sh
+if [ "$1" != "--apply" ]; then
+    echo would delete
+    exit 0
+fi
+sudo rm -rf /opt/x
+EOF
+eq "14: an option test gating the code directly is PASS" "$(safety "$sf/dry_test.sh" 14)" PASS
+scr "$sf/dry_arg.sh" <<'EOF'
+#!/bin/sh
+_run() {
+    local dry_run="$1"
+    if [ "$dry_run" = 1 ]; then return 0; fi
+    rm -rf "$HOME/x"
+}
+case "$1" in
+    --dry-run) _run 1 ;;
+    *) _run 0 ;;
+esac
+EOF
+eq "14: a flag handed to a function by value is PASS" "$(safety "$sf/dry_arg.sh" 14)" PASS
+scr "$sf/dry_opt.sh" <<'EOF'
+#!/bin/sh
+echo "pass -n) or --dry-run) or --apply) for a plan"
+sort -n "$1" | tail -1
+x=$(sort -n | head)
+[ -n "$x" ] && git push
+EOF
+eq "14: -n in a string or on another command is no flag" "$(safety_note "$sf/dry_opt.sh" 14)" \
+  '1 mutating command(s), first git push, no --dry-run/--apply'
+scr "$sf/dry_tmp.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp); d=$(mktemp -d)
+copy="$d/x"
+trap 'rm -rf "$d"' EXIT
+rm -f "$t"
+rm -f "$d/one" "$copy"
+EOF
+eq "14: rm of mktemp variables only is N/A" "$(safety "$sf/dry_tmp.sh" 14)" 'N/A'
+scr "$sf/dry_mix.sh" <<'EOF'
+#!/bin/sh
+t=$(mktemp)
+trap 'rm -f "$t"' EXIT
+rm -f "$t" "$1"
+EOF
+eq "14: rm of a mktemp variable and a real path is WARN" "$(safety "$sf/dry_mix.sh" 14)" WARN
+scr "$sf/dry_gh.sh" <<'EOF'
+#!/bin/sh
+out=$(GH_HOST=x gh pr create --fill)
+gh pr view 1
+rm "$1"
+EOF
+eq "14: gh ... create under an env prefix is a mutating call" "$(safety_note "$sf/dry_gh.sh" 14)" \
+  '1 mutating command(s), first gh write, no --dry-run/--apply'
+scr "$sf/dry_ro.sh" <<'EOF'
+#!/bin/sh
+gh pr view 1
+git status
+rm "$1"
+EOF
+eq "14: reads and a plain rm are N/A" "$(safety "$sf/dry_ro.sh" 14)" 'N/A'
+frag "$sf/dry_priv.sh" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) return 0 ;; esac
+_private() { rm -rf "$1"; }
+rm -rf "$HOME/top-level"
+EOF
+eq "14: sourced, private helper and top level are out of scope" "$(safety "$sf/dry_priv.sh" 14)" 'N/A'
+frag "$sf/dry_pub.sh" <<'EOF'
+#!/bin/sh
+case $- in *i*) ;; *) return 0 ;; esac
+wipe() { rm -rf "$1"; }
+EOF
+eq "14: sourced, public function is WARN" "$(safety "$sf/dry_pub.sh" 14)" WARN
+
+# The syntax-broken file still reports; nothing edits the audited file.
+scr "$sf/broken.sh" <<'EOF'
+#!/bin/sh
+if [ "$a ; then
+echo 'unterminated
+EOF
+eq "broken: a syntax error still yields four rows" "$(sh "$here/sh_check.sh" "$sf/broken.sh" | grep -c '^safety	')" 4
+before=$(cksum < "$sf/risky.sh")
+sh "$here/sh_check.sh" "$sf/risky.sh" PASS PASS >/dev/null
+eq "read-only: the audited file is unchanged" "$(cksum < "$sf/risky.sh")" "$before"
+
+# Next Actions snippets stay POSIX.
+refs=$here/../references
+safety_docs=$(awk '/^## Safety Checks/ { on = 1; print; next } /^## / { on = 0 } on' "$refs/checks.md")
+eq "docs: checks.md has a Safety Checks section" "$(printf '%s\n' "$safety_docs" | grep -c '^### Check 1[1-4] ')" 4
+eq "docs: Safety snippets and Next Actions avoid [[, declare, mapfile" \
+  "$({ printf '%s\n' "$safety_docs"; awk '/^### Next Actions/,/^```$/' "$refs/report-template.md"; } | grep -cE '\[\[|declare|mapfile' || true)" 0
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then

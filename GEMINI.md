@@ -10,7 +10,7 @@ reading its `SKILL.md`, then follow it. Do not load all six.
 | `skill-create` | `@./skills/skill-create/SKILL.md` | Building a new skill from an idea, or improving and evaluating an existing one — interview, draft, eval loop, description tuning, packaging. |
 | `skill-check` | `@./skills/skill-check/SKILL.md` | Auditing one `SKILL.md`, a repo, or every repo under a directory against 19 structure, UX, model, security, context-budget, and portability checks. Never edits files; batch mode files issues after a confirmation. |
 | `skill-refactor` | `@./skills/skill-refactor/SKILL.md` | A `SKILL.md` is over 100 lines and its detail needs extracting into `references/`. |
-| `sh-check` | `@./skills/sh-check/SKILL.md` | Auditing a `*.sh` file against 10 shell quality criteria. Read-only. |
+| `sh-check` | `@./skills/sh-check/SKILL.md` | Auditing a `*.sh` file against 10 shell quality criteria plus 4 Safety checks. Read-only. |
 | `ux-guidelines` | `@./skills/ux-guidelines/SKILL.md` | Shell help text uses raw `echo`/`printf`/ANSI and should use semantic `ux_lib` calls instead. |
 | `command-rename` | `@./skills/command-rename/SKILL.md` | Designing a command-naming refactor and filing the tracking issue — the rename itself runs later. |
 

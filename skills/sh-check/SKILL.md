@@ -1,8 +1,8 @@
 ---
 name: sh-check
 description: >-
-  Audit a shell script (`*.sh`) against 10 PASS/WARN/FAIL/N/A criteria. Use on
-  "check this shell script", "셸 스크립트 점검해줘", "/authoring:sh-check". Do NOT
+  Audit a shell script (`*.sh`) against 10 PASS/WARN/FAIL/N/A criteria plus 4
+  Safety checks. Use on "check this shell script", "셸 스크립트 점검해줘", "/authoring:sh-check". Do NOT
   use for SKILL.md (authoring:skill-check) or AGENTS.md (harness:ai-context).
 compatibility:
   tools: Read, Glob, Grep, Bash
@@ -45,7 +45,9 @@ sh <skill-dir>/lib/sh_check.sh path/to/script.sh
 
 It classifies the target file (sourced fragment vs executable script) and
 prints `check<TAB>result<TAB>note` for checks 1, 2, 4, 5, 6, 7, 9 and 10,
-then one `fn` row per function returning a fixed-line verdict.
+one `fn` row per function returning a fixed-line verdict, then four `safety`
+rows (checks 11–14) and a `safety-score` row. Safety needs no judgment from you
+and stays out of the score and verdict.
 
 Read `references/checks.md` for the criteria behind those rows and judge the
 two the helper leaves to you — 3 Section Anatomy, 8 Input Validation. Do not
@@ -64,9 +66,10 @@ arithmetic from `references/report-template.md` — use it, do not re-derive it.
 Read `references/report-template.md` for the exact format. The report has:
 
 - File path + line count
-- Two tables (Structure 1–5, UX 6–10) with PASS/WARN/FAIL/N/A + notes
+- Three tables (Structure 1–5, UX 6–10, Safety 11–14) with PASS/WARN/FAIL/N/A + notes
 - A Verdict Functions table from the `fn` rows, when there are any
 - Score line: `X/10 checks passed (Y warnings, Z N/A)`
+- Safety line: `Safety: X/Y checks passed (W warnings, Z N/A)`, or `Safety: N/A`
 - **Verdict** — the word from the helper's `score` row: `EXCELLENT` / `GOOD` /
   `NEEDS WORK` / `POOR`.
 - **Next Actions** — one bullet per WARN/FAIL with a concrete fix command

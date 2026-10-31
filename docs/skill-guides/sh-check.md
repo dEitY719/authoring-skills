@@ -2,8 +2,8 @@
 
 ## 한 줄 요약
 
-셸 스크립트(`*.sh`) 한 개를 dotfiles 품질 기준 10개 항목으로 감사하고,
-PASS/WARN/FAIL/N-A 표 · Score · Verdict · Next Actions 로 구성된 **감사 리포트**를
+셸 스크립트(`*.sh`) 한 개를 dotfiles 품질 기준 10개 항목과 Safety 점검 4종으로 감사하고,
+PASS/WARN/FAIL/N-A 표 · Score · Safety · Verdict · Next Actions 로 구성된 **감사 리포트**를
 출력합니다. 읽기 전용이라 대상 스크립트를 절대 수정하지 않습니다.
 
 ## 언제 쓰고 언제 안 쓰는가
@@ -52,8 +52,8 @@ dry-run 개념 자체가 없습니다.
 2. **10개 검사 수행** — `references/checks.md` 의 기준표와 grep 힌트를 사용해
    각 항목을 PASS / WARN / FAIL / N-A 로 판정.
 3. **리포트 출력** — `references/report-template.md` 형식 그대로.
-   Structure 표 + UX 표, `Score: X/10 checks passed (Y warnings, Z N/A)`,
-   Verdict 한 줄, WARN/FAIL 마다 한 줄씩인 Next Actions.
+   Structure 표 + UX 표 + Safety 표, `Score: X/10 checks passed (Y warnings, Z N/A)`,
+   `Safety: X/Y checks passed (W warnings, Z N/A)`, Verdict 한 줄, WARN/FAIL 마다 한 줄씩인 Next Actions.
 
 ### 10개 기준
 
@@ -77,6 +77,19 @@ dry-run 개념 자체가 없습니다.
 | 9 | Verdict Output | 진단 함수가 명시적 `state:` 를 포함한 구조화된 key:value 판정 출력 |
 | 10 | Next-action Hint | 성공 출력이 다음에 실행할 명령을 `next:` 한 줄로 제시 |
 
+**Safety (11-14)** — 실패·중단 시의 안전성을 정적으로 판정합니다. 해당 패턴이 없는 파일은
+N/A 이고, 주석·heredoc·문자열 안의 `/tmp/...`, `rm -rf` 는 보지 않습니다.
+
+| # | 검사 | 보는 것 | 상한 |
+|---|------|---------|------|
+| 11 | Temp File Cleanup | 임시 경로가 `mktemp` 산출이고 EXIT trap 에서 `rm` 으로 지워지는가. sourced fragment 는 `rm` 은 있되 호출자의 EXIT trap 을 덮어쓰지 않는가 | FAIL |
+| 12 | Atomic Write | 대상과 같은 디렉터리의 `mktemp` + `mv` 로 교체하는가, `>` 로 직접 덮어쓰지 않는가 | WARN |
+| 13 | Signal Handling | INT·TERM 을 모두 trap 하고 백그라운드 작업을 정리하는가. `#!/bin/sh` 의 EXIT trap 은 dash 에서 SIGTERM 에 돌지 않음 | FAIL |
+| 14 | Dry-run Support | 변경성 명령(`rm -r/-f`, `git push`, `git reset --hard`, `sudo`, `gh ... create\|merge\|delete`)에 `--dry-run`/`-n`/`--apply` 가 있고 조건문에서 읽는가 | WARN |
+
+Safety 는 10점 Score 와 Verdict 에 합산하지 않습니다. 별도 `Safety:` 줄로만 나오고 판정 단어가
+없으며, 네 행이 모두 N/A 면 `Safety: N/A` 입니다. 검사 대상을 실행하지 않습니다.
+
 Verdict 는 `PASS_COUNT / (10 - NA_COUNT)` 비율로 계산합니다 — 100% `EXCELLENT`,
 80% 이상이며 FAIL 없음 `GOOD`, 60% 이상이거나 FAIL 정확히 1개 `NEEDS WORK`,
 60% 미만이거나 FAIL 2개 이상 `POOR`.
@@ -85,7 +98,7 @@ Verdict 는 `PASS_COUNT / (10 - NA_COUNT)` 비율로 계산합니다 — 100% `E
 
 - **읽기 전용 계약.** 대상 파일을 절대 편집하지 않습니다. 수정은 사람이 하거나
   `/authoring:ux-guidelines` 가 합니다.
-- **10개 전부 보고.** 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
+- **14개 전부 보고.** 첫 FAIL 에서 멈추지 않고 모든 항목에 결과를 답니다.
   환경에 도구가 없어 못 돌린 검사는 조용히 넘기지 말고 사유를 적은 N-A 로 보고합니다.
 - **PASS/N-A 행에는 조치를 제안하지 않습니다.** Next Actions 는 WARN·FAIL 에만
   한 줄씩 붙고, 각 줄은 `[<LEVEL> #N]` 로 표 행과 연결됩니다.

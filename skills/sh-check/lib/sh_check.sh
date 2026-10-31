@@ -8,7 +8,10 @@
 #
 # stdout: check<TAB>result<TAB>note, one row per decided check, ascending id;
 #         then fn<TAB>function<TAB>vocab<TAB>next-ok/next-n<TAB>result, one row
-#         per function returning a fixed-line verdict (none -> no fn rows).
+#         per function returning a fixed-line verdict (none -> no fn rows);
+#         then safety<TAB><id><TAB><result><TAB><note> for ids 11..14 and
+#         safety-score<TAB><pass>/<effective-total>, both always, neither in
+#         the score below.
 #         With the two judgments it also emits every row plus a final
 #         score<TAB><pass>/<effective-total><TAB><VERDICT>
 #         computed per references/report-template.md "Verdict Computation".
@@ -496,6 +499,471 @@ else
 fi
 fi
 
+# ---------- Safety Checks 11-14 ----------
+# Runtime safety, judged apart from the 10-point score (issue #108): the rows
+# never reach `pass`/`fail`, so a Safety result cannot move the Verdict.
+# Criteria: references/checks.md "Safety Checks".
+#
+# One awk pass builds, per logical line (a trailing `\` or an open quote joins
+# physical lines), two views of equal length, so an offset found in one is valid
+# in the other:
+#   c  the code: comments and heredoc bodies dropped (an unclosed heredoc runs to
+#      end of file, so its rows lean N/A -- a miss over a false alarm).
+#   m  c with quoted literal text replaced by dots. Expansions survive (`$x`,
+#      `${x%/*}`, `$(...)`) and so does a `/tmp/` that opens a string; a mention
+#      in a help string is then no call, and every quoted word is one token.
+# Commands are matched on m in command position; trap bodies are read from c,
+# since a trap's code is a quoted string. Facts are collected per line and judged
+# at END, because a cleanup function usually sits above the mktemp it cleans.
+# ponytail: text patterns, not a parser -- `eval`, a command held in a variable
+# and a cleanup reached through a `"$1"` argument stay unseen; widen on a real
+# miss (issue #108 Decisions: 12 and 14 cap at WARN for that reason).
+safety_sh=0
+if printf '%s\n' "$shebang" | grep -qE '^#! ?(/usr)?/bin/(env +)?(da)?sh$'; then safety_sh=1; fi
+SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
+  function put(s) { M = M s; C = C s }
+  function hide(s,   n) { C = C s; n = length(s); while (n-- > 0) M = M "." }
+  function brace_end(s, i,   d, c, n) {
+    d = 0; n = length(s)
+    for (; i <= n; i++) {
+      c = substr(s, i, 1)
+      if (c == "{") d++
+      else if (c == "}" && --d == 0) return i
+    }
+    return n
+  }
+  # st[sp]: N plain, S single-quoted, D double-quoted, C $(...), B `...`, A $((...)).
+  function scan(l,   i, n, c, d, s, e, t) {
+    n = length(l); i = 1; cont = 0
+    while (i <= n) {
+      c = substr(l, i, 1); d = substr(l, i + 1, 1); s = st[sp]
+      if (s == "S") {
+        if (c == "\047") { sp--; put(c) } else hide(c)
+        i++; continue
+      }
+      if (s == "A") {
+        if (c == "(") { dp[sp]++; put(c) }
+        else if (c != ")") hide(c)
+        else if (dp[sp] > 0) { dp[sp]--; put(c) }
+        else { sp--; put(c); if (d == ")") { put(d); i++ } }
+        i++; continue
+      }
+      if (c == "\\") {
+        if (i == n && s != "D") { cont = 1; break }
+        if (s == "D") hide(c d); else put(c d)
+        i += 2; continue
+      }
+      if (c == "$" && d == "{") {
+        e = brace_end(l, i + 1); put(substr(l, i, e - i + 1)); i = e + 1
+        continue
+      }
+      if (c == "$" && d == "(") {
+        if (substr(l, i + 2, 1) == "(") { st[++sp] = "A"; put("$(("); i += 3 }
+        else { st[++sp] = "C"; put("$("); i += 2 }
+        dp[sp] = 0
+        continue
+      }
+      if (s == "D") {
+        if (c == "\"") { sp--; put(c) }
+        else if (c == "`") { st[++sp] = "B"; put(c) }
+        else if (c == "$" && d ~ /[A-Za-z_]/) {
+          t = substr(l, i + 1); match(t, /^[A-Za-z0-9_]+/)
+          put(substr(l, i, RLENGTH + 1)); i += RLENGTH
+        } else hide(c)
+        i++; continue
+      }
+      if (c == "\047" || c == "\"") {
+        st[++sp] = (c == "\"") ? "D" : "S"; put(c); i++
+        if (substr(l, i, 5) == "/tmp/") { put("/tmp/"); i += 5 }
+        continue
+      }
+      if (c == "`") {
+        if (s == "B") sp--; else st[++sp] = "B"
+        put(c); i++; continue
+      }
+      if (c == "#" && (i == 1 || substr(l, i - 1, 1) ~ /[ \t;&|()]/)) break
+      if (c == "<" && d == "<") {
+        if (substr(l, i + 2, 1) == "<") { put("<<<"); i += 3; continue }
+        t = substr(l, i + 2)
+        if (match(t, /^-?[ \t]*(\047[^\047]*\047|"[^"]*"|\\?[A-Za-z_][A-Za-z0-9_.-]*)/)) {
+          e = substr(t, 1, RLENGTH)
+          hs[++hn] = (e ~ /^-/)
+          sub(/^-?[ \t]*/, "", e); gsub(/[\047"\\]/, "", e)
+          hd[hn] = e
+          put(substr(l, i, RLENGTH + 2)); i += RLENGTH + 2
+          continue
+        }
+      }
+      if (s == "C") {
+        if (c == "(") dp[sp]++
+        else if (c == ")") { if (dp[sp] > 0) dp[sp]--; else sp-- }
+      }
+      put(c); i++
+    }
+  }
+  function has_cmd(text, what) { return text ~ (pre what) }
+  # Every $name in s goes into arr.
+  function vars_into(s, arr,   t) {
+    while (match(s, /\$\{?[A-Za-z_][A-Za-z0-9_]*/)) {
+      t = substr(s, RSTART, RLENGTH); gsub(/[${]/, "", t)
+      arr[t] = 1
+      s = substr(s, RSTART + RLENGTH)
+    }
+  }
+  # head_var "$x/y" -> x, the variable a token starts with; else nothing.
+  function head_var(tok,   t) {
+    t = tok; gsub(/"/, "", t)
+    if (!match(t, /^\$\{?[A-Za-z_][A-Za-z0-9_]*/)) return ""
+    t = substr(t, 1, RLENGTH); gsub(/[${]/, "", t)
+    return t
+  }
+  function note_alias(lhs, rhs,   h) {
+    if (rhs !~ /\$/) return
+    h = head_var(rhs)
+    al[++an] = lhs; ar[an] = rhs; ah[an] = h
+  }
+  # counted: an rm in the audited code, not one read from a trap body.
+  function note_rm(text, counted,   t, rest, n, w, i, flag, path) {
+    t = text
+    while (match(t, rm_re)) {
+      rest = substr(t, RSTART + RLENGTH); t = rest
+      sub(/[;|&)].*/, "", rest)
+      n = split(rest, w, /[ \t]+/); flag = 0; path = ""
+      anyrm = 1
+      for (i = 1; i <= n; i++) {
+        if (w[i] == "" || w[i] == "--") continue
+        if (w[i] ~ /^-/) {
+          if (w[i] ~ /^-[A-Za-z]*[rRf]/ || w[i] ~ /^--(recursive|force)/) flag = 1
+          continue
+        }
+        path = path " " w[i]
+        vars_into(w[i], removed)
+      }
+      if (counted && flag && inscope) { nrm++; rmargs[nrm] = path }
+    }
+  }
+  function note_mv(m,   t, rest, n, w, i, k, tok) {
+    t = m
+    while (match(t, mv_re)) {
+      rest = substr(t, RSTART + RLENGTH); t = rest
+      sub(/[;|&)].*/, "", rest)
+      n = split(rest, w, /[ \t]+/); k = 0
+      for (i = 1; i <= n; i++)
+        if (w[i] != "" && w[i] != "--" && w[i] !~ /^-/) tok[++k] = w[i]
+      if (k < 2) continue
+      nmv++; mvs[nmv] = tok[1]; mvd[nmv] = tok[k]; mvtok[tok[1]] = 1
+    }
+  }
+  function note_redirects(m, c,   t, i, n, p, a, b, rest) {
+    if (index(m, "((")) return
+    t = m
+    while (match(t, /\\./)) t = substr(t, 1, RSTART - 1) ".." substr(t, RSTART + 2)
+    # `[[ $a > $b ]]` compares strings; the blank keeps the offsets into c.
+    while (match(t, /\[\[.*\]\]/)) {
+      a = ""
+      for (p = 0; p < RLENGTH; p++) a = a "."
+      t = substr(t, 1, RSTART - 1) a substr(t, RSTART + RLENGTH)
+    }
+    n = length(t)
+    for (i = 1; i <= n; i++) {
+      if (substr(t, i, 1) != ">") continue
+      a = substr(t, i + 1, 1); b = (i > 1) ? substr(t, i - 1, 1) : ""
+      if (a == ">") { i++; continue }
+      if (a == "&" || a == "(" || b == "<" || b == "-" || b == "=") continue
+      p = i + 1
+      if (substr(t, p, 1) == "|") p++
+      while (p <= n && substr(t, p, 1) ~ /[ \t]/) p++
+      rest = substr(t, p)
+      if (!match(rest, /^[^ \t;|&<>)]+/)) continue
+      tn++; tm[tn] = substr(rest, 1, RLENGTH); tc[tn] = substr(c, p, RLENGTH)
+      i = p + RLENGTH - 1
+    }
+  }
+  # Each `trap body SIG...` on the line; the body comes from c, the signals from m.
+  function note_traps(m, c,   p, n, q, e, body, rest, k, w, i, sig) {
+    p = 1
+    while (match(substr(m, p), trap_re)) {
+      p += RSTART + RLENGTH - 1
+      if (substr(m, p, 3) == "-- ") p += 3
+      q = substr(c, p, 1); body = ""
+      if (q == "\047") {
+        e = index(substr(c, p + 1), "\047")
+        if (!e) return
+        body = substr(c, p + 1, e - 1); p += e + 1
+      } else if (q == "\"") {
+        n = length(c)
+        for (e = p + 1; e <= n; e++) {
+          if (substr(c, e, 1) == "\\") { e++; continue }
+          if (substr(c, e, 1) == "\"") break
+        }
+        body = substr(c, p + 1, e - p - 1); p = e + 1
+      } else {
+        rest = substr(m, p)
+        if (!match(rest, /^[^ \t;|&)]+/)) return
+        body = substr(rest, 1, RLENGTH); p += RLENGTH
+        if (body == "-" || body ~ /^-[a-zA-Z]/) continue
+      }
+      if (body ~ /^[ \t]*$/) continue
+      note_rm(body, 0)
+      note_assigns(body)
+      rest = substr(m, p); sub(/[;&|)}].*/, "", rest)
+      k = split(rest, w, /[ \t]+/)
+      for (i = 1; i <= k; i++) {
+        sig = toupper(w[i]); sub(/^SIG/, "", sig)
+        if (sig == "0" || sig == "EXIT") { t_exit = 1; b_exit = b_exit ";" body }
+        else if (sig == "2" || sig == "INT") { t_int = 1; b_sig = b_sig ";" body }
+        else if (sig == "15" || sig == "TERM") { t_term = 1; b_sig = b_sig ";" body }
+      }
+    }
+  }
+  function note_mktemp(m, c,   t, off, name, rest, got) {
+    if (!has_cmd(m, "mktemp([ \t;|&)`]|$)")) return 0
+    t = m; off = 0; got = 0
+    while (match(t, /[A-Za-z_][A-Za-z0-9_]*="?(\$\(|`)[^;|&)]*mktemp/)) {
+      name = substr(t, RSTART, RLENGTH); sub(/=.*/, "", name)
+      off += RSTART + RLENGTH - 1
+      rest = substr(c, off + 1); sub(/[;|].*/, "", rest)
+      if (!(name in mk)) mkorder[++mkn] = name
+      mk[name] = mk[name] " " rest
+      got = 1
+      t = substr(t, RSTART + RLENGTH)
+    }
+    if (!got) unnamed++
+    return 1
+  }
+  function note_assigns(m,   t, lhs, rhs, n, w, i) {
+    t = m
+    while (match(t, assign_re)) {
+      lhs = substr(t, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_]/, "", lhs)
+      t = substr(t, RSTART + RLENGTH)
+      if (substr(t, 1, 1) == "(") { match(t, /^[^)]*/) }
+      else match(t, /^[^ \t;|&]*/)
+      rhs = substr(t, 1, RLENGTH)
+      if (rhs ~ /dirname|%\//) dirvar[lhs] = 1
+      if (rhs ~ /^\(/) {
+        n = split(substr(rhs, 2), w, /[ \t]+/)
+        for (i = 1; i <= n; i++) note_alias(lhs, w[i])
+      } else note_alias(lhs, rhs)
+    }
+    if (match(m, /(^|[ \t;&|(])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]+in[ \t]/)) {
+      t = substr(m, RSTART, RLENGTH); sub(/^.*for[ \t]+/, "", t); sub(/[ \t].*/, "", t)
+      lhs = t
+      t = substr(m, RSTART + RLENGTH); sub(/;.*/, "", t)
+      n = split(t, w, /[ \t]+/)
+      for (i = 1; i <= n; i++) note_alias(lhs, w[i])
+    }
+  }
+  # Option handling (Check 14): an arm or test naming the flag, then the variable
+  # it sets -- the assignments up to the end of that arm or if.
+  function note_flags(m, c,   hit, t, name) {
+    if (c ~ /getopts[ \t]+["\047]?:?[A-Za-z:]*n/) gopt = 1
+    hit = (c ~ arm_re || (gopt && c ~ /^[ \t]*[(]?n[)]/)) ? 1 : (c ~ test_re) ? 2 : 0
+    if (hit) {
+      flagged = 1; ftest = (hit == 2); fvar = 0
+      fwin = (hit == 1) ? 4 : (m ~ /then[ \t]*$/) ? 2 : 1
+    }
+    if (fwin <= 0) return
+    t = m
+    while (match(t, assign_re)) {
+      name = substr(t, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_]/, "", name)
+      flagvar[name] = 1; fvar = 1
+      t = substr(t, RSTART + RLENGTH)
+    }
+    fwin--
+    if (m ~ /;;|(^|[ \t;])fi([ \t;]|$)/) fwin = 0
+    # A bare test gates the code itself: the option is read where it is parsed.
+    if (fwin == 0 && ftest && !fvar) direct = 1
+  }
+  function analyze(m, c,   t, o, e, name, is_mk) {
+    ln++
+    if (m ~ /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_-]*[ \t]*\(\)/ ||
+        m ~ /^[ \t]*function[ \t]+[A-Za-z_]/) {
+      if (cur == "" || !opened) {
+        t = m; sub(/^[ \t]*(function[ \t]+)?/, "", t); match(t, /^[A-Za-z0-9_-]+/)
+        cur = substr(t, 1, RLENGTH); depth = 0; opened = 0
+      }
+    }
+    if (cur != "") {
+      fbody[cur] = fbody[cur] "\n" m
+      t = m; o = gsub(/[{]/, "", t)
+      t = m; e = gsub(/[}]/, "", t)
+      if (o > 0) opened = 1
+      depth += o - e
+    }
+    inscope = !sourced || (cur != "" && cur !~ /^_/)
+    is_mk = note_mktemp(m, c)
+    if (!is_mk) {
+      if (match(m, tmp_asg_re) || match(m, tmp_red_re)) {
+        t = substr(c, RSTART + RLENGTH - 5)
+        if (t ~ /^\/tmp\// && t !~ /XXX/) {
+          sub(/[ \t;|&"\047)].*/, "", t)
+          if (nfixed++ == 0) fixed = t
+        }
+      }
+    }
+    note_traps(m, c)
+    note_rm(m, 1)
+    note_mv(m)
+    # A function printing the path hands it to its caller (`_mk_temp`), which
+    # owns the cleanup; a file-level print is no hand-off.
+    if (cur != "" && match(m, /(echo|printf[ \t]+[^ \t]+)[ \t]+"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?[ \t]*(;|$)/))
+      vars_into(substr(m, RSTART, RLENGTH), removed)
+    note_redirects(m, c)
+    note_assigns(m)
+    note_flags(m, c)
+    if (has_cmd(m, "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*push([ \t;|&)]|$)") && inscope) mutate("git push")
+    if (has_cmd(m, "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*reset[ \t]([^;|&]*[ \t])?--hard") && inscope) mutate("git reset --hard")
+    if (has_cmd(m, "sudo[ \t]") && inscope) mutate("sudo")
+    if (has_cmd(m, "gh[ \t]+((-R|--repo)[ \t]+[^ \t]+[ \t]+)?[a-z-]+[ \t]+(create|merge|delete)([ \t;|&)]|$)") && inscope) mutate("gh write")
+    if (m ~ cond_re || m ~ /&&|[|][|]/) cond = cond "\n" m
+    if (m ~ /^[ \t]*disown([ \t;]|$)/ && lastbg && ln - lastbg <= 2) { nbg--; lastbg = 0 }
+    t = m
+    gsub(/\\./, "", t); gsub(/\$\{[^}]*\}/, "", t); gsub(/&&|[<>]&|&>|[|]&/, "", t)
+    if (t ~ /&/ && m !~ /(^|[^A-Za-z0-9_-])(nohup|disown|setsid)([^A-Za-z0-9_-]|$)/) {
+      nbg++; lastbg = ln
+    }
+    if (cur != "" && opened && depth <= 0) cur = ""
+  }
+  function mutate(what) { nmut++; if (first == "") first = what }
+  # text plus, transitively, the bodies of the functions it names.
+  function reach(text, d,   n, w, i, out) {
+    out = text
+    if (d >= 5) return out
+    n = split(text, w, /[^A-Za-z0-9_-]+/)
+    for (i = 1; i <= n; i++)
+      if ((w[i] in fbody) && !(w[i] in seen)) {
+        seen[w[i]] = 1
+        out = out "\n" reach(fbody[w[i]], d + 1)
+      }
+    return out
+  }
+  function row(id, r, note) {
+    printf "safety\t%d\t%s\t%s\n", id, r, note
+    if (r == "PASS") sp_pass++
+    if (r != "N/A") sp_eff++
+  }
+  BEGIN {
+    pre = "(^|[;&|(){!`]|(if|elif|while|until|then|do|else|exec|command|sudo|xargs|env|time)[ \t])[ \t]*(\\\\)?([A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]+)*"
+    rm_re = pre "rm[ \t]+"
+    mv_re = pre "mv[ \t]+"
+    trap_re = pre "trap[ \t]+"
+    assign_re = "(^|[ \t;&|(){])[A-Za-z_][A-Za-z0-9_]*[+]?="
+    tmp_asg_re = "(^|[ \t;&|(])[A-Za-z_][A-Za-z0-9_]*=[\"\047]?/tmp/"
+    tmp_red_re = ">[>|]?[ \t]*[\"\047]?/tmp/"
+    cond_re = "(^|[;&|(!{ \t])(if|elif|while|until|case|test|\\[|\\[\\[)[ \t]"
+    arm_re = "(^|[ \t]in[ \t]|;;)[ \t]*[(]?[ \t]*([^ \t|)]+[ \t]*[|][ \t]*)*[\"\047]?(--dry-run|--apply|-n)(=[^ \t|)]*)?[\"\047]?[ \t]*[|)]"
+    test_re = "=[=]?[ \t]*[\"\047]?(--dry-run|--apply|-n)[\"\047]?[ \t]*\\]"
+    st[0] = "N"
+  }
+  hn > hi {
+    l = $0
+    if (hs[hi + 1]) sub(/^\t+/, "", l)
+    if (l == hd[hi + 1]) { hi++; if (hi == hn) hi = hn = 0 }
+    next
+  }
+  {
+    scan($0)
+    if (cont) next
+    if (st[sp] == "S" || st[sp] == "D") { put(" "); next }
+    analyze(M, C)
+    M = ""; C = ""
+  }
+  END {
+    if (M != "" || C != "") analyze(M, C)
+    # Aliases: a variable holding a temp path is one too, and removing it counts.
+    for (i = 1; i <= nmv; i++) {
+      h = head_var(mvs[i])
+      if (h != "") removed[h] = 1
+    }
+    for (pass_n = 0; pass_n < 4; pass_n++)
+      for (i = 1; i <= an; i++) {
+        if (ah[i] != "" && ((ah[i] in mk) || (ah[i] in tmpv))) tmpv[al[i]] = 1
+        if (al[i] in removed) vars_into(ar[i], removed)
+      }
+
+    # ----- 11 Temp File Cleanup
+    unrem = ""
+    for (i = 1; i <= mkn; i++) {
+      name = mkorder[i]
+      if (name in removed) continue
+      split("", parents); vars_into(mk[name], parents); inner = 0
+      for (p in parents) if ((p in mk) && (p in removed)) inner = 1
+      if (!inner && unrem == "") unrem = name
+    }
+    split("", seen)
+    exit_code = reach(b_exit, 0)
+    exit_rm = (exit_code ~ rm_re)
+    if (mkn + unnamed + nfixed == 0) row(11, "N/A", "no mktemp or /tmp path")
+    else if (nfixed) row(11, "FAIL", "predictable temp path " fixed)
+    else if (unrem != "") row(11, "FAIL", "mktemp result $" unrem " is never removed")
+    else if (unnamed && !anyrm && !mkn) row(11, "FAIL", "mktemp result is never removed")
+    else if (sourced && t_exit) row(11, "WARN", "sourced fragment sets an EXIT trap, overriding the caller")
+    else if (sourced) row(11, "PASS", "mktemp result removed, no EXIT trap in a sourced fragment")
+    else if (exit_rm) row(11, "PASS", "mktemp paths only, rm reached from the EXIT trap")
+    else row(11, "WARN", "no rm in an EXIT trap, early exit leaks the temp path")
+
+    # ----- 12 Atomic Write
+    direct_n = 0; sample = ""
+    for (i = 1; i <= tn; i++) {
+      t = tc[i]; gsub(/"|\047/, "", t)
+      if (t ~ /^\/dev\// || t ~ /^\/tmp\//) continue
+      h = head_var(tm[i])
+      if (h != "" && ((h in mk) || (h in tmpv))) continue
+      if (tm[i] in mvtok) continue
+      if (direct_n++ == 0) sample = t
+    }
+    mv_same = 0; mv_cross = 0
+    for (i = 1; i <= nmv; i++) {
+      h = head_var(mvs[i])
+      if (h == "" || !((h in mk) || (h in tmpv))) continue
+      tpl = (h in mk) ? mk[h] : ""
+      same = (tpl ~ /dirname|%\//)
+      split("", parents); vars_into(tpl, parents)
+      d = head_var(mvd[i])
+      for (p in parents) if ((p in dirvar) || p == d) same = 1
+      if (same) mv_same++; else mv_cross++
+    }
+    if (direct_n + mv_same + mv_cross == 0) row(12, "N/A", "no overwriting redirect or mktemp + mv")
+    else if (direct_n) row(12, "WARN", direct_n " direct > overwrite(s), first " sample)
+    else if (mv_cross) row(12, "WARN", "mv from a default mktemp template may cross filesystems")
+    else row(12, "PASS", "same-directory mktemp + mv")
+
+    # ----- 13 Signal Handling
+    split("", seen)
+    clean = reach(b_exit ";" b_sig, 0)
+    both = t_int && t_term
+    if (nbg == 0 && !(posix && t_exit)) row(13, "N/A", "no unmanaged background job or sh EXIT trap")
+    else if (nbg && !t_int && !t_term) row(13, "FAIL", nbg " background job(s), no INT/TERM trap")
+    else if (!both && (t_int || t_term)) row(13, "WARN", "trap names only " (t_int ? "INT" : "TERM"))
+    else if (!both) row(13, "WARN", "#!/bin/sh EXIT trap alone may not run on SIGTERM")
+    else if (nbg && !has_cmd(clean, "(kill|wait)([ \t;|&)]|$)")) row(13, "WARN", "INT/TERM trapped but no kill or wait in the cleanup path")
+    else row(13, "PASS", "INT and TERM trapped")
+
+    # ----- 14 Dry-run Support
+    for (i = 1; i <= nrm; i++) {
+      n = split(rmargs[i], w, /[ \t]+/); only_tmp = 0; other = 0
+      for (j = 1; j <= n; j++) {
+        if (w[j] == "") continue
+        h = head_var(w[j])
+        if (h != "" && ((h in mk) || (h in tmpv))) only_tmp = 1
+        else other = 1
+      }
+      if (!only_tmp || other) mutate("rm")
+    }
+    if (nmut == 0) row(14, "N/A", "no mutating command in scope")
+    else {
+      # A flag handed to a function arrives under another name (`_run 1`, then
+      # `local dry_run="$1"`), so any *dry*/*apply* variable in a condition counts.
+      read = direct || cond ~ /\$\{?[A-Za-z0-9_]*([Dd][Rr][Yy]|[Aa][Pp][Pp][Ll][Yy])/
+      for (v in flagvar) if (cond ~ ("\\$\\{?" v "([^A-Za-z0-9_]|$)")) read = 1
+      if (flagged && read) row(14, "PASS", "dry-run flag parsed and read in a condition")
+      else if (flagged) row(14, "WARN", "dry-run flag parsed but never read in a condition")
+      else row(14, "WARN", nmut " mutating command(s), first " first ", no --dry-run/--apply")
+    }
+    printf "safety-score\t%d/%d\n", sp_pass, sp_eff
+  }
+' "$file" 2>/dev/null || true)
+
 # ---------- Report ----------
 pass=0 fail=0 na=0
 out() {
@@ -529,6 +997,10 @@ printf '%s\n' "$FUNCS" | awk -F'\t' -v OFS='\t' '
     r = $5 == 0 ? "FAIL" : ($4 == "?" || $7 > 0 || $6 < $5) ? "WARN" : "PASS"
     print "fn", $1, $4, $6 "/" $5, r
   }'
+
+# Safety rows (issue #108): printed with or without the judgments, right after
+# the fn rows, and never counted into the score below.
+printf '%s\n' "$SAFETY"
 
 [ -n "$j3" ] || exit 0
 

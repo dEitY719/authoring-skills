@@ -15,7 +15,7 @@ files, shell scripts, help text, command names:
 | `skill-create` | Build a new SKILL.md through interview, draft, eval loop, description tuning, and packaging. |
 | `skill-check` | Audit one SKILL.md, a repo, or every repo under a directory against 19 structure, UX, model, security, context-budget, and portability checks. Never edits files; batch mode files one issue per failing skill after a confirmation gate. |
 | `skill-refactor` | Shrink an over-long SKILL.md under 100 lines by extracting detail into `references/`. |
-| `sh-check` | Audit a `*.sh` file against 10 PASS/WARN/FAIL/N-A criteria. Read-only. |
+| `sh-check` | Audit a `*.sh` file against 10 PASS/WARN/FAIL/N-A criteria plus 4 Safety checks. Read-only. |
 | `ux-guidelines` | Replace raw `echo`/`printf`/ANSI in shell help text with semantic `ux_lib` calls. |
 | `command-rename` | Design a command-naming refactor and file the tracking issue(s) — never touches code. |
 

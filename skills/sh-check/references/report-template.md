@@ -42,7 +42,16 @@ Class: sourced fragment
 |-----------------------|-------------|-------|--------|
 | _gwt_compute_status   | 10          | 10/11 | WARN   |
 
+### Safety Checks
+| # | Check                  | Result | Notes                                              |
+|---|------------------------|--------|----------------------------------------------------|
+|11 | Temp File Cleanup      | PASS   | mktemp result removed, no EXIT trap in a sourced fragment |
+|12 | Atomic Write           | WARN   | 7 direct > overwrite(s), first $_gwt_fetch_err_file |
+|13 | Signal Handling        | N/A    | no unmanaged background job or sh EXIT trap        |
+|14 | Dry-run Support        | N/A    | no mutating command in scope                       |
+
 Score: 7/10 checks passed (3 warnings, 0 N/A)
+Safety: 1/2 checks passed (1 warnings, 2 N/A)
 Verdict: NEEDS WORK — zsh-guard, raw-output and NEXT-hint gaps
 
 ### Next Actions
@@ -53,6 +62,9 @@ Verdict: NEEDS WORK — zsh-guard, raw-output and NEXT-hint gaps
    ux_error.
 3. [WARN #10] Make the `dirty` NEXT a command:
      printf '%s\n%s\n%s\n' "dirty" "$_age" "commit or stash"
+4. [WARN #12] These are short-lived stderr captures, not data files, so keep
+   them; give each a unique name instead of `gwt-fetch.$$.err`:
+     _gwt_fetch_err_file=$(mktemp) || return 1
 Run /authoring:sh-check again after fix to verify.
 ```
 
@@ -76,14 +88,31 @@ em-dash and a one-line summary tailored to the dominant issue class
 
 ---
 
+## Safety Line
+
+`lib/sh_check.sh` prints the Safety rows with or without the two judgments and
+sums them in its `safety-score` row. Render it as:
+
+`Safety: <pass>/<effective-total> checks passed (<W> warnings, <Z> N/A)`
+
+- `W` is the WARN rows and `Z` the N/A rows among the four `safety` rows. A
+  FAIL row counts toward neither, as in the Score line.
+- `safety-score 0/0` (all four N/A) renders as `Safety: N/A`.
+- It carries no verdict word and never changes the Score or the Verdict.
+
+---
+
 ## Next Actions Rules
 
-- **One bullet per WARN and FAIL** — never per PASS or N/A.
+- **One bullet per WARN and FAIL** — never per PASS or N/A. Safety rows count:
+  their bullets use `[<LEVEL> #11]` to `[<LEVEL> #14]`.
 - Each bullet starts with `[<LEVEL> #<N>]` so the user can map back to
   the table.
 - Provide a concrete fix:
   - For structural issues — paste the exact line/snippet to add.
   - For UX issues — name the ux_* function or pattern to adopt.
+  - For Safety issues — paste a POSIX snippet from `references/checks.md`,
+    with no `[[ ]]`, `declare` or `mapfile`.
 - End the Next Actions section with:
   `Run /authoring:sh-check again after fix to verify.`
 
@@ -92,6 +121,7 @@ em-dash and a one-line summary tailored to the dominant issue class
 ## Output Rules
 
 - Tables MUST use the columns shown above (`#`, `Check`, `Result`, `Notes`).
+  Show the Safety table even when all four rows are N/A.
 - The Verdict Functions table renders the helper's
   `fn<TAB>function<TAB>vocab<TAB>next-ok/next-n<TAB>result` rows, one per
   function with a fixed-line verdict return. No `fn` rows → omit the table
@@ -104,5 +134,5 @@ em-dash and a one-line summary tailored to the dominant issue class
 - Quote actual file lines in the Next Actions section, not in the table.
 - Do NOT add filler prose ("the script looks great!") — the Verdict line
   already classifies overall quality.
-- If `Score = 10/10` (no WARN, no FAIL), Next Actions section reads:
+- If no scored or Safety row is WARN or FAIL, Next Actions section reads:
   `No actions required.`

@@ -1,4 +1,4 @@
-/authoring:sh-check — Audit a shell script (`*.sh`) against 10 quality criteria
+/authoring:sh-check — Audit a shell script (`*.sh`) against 10 quality criteria and 4 Safety checks
 
 Usage:
   /authoring:sh-check [path/to/script.sh]
@@ -27,6 +27,12 @@ What it checks (10 criteria):
     9. Verdict Output            — printf 3-line state/age/next + state case
    10. Next-action Hint          — NEXT is a runnable command, `-` if terminal
 
+  Safety (11–14, scored apart, never in the Verdict)
+   11. Temp File Cleanup         — mktemp paths, rm reached from an EXIT trap
+   12. Atomic Write              — same-directory mktemp + mv, no direct >
+   13. Signal Handling           — INT and TERM trapped, background jobs stopped
+   14. Dry-run Support           — --dry-run, -n or --apply read in a condition
+
 Each check reports PASS / WARN / FAIL / N/A.
 
 Examples:
@@ -35,12 +41,13 @@ Examples:
   /authoring:sh-check
   /authoring:sh-check help
 
-Checks 1, 2, 4, 5, 6, 7, 9 and 10 are decided by lib/sh_check.sh, which also
-computes the score and verdict; 3 and 8 are the auditor's judgment.
+Checks 1, 2, 4, 5, 6, 7, 9, 10 and 11–14 are decided by lib/sh_check.sh, which
+also computes the score and verdict; 3 and 8 are the auditor's judgment.
 
 Output:
-  - Two tables (Structure, UX Quality) with results + notes
+  - Three tables (Structure, UX Quality, Safety) with results + notes
   - Score: X/10 checks passed (Y warnings, Z N/A)
+  - Safety: X/Y checks passed (W warnings, Z N/A), or Safety: N/A
   - Verdict: EXCELLENT / GOOD / NEEDS WORK / POOR
   - Next Actions: concrete fixes for every WARN and FAIL
 
