@@ -421,7 +421,7 @@ without the two judgments. Safety adds no judged item.
 
 | Result | When |
 |--------|------|
-| PASS | Executed script: every temp path comes from `mktemp` and the EXIT trap's body, or a function it reaches, holds an `rm`. Sourced fragment: the `mktemp` variable is on an `rm` line and the file sets no EXIT trap |
+| PASS | Executed script: every temp path comes from `mktemp` and the EXIT trap's body, or a function it reaches, removes each one. Sourced fragment: the `mktemp` variable is on an `rm` line and the file sets no EXIT trap |
 | WARN | The result is removed but no EXIT trap does it, so an early exit leaks it. Or a sourced fragment sets `trap ... EXIT`, replacing the caller shell's trap |
 | FAIL | A predictable fixed path (`/tmp/name`, `/tmp/x.$$`). Or a `mktemp` result nothing in the file removes |
 | N/A | Neither pattern is present |
@@ -469,8 +469,8 @@ dash on WSL and Debian.
 | Result | When |
 |--------|------|
 | PASS | `trap` names INT and TERM (or SIGINT, SIGTERM), and with a background job the cleanup path holds a `kill` or `wait`. The cleanup path is every INT, TERM and EXIT trap body plus the functions they reach |
-| WARN | Only one of INT and TERM is named. Or a `#!/bin/sh` file has only an EXIT trap. Or both are trapped but the cleanup path holds neither `kill` nor `wait` |
-| FAIL | A background job with no INT or TERM trap |
+| WARN | Only one of INT and TERM is named. Or a `#!/bin/sh` file has only an EXIT trap. Or both are trapped but the cleanup path holds neither `kill` nor `wait`. Or a bash file stops the job from an EXIT trap alone |
+| FAIL | A background job with no INT or TERM trap, and no bash EXIT trap stopping it |
 | N/A | Neither pattern is present |
 
 ```sh
@@ -481,6 +481,9 @@ trap 'exit 143' TERM
 wait "$_pid"
 ```
 
+In a sourced fragment put the job and its traps inside a `( ... )` subshell: a
+trap set there stays local, while one set in the function replaces the caller's.
+
 ### Check 14 — Dry-run Support
 
 **Applies to** an executed script, or a public function of a sourced fragment,
@@ -490,7 +493,7 @@ variable does not count.
 
 | Result | When |
 |--------|------|
-| PASS | `--dry-run`, `-n` or `--apply` is handled at option position (a case arm, a `[ "$1" = --apply ]` test, or `getopts`) and its variable, `DRY_RUN` or any `*dry*` / `*apply*` variable is read in a condition. A test that gates the code directly reads itself |
+| PASS | `--dry-run`, `-n` or `--apply` is handled at option position (a case arm, a `[ "$1" = --apply ]` test, or `getopts`) and its variable, `DRY_RUN` or any `*dry*` / `*apply*` variable is read in a condition, or heads a command (`$run git push`, `${DRY_RUN:+echo} git push`). A test that gates the code directly reads itself |
 | WARN | A mutating command with no such flag. Or the flag is parsed and never read |
 | N/A | No mutating command in scope |
 

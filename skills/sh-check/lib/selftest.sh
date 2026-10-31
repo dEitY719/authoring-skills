@@ -821,6 +821,13 @@ trap 'rm -f "$t"' EXIT
 u="/tmp/$(id -u).XXXXXX"
 EOF
 eq "11: a /tmp mktemp template is not a fixed path" "$(safety "$sf/tmp_tpl.sh" 11)" PASS
+scr "$sf/tmp_other.sh" <<'EOF'
+#!/bin/sh
+a=$(mktemp)
+rm -f "$a"
+trap 'rm -f other' EXIT
+EOF
+eq "11: an EXIT trap removing something else is WARN, not PASS" "$(safety "$sf/tmp_other.sh" 11)" WARN
 scr "$sf/tmp_ret.sh" <<'EOF'
 #!/bin/sh
 _mk_temp() {
@@ -854,6 +861,13 @@ show() {
 }
 EOF
 eq "11: sourced EXIT trap overrides the caller, WARN" "$(safety "$sf/frag_trap.sh" 11)" WARN
+
+scr "$sf/tmp_sub.sh" <<'EOF'
+#!/bin/sh
+d=$(mktemp -d)
+((rm -rf "$d"); echo b)
+EOF
+eq "11: (( opening a nested subshell is no arithmetic" "$(safety "$sf/tmp_sub.sh" 11)" WARN
 
 # Check 12.
 scr "$sf/at_ok.sh" <<'EOF'
@@ -928,6 +942,13 @@ scr "$sf/at_arith.sh" <<'EOF'
 printf '%s\n' "$(( n + 1 ))" > "$1"
 EOF
 eq "12: an arithmetic expansion hides no redirect on its line" "$(safety "$sf/at_arith.sh" 12)" WARN
+
+scr "$sf/at_arg.sh" <<'EOF'
+#!/bin/sh
+printf 'x' > "$2"
+mv "$1" "$3"
+EOF
+eq "12: another argument's mv does not excuse a direct >" "$(safety "$sf/at_arg.sh" 12)" WARN
 
 # Check 13.
 printf '#!/bin/sh\nt=x\ntrap "echo $t" EXIT\n' | scr "$sf/sig_sh.sh"
@@ -1007,6 +1028,15 @@ cmd &
 trap 'echo bye' INT TERM
 EOF
 eq "13: trapped but neither kill nor wait is WARN" "$(safety "$sf/sig_nokill.sh" 13)" WARN
+scr "$sf/sig_bexit.sh" <<'EOF'
+#!/bin/bash
+cmd & pid=$!
+trap 'kill "$pid"' EXIT
+wait
+EOF
+eq "13: a bash EXIT trap stopping the job is WARN, not FAIL" "$(safety "$sf/sig_bexit.sh" 13)" WARN
+sed 's/kill "$pid"/echo bye/' "$sf/sig_bexit.sh" > "$sf/sig_bye.sh"; chmod +x "$sf/sig_bye.sh"
+eq "13: a bash EXIT trap that stops nothing stays FAIL" "$(safety "$sf/sig_bye.sh" 13)" FAIL
 scr "$sf/sig_shok.sh" <<'EOF'
 #!/bin/sh
 t=$(mktemp)
@@ -1118,6 +1148,34 @@ x=$(sort -n | head)
 EOF
 eq "14: -n in a string or on another command is no flag" "$(safety_note "$sf/dry_opt.sh" 14)" \
   '1 mutating command(s), first git push, no --dry-run/--apply'
+scr "$sf/dry_val.sh" <<'EOF'
+#!/bin/sh
+case "$1" in
+    -n)
+        name=$2
+        ;;
+esac
+[ -n "$name" ] && git push
+EOF
+eq "14: a -n arm taking its value on the next line is no flag" "$(safety_note "$sf/dry_val.sh" 14)" \
+  '1 mutating command(s), first git push, no --dry-run/--apply'
+scr "$sf/dry_run.sh" <<'EOF'
+#!/bin/sh
+run=
+case "$1" in
+    --dry-run) run=echo ;;
+esac
+$run git push
+EOF
+eq "14: a flag variable heading the command is read" "$(safety "$sf/dry_run.sh" 14)" PASS
+scr "$sf/dry_exp.sh" <<'EOF'
+#!/bin/sh
+case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+esac
+${DRY_RUN:+echo} git push
+EOF
+eq "14: \${DRY_RUN:+echo} heading the command is read" "$(safety "$sf/dry_exp.sh" 14)" PASS
 scr "$sf/dry_tmp.sh" <<'EOF'
 #!/bin/sh
 t=$(mktemp); d=$(mktemp -d)
@@ -1181,6 +1239,15 @@ eq "broken: a syntax error still yields four rows" "$(sh "$here/sh_check.sh" "$s
 before=$(cksum < "$sf/risky.sh")
 sh "$here/sh_check.sh" "$sf/risky.sh" PASS PASS >/dev/null
 eq "read-only: the audited file is unchanged" "$(cksum < "$sf/risky.sh")" "$before"
+
+# A dead Safety pass still prints every row, and says so. The stub fails only
+# the Safety call, the one run under LC_ALL=C.
+mkdir -p "$sf/bin"
+real_awk=$(command -v awk)
+printf '#!/bin/sh\n[ "${LC_ALL-}" != C ] || exit 1\nexec "%s" "$@"\n' "$real_awk" > "$sf/bin/awk"
+chmod +x "$sf/bin/awk"
+eq "dead awk: four N/A rows and 0/0" \
+  "$(PATH="$sf/bin:$PATH" sh "$here/sh_check.sh" "$sf/risky.sh" | grep -c 'safety pass failed') $(PATH="$sf/bin:$PATH" sh "$here/sh_check.sh" "$sf/risky.sh" | tail -1 | cut -f2)" '4 0/0'
 
 # Next Actions snippets stay POSIX.
 refs=$here/../references

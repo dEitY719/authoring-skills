@@ -574,7 +574,8 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
         i++; continue
       }
       # `(( ))` is arithmetic like `$(( ))`: its <<, > and & are operators.
-      if (c == "(" && d == "(") {
+      # With no `))` on the line it is a nested subshell, whose commands count.
+      if (c == "(" && d == "(" && index(substr(l, i + 2), "))")) {
         st[++sp] = "A"; dp[sp] = 0; put("(("); i += 2
         continue
       }
@@ -654,13 +655,26 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       if (counted && flag && inscope) { nrm++; rmargs[nrm] = path }
     }
   }
-  function note_mv(m,   t, n, w, i, k, tok) {
-    t = m
-    while (match(t, mv_re)) {
+  # Variables named on the rm lines of text, into arr.
+  function rm_vars(text, arr,   t) {
+    t = text
+    while (match(t, rm_re)) {
       t = substr(t, RSTART + RLENGTH)
-      n = split(args_of(t), w, /[ \t]+/); k = 0
-      for (i = 1; i <= n; i++)
-        if (w[i] != "" && w[i] != "--" && w[i] !~ /^-/) tok[++k] = w[i]
+      vars_into(args_of(t), arr)
+    }
+  }
+  # Tokens come from c at the offsets in m: two strings of one length mask alike.
+  function note_mv(m, c,   t, off, a, r, k, tok, w) {
+    t = m; off = 0
+    while (match(t, mv_re)) {
+      off += RSTART + RLENGTH - 1
+      t = substr(t, RSTART + RLENGTH)
+      r = args_of(t); a = 0; k = 0
+      while (match(r, /[^ \t]+/)) {
+        w = substr(c, off + a + RSTART, RLENGTH)
+        a += RSTART + RLENGTH - 1; r = substr(r, RSTART + RLENGTH)
+        if (w != "--" && w !~ /^-/) tok[++k] = w
+      }
       if (k < 2) continue
       nmv++; mvs[nmv] = tok[1]; mvd[nmv] = tok[k]; mvtok[tok[1]] = 1
     }
@@ -766,23 +780,34 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   function note_flags(m, c,   hit, t, name) {
     if (c ~ /getopts[ \t]+["\047]?:?[A-Za-z:]*n([^:]|$)/) gopt = 1
     hit = (c ~ arm_re || (gopt && c ~ /^[ \t]*[(]?n[)]/)) ? 1 : (c ~ test_re) ? 2 : 0
-    # `-n|--name)` or `-n) n=$2`: a value option that only shares the letter.
-    if (hit == 1 && c !~ /--dry-run|--apply/ && c ~ /(^|[ \t(|])--[a-z]|[$][{]?2|OPTARG/) hit = 0
+    # `-n|--name)` is a value option that only shares the letter, and so is a
+    # `-n` arm reading `$2` or `$OPTARG` on any line up to its `;;` (fshort).
+    if (hit == 1 && c !~ /--dry-run|--apply/ && c ~ /(^|[ \t(|])--[a-z]/) hit = 0
     if (hit) {
-      flagged = 1; ftest = (hit == 2); fvar = 0
+      if (fwin > 0) flag_close()
+      split("", fpend); ftest = (hit == 2); fvar = 0; fval = 0
+      fshort = (hit == 1 && c !~ /--dry-run|--apply/)
       fwin = (hit == 1) ? 4 : (m ~ /then[ \t]*$/) ? 2 : 1
     }
     if (fwin <= 0) return
+    if (fshort && c ~ /[$][{]?2|OPTARG/) fval = 1
     t = m
     while (match(t, assign_re)) {
       name = substr(t, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_]/, "", name)
-      flagvar[name] = 1; fvar = 1
+      fpend[name] = 1; fvar = 1
       t = substr(t, RSTART + RLENGTH)
     }
     fwin--
     if (m ~ /;;|(^|[ \t;])fi([ \t;]|$)/) fwin = 0
+    if (fwin == 0) flag_close()
+  }
+  function flag_close(   v) {
+    fwin = 0
+    if (fval) return
+    flagged = 1
+    for (v in fpend) flagvar[v] = 1
     # A bare test gates the code itself: the option is read where it is parsed.
-    if (fwin == 0 && ftest && !fvar) direct = 1
+    if (ftest && !fvar) direct = 1
   }
   function analyze(m, c,   t, o, e) {
     ln++
@@ -811,7 +836,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     }
     note_traps(m, c)
     note_rm(m, 1)
-    note_mv(m)
+    note_mv(m, c)
     # A function printing the path hands it to its caller (`_mk_temp`), which
     # owns the cleanup; a file-level print is no hand-off.
     if (cur != "" && match(m, /(echo|printf[ \t]+[^ \t]+)[ \t]+"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?[ \t]*(;|$)/))
@@ -825,7 +850,8 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       if (has_cmd(m, "sudo[ \t]")) mutate("sudo")
       if (has_cmd(m, "gh[ \t]+((-R|--repo)[ \t]+[^ \t]+[ \t]+)?[a-z-]+[ \t]+(create|merge|delete)([ \t;|&)]|$)")) mutate("gh write")
     }
-    if (m ~ cond_re || m ~ /&&|[|][|]/) cond = cond "\n" m
+    # `$run git push` and `${DRY_RUN:+echo} git push` branch on the variable too.
+    if (m ~ cond_re || m ~ /&&|[|][|]/ || m ~ dollar_re) cond = cond "\n" m
     if (m ~ /^[ \t]*disown([ \t;]|$)/ && lastbg && ln - lastbg <= 2) { nbg--; lastbg = 0 }
     t = m
     gsub(/\\./, "", t); gsub(/\$\{[^}]*\}/, "", t); gsub(/&&|[<>;]&|&>|[|]&/, "", t)
@@ -835,6 +861,13 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     if (cur != "" && opened && depth <= 0) cur = ""
   }
   function mutate(what) { nmut++; if (first == "") first = what }
+  # A mktemp variable in arr, or inside a mktemp directory that is.
+  function covered(name, arr,   parents, p) {
+    if (name in arr) return 1
+    vars_into(mk[name], parents)
+    for (p in parents) if ((p in mk) && (p in arr)) return 1
+    return 0
+  }
   # text plus, transitively, the bodies of the functions it names.
   function reach(text, d,   n, w, i, out) {
     out = text
@@ -853,8 +886,9 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     if (r != "N/A") sp_eff++
   }
   BEGIN {
-    pre = "(^|[;&|(){!`]|(if|elif|while|until|then|do|else|exec|command|sudo|xargs|env|time)[ \t])[ \t]*(\\\\)?([A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]+)*"
+    pre = "(^|[;&|(){!`]|(if|elif|while|until|then|do|else|exec|command|sudo|xargs|env|time)[ \t])[ \t]*(\\\\)?([A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]+)*([$][{]?[A-Za-z_][^ \t]*[ \t]+)?"
     rm_re = pre "rm[ \t]+"
+    dollar_re = "(^|[;&|(){!`]|(if|elif|while|until|then|do|else)[ \t])[ \t]*[$][{]?[A-Za-z_]"
     mv_re = pre "mv[ \t]+"
     trap_re = pre "trap[ \t]+"
     git_re = "git[ \t]+(-[Cc][ \t]+[^ \t]+[ \t]+)*"
@@ -881,6 +915,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
   }
   END {
     if (M != "" || C != "") analyze(M, C)
+    if (fwin > 0) flag_close()
     # Aliases: a variable holding a temp path is one too, and removing it counts.
     for (i = 1; i <= nmv; i++) {
       h = head_var(mvs[i])
@@ -893,16 +928,17 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
       }
 
     # ----- 11 Temp File Cleanup
-    unrem = ""
-    for (i = 1; i <= mkn; i++) {
-      name = mkorder[i]
-      if (name in removed) continue
-      split("", parents); vars_into(mk[name], parents); inner = 0
-      for (p in parents) if ((p in mk) && (p in removed)) inner = 1
-      if (!inner && unrem == "") unrem = name
-    }
     split("", seen)
-    exit_rm = (reach(b_exit, 0) ~ rm_re)
+    exit_code = reach(b_exit, 0)
+    rm_vars(exit_code, inexit)
+    for (pass_n = 0; pass_n < 4; pass_n++)
+      for (i = 1; i <= an; i++)
+        if (al[i] in inexit) vars_into(ar[i], inexit)
+    unrem = ""; exit_rm = (mkn > 0 || exit_code ~ rm_re)
+    for (i = 1; i <= mkn; i++) {
+      if (!covered(mkorder[i], removed) && unrem == "") unrem = mkorder[i]
+      if (!covered(mkorder[i], inexit)) exit_rm = 0
+    }
     if (mkn + unnamed + nfixed == 0) row(11, "N/A", "no mktemp or /tmp path")
     else if (nfixed) row(11, "FAIL", "predictable temp path " fixed)
     else if (unrem != "") row(11, "FAIL", "mktemp result $" unrem " is never removed")
@@ -917,7 +953,7 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     for (i = 1; i <= tn; i++) {
       t = tc[i]; gsub(/"|\047/, "", t)
       if (t ~ /^\/dev\// || t ~ /^\/tmp\//) continue
-      if (is_tmp(head_var(tm[i])) || (tm[i] in mvtok)) continue
+      if (is_tmp(head_var(tm[i])) || (tc[i] in mvtok)) continue
       if (direct_n++ == 0) sample = t
     }
     mv_same = 0; mv_cross = 0
@@ -940,11 +976,13 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     split("", seen)
     clean = reach(b_exit ";" b_sig, 0)
     both = t_int && t_term
+    stops = has_cmd(clean, "(kill|wait)([ \t;|&)]|$)")
     if (nbg == 0 && !(posix && t_exit)) row(13, "N/A", "no unmanaged background job or sh EXIT trap")
+    else if (nbg && !t_int && !t_term && !posix && t_exit && stops) row(13, "WARN", "bash EXIT trap stops the job, but INT and TERM are not named")
     else if (nbg && !t_int && !t_term) row(13, "FAIL", nbg " background job(s), no INT/TERM trap")
     else if (!both && (t_int || t_term)) row(13, "WARN", "trap names only " (t_int ? "INT" : "TERM"))
     else if (!both) row(13, "WARN", "#!/bin/sh EXIT trap alone may not run on SIGTERM")
-    else if (nbg && !has_cmd(clean, "(kill|wait)([ \t;|&)]|$)")) row(13, "WARN", "INT/TERM trapped but no kill or wait in the cleanup path")
+    else if (nbg && !stops) row(13, "WARN", "INT/TERM trapped but no kill or wait in the cleanup path")
     else row(13, "PASS", "INT and TERM trapped")
 
     # ----- 14 Dry-run Support
@@ -970,6 +1008,10 @@ SAFETY=$(LC_ALL=C awk -v sourced="$sourced" -v posix="$safety_sh" '
     printf "safety-score\t%d/%d\n", sp_pass, sp_eff
   }
 ' "$file" 2>/dev/null || true)
+# "Both always" (stdout contract): a dead awk is a stated N/A, not missing rows.
+[ -n "$SAFETY" ] || SAFETY=$(for i in 11 12 13 14; do
+  printf 'safety\t%s\tN/A\tsafety pass failed, not judged\n' "$i"
+done; printf 'safety-score\t0/0\n')
 
 # ---------- Report ----------
 pass=0 fail=0 na=0
