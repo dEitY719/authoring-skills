@@ -156,6 +156,7 @@ reads_awk='
     if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) rd = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) rd = 1
     if (t ~ /[ \t]in[ \t]+"?\$\{?@/) rd = 1
+    if (t ~ /(=|\()[ \t]*"?\$\{?@/) rd = 1
     s = t
     while (match(s, /[A-Za-z_][A-Za-z0-9_]*[ \t]+"\$\{?@\}?"/)) {
       f = substr(s, RSTART, RLENGTH); sub(/[ \t].*/, "", f)
@@ -175,7 +176,7 @@ TOP=$(awk "$reads_awk"'
     gsub(/[A-Za-z_][A-Za-z0-9_]*[ \t]*\(\)[ \t]*\{[^}]*\}/, "", t)
     reads_of(t)
     while (gsub(/\$\([^()]*\)/, "", t)) ;
-    if (t ~ /(^|[;&|{]|(then|do|else)[ \t])[ \t]*(echo|printf|tput|ux_[a-z_]+)([ \t;]|$)/ && t !~ />&2/) out = 1
+    if (t ~ /(^|[;&|{()]|(then|do|else)[ \t])[ \t]*(echo|printf|tput|ux_[a-z_]+)([ \t;]|$)/ && t !~ />&2/) out = 1
   }
   /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_-]*[ \t]*\(\)/ && !infn { infn = 1; depth = 0; opened = 0 }
   !infn && /\\$/ { buf = buf substr($0, 1, length($0) - 1) " "; next }

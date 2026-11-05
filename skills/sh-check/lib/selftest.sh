@@ -1339,6 +1339,13 @@ frag "$fns/loudif.sh" <<'EOF2'
 if [ -z "${X-}" ]; then echo "X unset"; fi
 EOF2
 eq "loudif: output after then at top level stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudif.sh")" 2)" FAIL
+frag "$fns/loudcase.sh" <<'EOF2'
+#!/bin/sh
+case "${X-}" in
+    a) echo "X is a" ;;
+esac
+EOF2
+eq "loudcase: output in a top-level case arm stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudcase.sh")" 2)" FAIL
 frag "$d/shell-common/tools/custom/noexec.sh" <<'EOF2'
 #!/bin/bash
 echo "run"
