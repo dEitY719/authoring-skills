@@ -87,6 +87,21 @@ head20=$(head -20 "$file")
 if printf '%s\n' "$head20" | grep -qF 'case $- in *i*'; then sourced=1; fi
 if printf '%s\n' "$head20" | grep -qE '^[[:space:]]*alias '; then sourced=1; fi
 case $shebang in '#!'*) [ -x "$file" ] || sourced=1 ;; *) sourced=1 ;; esac
+# A tools/custom entrypoint is executed whatever its mode bits say (#110).
+[ "$custom_entry" -eq 0 ] || sourced=0
+
+# Project exemptions (issue #110, dotfiles shell-common/AGENTS.md) are paths
+# relative to the nearest ancestor holding a shell-common/ directory; a repo
+# without one has no $rel and no exemption fires.
+file_dir=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
+file_top=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null || echo /)
+rel=''
+_d=$file_dir
+while :; do
+  if [ -d "$_d/shell-common" ]; then rel=${file_dir#"$_d"}/${file##*/}; rel=${rel#/}; break; fi
+  [ "$_d" != / ] && [ "$_d" != "$file_top" ] || break
+  _d=$(dirname "$_d")
+done
 
 # ---------- Check 1: Shebang + POSIX Hygiene ----------
 case $shebang in
@@ -125,13 +140,68 @@ case $shebang in
     ;;
 esac
 
+# Top-level code, outside every function body (issue #110):
+#   out<TAB>reads<TAB>passes
+# out is 1 when a line starts an output command (echo/printf/tput/ux_*) in
+# command position -- source-time output, Check 2. reads is 1 when the code
+# reads the script's arguments itself ($1..$9, $#, $*, shift, getopts, for x;
+# do, in "$@"); passes lists the functions it hands "$@" to -- Check 6.
+# shortcut: a line-start grep per line, not a parser; heredoc text and braces in
+# strings can mislead it, widen on a real miss.
+# Shared with the FUNCS pass below: direct argument reads (rd) and the
+# functions "$@" is handed to (ps). Single-quoted text is stripped by the caller.
+reads_awk='
+  function reads_of(t,   s, f) {
+    if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9*]|#([^A-Za-z_{]|$)|\{#[@*}])/) rd = 1
+    if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) rd = 1
+    if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) rd = 1
+    if (t ~ /[ \t]in[ \t]+"?\$\{?@/) rd = 1
+    s = t
+    while (match(s, /[A-Za-z_][A-Za-z0-9_]*[ \t]+"\$\{?@\}?"/)) {
+      f = substr(s, RSTART, RLENGTH); sub(/[ \t].*/, "", f)
+      if (f != "in") ps = ps " " f
+      s = substr(s, RSTART + RLENGTH)
+    }
+  }
+'
+TOP=$(awk "$reads_awk"'
+  # A `\` continuation is joined first, so a trailing `>&2` stays with its
+  # command. Output to stderr (`>&2`) or inside $(...) is not source-time stdout,
+  # which is what the guard protects (scp/rsync break on it).
+  function scan(line,   t) {
+    t = line; gsub(/\047[^\047"]*\047/, "", t); sub(/(^|[ \t])#.*/, "", t)
+    # An inline fallback definition (`|| log_info() { ux_info "$1"; }`) is no
+    # top-level code at all.
+    gsub(/[A-Za-z_][A-Za-z0-9_]*[ \t]*\(\)[ \t]*\{[^}]*\}/, "", t)
+    reads_of(t)
+    while (gsub(/\$\([^()]*\)/, "", t)) ;
+    if (t ~ /(^|[;&|{]|(then|do|else)[ \t])[ \t]*(echo|printf|tput|ux_[a-z_]+)([ \t;]|$)/ && t !~ />&2/) out = 1
+  }
+  /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_-]*[ \t]*\(\)/ && !infn { infn = 1; depth = 0; opened = 0 }
+  !infn && /\\$/ { buf = buf substr($0, 1, length($0) - 1) " "; next }
+  !infn { scan(buf $0); buf = ""; next }
+  {
+    t = $0; o = gsub(/[{]/, "", t); t = $0; c = gsub(/[}]/, "", t)
+    if (o > 0) opened = 1
+    depth += o - c
+    if (opened && depth <= 0) infn = 0
+  }
+  END { printf "%d\t%d\t%s\n", out, rd, ps }
+' "$file" 2>/dev/null || printf '1\t1\t\n')
+top_out=$(printf '%s\n' "$TOP" | cut -f1)
+
 # ---------- Check 2: Interactive Guard ----------
+# dotfiles#1877: the guard is owed by a file that prints while sourced; a pure
+# function library sourced non-interactively is exempt. The N/A only replaces
+# the FAIL, so a guard a file does carry still scores.
 if [ "$sourced" -eq 0 ]; then
   r2='N/A'; n2='executable script, no guard needed'
 elif head -10 "$file" | grep -qF 'case $- in *i*'; then
   r2=PASS; n2='guard within the first 10 lines'
 elif grep -qF 'case $- in *i*' "$file" 2>/dev/null; then
   r2=WARN; n2='guard present but below the first 10 lines'
+elif [ "$top_out" != 1 ]; then
+  r2='N/A'; n2='no source-time output'
 else
   r2=FAIL; n2='sourced file with no interactive guard'
 fi
@@ -139,7 +209,7 @@ fi
 # Two passes over the file. The first collects every non-empty var="..."
 # assignment, so a "$var" NEXT can be resolved; the second yields, per function
 # definition:
-#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net<TAB>table<TAB>args
+#   name<TAB>needs-guard<TAB>has-emulate-guard<TAB>vocab<TAB>next-n<TAB>next-ok<TAB>next-blank<TAB>net<TAB>table<TAB>args<TAB>reads<TAB>passes
 # vocab is the number of distinct literal states (first printf argument) among
 # the function's fixed-line printf '%s\n%s\n...' returns, `?` when a state is
 # not a literal, `-` when the function has no such return. next-* judge the last
@@ -158,6 +228,7 @@ fi
 # args is 1 when the body reads its arguments ($1..$9, $@, $*, $#, or getopts /
 # shift / `for x; do`; single-quoted text and ${#var} do not count) -- a function
 # that never does takes no arguments, so Check 6 has no --help to ask of it (#106).
+# reads/passes are reads_of above: an executed script's argument trail (#110).
 # The command names live only in the call_pattern assignment, which skill-check
 # Check 15 skips as a *_pattern line -- keep them out of comments (issue #84).
 # ponytail: prefix allow-list, anything else is WARN never FAIL (issue #36
@@ -167,7 +238,7 @@ fi
 next_cmds='gwt|git|gh|ps'
 opt_in='remote|network|online'
 call_pattern='(^|[;&|(!{]|(then|do|else)[ \t])[ \t]*(gh|curl|wget)([ \t]|$)'
-FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
+FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" "$reads_awk"'
   FNR == NR {
     t = $0
     while (match(t, /[A-Za-z_][A-Za-z0-9_]*="[^"]+"/)) {
@@ -179,7 +250,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
   }
   function flush(   voc) {
     voc = nfixed == 0 ? "-" : (dyn ? "?" : nvoc)
-    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", cur, needs, guarded, voc, n, ok, blank, net, tbl, args
+    if (cur != "") printf "%s\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n", cur, needs, guarded, voc, n, ok, blank, net, tbl, args, rd, ps
     cur = ""
   }
   function judge(v) {
@@ -225,6 +296,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9@*]|#([^A-Za-z_{]|$)|\{#[@*}])/) args = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) args = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) args = 1
+    reads_of(t)
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -262,7 +334,7 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" '
     needs = 0
     guarded = 0
     nfixed = 0; nvoc = 0; dyn = 0; n = 0; ok = 0; blank = 0
-    net = 0; gd = 0; arm = 0; tbl = 0; args = 0
+    net = 0; gd = 0; arm = 0; tbl = 0; args = 0; rd = 0; ps = ""
     opened = 0
     depth = 0
     body($0)
@@ -299,8 +371,21 @@ fi
 # cover a second, unguarded one.
 need_guard=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$2 == 1' | grep -c . || true)
 have_guard=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$2 == 1 && $3 == 1' | grep -c . || true)
+# Only shell-common/ outside tools/custom is cross-shell in the dotfiles layout;
+# tools/custom forbids the guard as dead code (#110).
+c5_exempt=0
+case $rel in
+  '') ;;
+  shell-common/tools/custom/*) c5_exempt=1 ;;
+  shell-common/*) ;;
+  *) c5_exempt=1 ;;
+esac
 if [ "$shell_specific" -eq 1 ]; then
   r5='N/A'; n5='single-shell tree (bash/ or zsh/)'
+elif [ "$sourced" -eq 0 ]; then
+  r5='N/A'; n5='executable script, runs in one shell'
+elif [ "$c5_exempt" -eq 1 ]; then
+  r5='N/A'; n5="exempt path ($rel), not cross-shell"
 elif [ "$need_guard" -eq 0 ]; then
   r5='N/A'; n5='no cross-shell function needing the guard'
 elif [ "$have_guard" -eq "$need_guard" ]; then
@@ -376,9 +461,6 @@ resolve_deleg() {
 deleg='' deleg_nohelp='' deleg_lost=''
 arm=0; if has "$help_arm"; then arm=1; fi
 if [ "$arm" -eq 0 ]; then
-  # Resolved once, not per call: every call walks up from the same file.
-  file_dir=$(CDPATH='' cd -- "$(dirname "$file")" && pwd)
-  file_top=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null || echo /)
   lead='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*)?(exec[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=("[^"]*"|[^[:space:]"]*)[[:space:]]+)*((ba|z)?sh[[:space:]]+)?'
   calls=$(grep -nE "$lead"'("?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|[^[:space:]]*/[^[:space:]]+)[[:space:]]+"\$@"' "$file" 2>/dev/null || true)
   while IFS= read -r c; do
@@ -407,13 +489,36 @@ $(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 != "" && $1 !~ /^_/ { p++; if ($1 !~ /
 PUB
 # The N/A is only safe when FUNCS saw every definition -- not `function f {`,
 # an indented or a hyphenated `f-x()` -- no alias exposes a _private function
-# as the public command, and the file is no tools/custom entrypoint (executed).
+# as the public command, and the file is sourced.
 defs=$(count '^[[:space:]]*(function[[:space:]]+[A-Za-z_]|[A-Za-z_][-A-Za-z0-9_:]*[[:space:]]*\(\))')
 na_ok=0
-if [ "$sourced" -eq 1 ] && [ "$custom_entry" -eq 0 ] && [ "$defs" -le "$nfunc" ] &&
+if [ "$sourced" -eq 1 ] && [ "$defs" -le "$nfunc" ] &&
   ! has '^[[:space:]]*alias[[:space:]]+[^=]+=["'"'"']?_'; then
   na_ok=1
 fi
+# An executed script is asked only when its arguments reach a reader (#110):
+# top-level code reading them, or "$@" handed down -- through functions defined
+# here, one hop at a time -- to one that does. "$@" handed to an undefined
+# *_main delegates the whole command to the file that defines it.
+# exec_args: read | deleg <fn> | none
+exec_args=$(printf '%s\n' "$FUNCS" | awk -F'\t' -v top="$TOP" '
+  $1 != "" { def[$1] = 1; rd[$1] = $11; ps[$1] = $12 }
+  END {
+    split(top, t, "\t")
+    if (t[2] == 1) { print "read"; exit }
+    n = split(t[3], q, " ")
+    for (i = 1; i <= n; i++) {
+      f = q[i]
+      if (f in seen) continue
+      seen[f] = 1
+      if (f in def) {
+        if (rd[f] == 1) { print "read"; exit }
+        m = split(ps[f], r, " ")
+        for (j = 1; j <= m; j++) q[++n] = r[j]
+      } else if (f ~ /_main$/ && d == "") d = f
+    }
+    print (d != "" ? "deleg " d : "none")
+  }')
 if [ -n "$deleg_nohelp" ]; then
   r6=FAIL; n6="delegates to $deleg_nohelp, which has no -h/--help handling"
 elif [ -n "$deleg" ]; then
@@ -429,9 +534,19 @@ elif [ "$na_ok" -eq 1 ] && [ "$pub" -eq 0 ]; then
   r6='N/A'; n6='no public command'
 elif [ "$na_ok" -eq 1 ] && [ "$cand" -eq 0 ]; then
   r6='N/A'; n6='no public command takes arguments (help renderers excluded)'
+elif [ "$sourced" -eq 0 ] && [ "$exec_args" = none ]; then
+  r6='N/A'; n6='executable script reads no arguments'
+elif [ "$sourced" -eq 0 ] && [ "${exec_args%% *}" = deleg ]; then
+  r6='N/A'; n6="arguments go to ${exec_args#deleg }, defined outside this file"
 else
   r6=FAIL; n6='no -h/--help handling'
 fi
+# dotfiles#1880 asks only user commands that take arguments: these trees hold
+# none (#110). The root setup.sh is the one setup.sh a user runs with flags.
+case $rel in
+  shell-common/env/*|shell-common/aliases/*|shell-common/util/*|shell-common/tools/ux_lib/*|git/*|tests/*|*/tests/*|*/setup.sh)
+    r6='N/A'; n6="exempt path ($rel)" ;;
+esac
 
 # ---------- Check 7: UX Lib Usage ----------
 ux=$(count 'ux_[a-z]')
@@ -445,6 +560,10 @@ elif [ "$raw" -gt 0 ]; then
 else
   r7='N/A'; n7='no user-facing output'
 fi
+# dotfiles#1881: git hooks and tests print for tools, not people (#110).
+case $rel in
+  git/*|tests/*|*/tests/*) r7='N/A'; n7="exempt path ($rel)" ;;
+esac
 
 # ---------- Check 9: Verdict Output ----------
 # The gwt contract (checks.md Check 9): a *status/*verdict function returns
@@ -452,15 +571,14 @@ fi
 # state vocabulary with `case`, is rendered by a separate caller through
 # $(...), documents its first-match priority as `a > b > c`, and calls the
 # network only behind an opt-in flag (FUNCS column 8).
-# A function with no fixed-line printf is a help renderer, not a verdict, when
-# it calls ux_table_row (`_gwt_help_rows_status`) or is named *_help_* (the
-# `_ssl_help_rows_status` that prints ux_success lines) -- issue #104.
-vfn=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 ~ /status|verdict/ && !($4 == "-" && ($9 == 1 || $1 ~ /(^|_)help_/)) { print $1; exit }')
+# Candidates are names holding status/verdict as a whole `_` token (#110):
+# `statusline`, `gpustatus` are not. A candidate with no fixed-line printf is a
+# display or help renderer (`check_certificate_status`, `_gwt_help_rows_status`),
+# not a broken verdict -- N/A, never FAIL.
+vfn=$(printf '%s\n' "$FUNCS" | awk -F'\t' '$1 ~ /(^|_)(status|verdict)(_|$)/ && $4 != "-" { print $1; exit }')
 lines2="printf '%s\\\\n%s\\\\n"
 if [ -z "$vfn" ]; then
-  r9='N/A'; n9='no status/verdict function'
-elif ! has "$lines2"; then
-  r9=FAIL; n9="$vfn returns no fixed-line verdict"
+  r9='N/A'; n9='no status/verdict function with a fixed-line return'
 else
   missing=''
   has "${lines2}%s\\\\n'" || missing="$missing, 3-line return"
@@ -481,7 +599,7 @@ fi
 # NEXT is the last argument of each fixed-line printf, judged per function in
 # the FUNCS pass above; here the per-function counts are summed.
 if [ -z "$vfn" ]; then
-  r10='N/A'; n10='no status/verdict function'
+  r10='N/A'; n10='no status/verdict function with a fixed-line return'
 else
 nx=$(printf '%s\n' "$FUNCS" | awk -F'\t' '
   { n += $5; ok += $6; blank += $7 }

@@ -21,6 +21,12 @@ in `gh_flow.sh` shares.
 from, `dEitY719/dotfiles`). A repo without one simply never trips the
 `shell-common`-only arms.
 
+**Project exemptions** (issue #110, rules from dotfiles `shell-common/AGENTS.md`,
+dEitY719/dotfiles#1877, #1879, #1880, #1881). Some rows below turn N/A by path.
+Those paths are relative to the nearest ancestor of the audited file that holds a
+`shell-common/` directory, so `git/` means `<dotfiles>/git/`. With no such
+ancestor, no path exemption fires. The note reads `exempt path (<path>)`.
+
 ---
 
 ## Structure Checks (1–5)
@@ -67,8 +73,22 @@ case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac
 |--------|------|
 | PASS | Guard present in the first ~10 lines of a sourced file |
 | WARN | Guard present but later in the file (after function defs) |
-| FAIL | Sourced file with no interactive guard |
-| N/A  | File is an executable script (has `#!` and is `chmod +x`'d) |
+| FAIL | Sourced file with no interactive guard that prints at source time |
+| N/A  | File is an executable script (has `#!` and is `chmod +x`'d, or is a top-level `shell-common/tools/custom/*.sh`), or a sourced file with no source-time output |
+
+**Source-time output** (dEitY719/dotfiles#1877). The guard is owed only by a
+file that prints while it is sourced. A pure function library sourced
+non-interactively is exempt: `N/A no source-time output`. The helper reads the
+top-level code, outside every function body. An `echo`, `printf`, `tput` or
+`ux_*` call in command position there is source-time output: at line start, or
+after `;`, `&&`, `||`, `|`, `{`, `then`, `do` or `else`. A `\` continuation is
+joined first. These do not count: a call inside `$(...)`, a statement that
+redirects `>&2` (the guard protects stdout, which scp and rsync break on), and an
+inline fallback definition such as `|| log_info() { ux_info "$1"; }`. The N/A
+only replaces the FAIL. A guard that a file does carry still scores PASS or WARN.
+
+A top-level `shell-common/tools/custom/*.sh` is an executed entrypoint whatever
+its mode bits say, the same class Check 1 uses.
 
 **Grep hints**
 ```sh
@@ -137,7 +157,12 @@ issue documented in MEMORY.md.
 | PASS | All cross-shell functions have the guard |
 | WARN | Some functions have it, others don't |
 | FAIL | File is in `shell-common/` and no function has the guard |
-| N/A  | File is bash-only (lives in `bash/`) or zsh-only (`zsh/`), or is an executable script |
+| N/A  | File is bash-only (lives in `bash/`) or zsh-only (`zsh/`), is an executable script, or sits on an exempt path |
+
+**Exempt paths** (#110). In the dotfiles layout, only `shell-common/` outside
+`shell-common/tools/custom/` is cross-shell. Every other path is N/A:
+`shell-common/tools/custom/**` (whose rules forbid the guard as dead code),
+`git/`, `scripts/`, `claude/` and the rest of the repo root.
 
 **Grep hints**
 ```sh
@@ -162,7 +187,7 @@ arguments, all rendered via `ux_table_row`.
 | PASS | `-h\|--help` handled, structured help (table or sections), early return |
 | WARN | Help exists but is just an inline echo string, not a function |
 | FAIL | No help flag — user must read the source |
-| N/A  | Function takes no arguments (pure side-effect helper) |
+| N/A  | Function takes no arguments (pure side-effect helper), the script reads no arguments, or the file sits on an exempt path |
 
 Mechanically, PASS needs the flag in an option position — a case pattern or a
 test, not prose in a comment — *and* a `*help` function with a call site, so a
@@ -181,10 +206,27 @@ span holding a `"` is kept, so `"don't" "$1"` still reads `$1`), and never a
 file handles no flag of its own and no wrapper call is found, a sourced file
 with no public function is N/A (`no public command`), and one whose public
 functions are all excluded is N/A too. Help a file *does* handle still scores
-PASS/WARN — the N/A only replaces a FAIL. An executed script (or a
-`tools/custom/*.sh` entrypoint) is always asked, whatever its functions are
-called, and so is a file with an `alias x=_fn` or a definition the helper
-cannot parse (`function f {`, an indented or hyphenated `f-x()`).
+PASS/WARN — the N/A only replaces a FAIL. A file with an `alias x=_fn` or a
+definition the helper cannot parse (`function f {`, an indented or hyphenated
+`f-x()`) is always asked.
+
+An executed script (or a `tools/custom/*.sh` entrypoint) is asked whatever its
+functions are called, but only when its arguments reach a reader (#110,
+dEitY719/dotfiles#1880). The reader is the top-level code reading them directly
+(`$1`..`$9`, `$#`, `$*`, `shift`, `getopts`, `for x; do`, `in "$@"`), or a
+function defined in the file that receives `"$@"` and reads them, followed
+through every `"$@"` hand-off. Passing `"$@"` along is not a read in itself.
+With no reader the row is `N/A executable script reads no arguments`. When
+`"$@"` reaches an undefined `*_main` (`main() { _grs_main "$@"; }`, with
+`_grs_main` sourced from another file), the command is delegated: `N/A
+arguments go to _grs_main, defined outside this file`. A help arm or a thin
+wrapper the file does have still scores PASS, WARN or FAIL as above.
+
+**Exempt paths** (#110, dEitY719/dotfiles#1880). These trees hold no user command
+that takes arguments, so the row is N/A there: `shell-common/env/`,
+`shell-common/aliases/`, `shell-common/util/`, `shell-common/tools/ux_lib/`,
+`git/` (hooks), any `tests/` directory, and every `*/setup.sh` except the
+repo-root `setup.sh`.
 
 An init hook that takes an argument (dotfiles' `dotfiles_init_summary
 <file_count>`, called by the loader, not typed by a user) is not caught by
@@ -243,7 +285,10 @@ output behind `[ "${DEBUG:-0}" = "1" ]`.
 | PASS | All user-facing output via ux_* functions |
 | WARN | Mix — some ux_*, some raw echo for messages |
 | FAIL | Pure raw `echo`/`tput`, no ux_lib import or usage |
-| N/A  | File defines no user-facing output (e.g. pure data helper) |
+| N/A  | File defines no user-facing output (e.g. pure data helper), or sits on an exempt path |
+
+**Exempt paths** (#110, dEitY719/dotfiles#1881). Git hooks and tests print for
+tools, not people: `git/` and any `tests/` directory are N/A.
 
 **Grep hints**
 ```sh
@@ -274,13 +319,16 @@ grep -nE 'Unknown option|Missing argument|Required' "$FILE"
 ### Check 9 — Verdict Output
 
 **What to look for**
-A status/diagnostic function (name contains `status` or `verdict`) computes a
-fixed-line verdict and hands rendering to a separate caller. A function with no
-fixed-line `printf` is a help renderer, not a verdict candidate, when it calls
-`ux_table_row` — e.g. `_gwt_help_rows_status`, the help rows of the
-`gwt status` subcommand — or is named `*_help_*`, such as
-`_ssl_help_rows_status`, which prints `ux_success` lines (issue #104). A
-`*_help_*` function that does return fixed lines is still checked. The gwt contract,
+A status/diagnostic function computes a fixed-line verdict and hands rendering
+to a separate caller. A candidate holds `status` or `verdict` as a whole
+`_`-separated token in its name, matched as `(^|_)(status|verdict)(_|$)`:
+`_gwt_compute_status` and `gh_pr_status` are candidates, but
+`_migrate_legacy_statusline_command` and `gpustatus` are not (#110). A candidate
+with no fixed-line `printf` is N/A, never FAIL. Such a candidate is a display or
+help renderer, not a broken verdict. Examples are `check_certificate_status`,
+which shows a status to a person, `_gwt_help_rows_status` (`ux_table_row` help
+rows, #104) and `_ssl_help_rows_status`. The first candidate that does return
+fixed lines is judged against the five signals below. The gwt contract,
 excerpted verbatim from `dEitY719/dotfiles@89c2763`
 `shell-common/functions/git_worktree.sh`:
 
@@ -338,8 +386,9 @@ in `lib/sh_check.sh` when a real flag name keeps landing there.
 |--------|------|
 | PASS | All five signals present |
 | WARN | Fixed-line return (2 or 3 lines), but a signal is missing — the note lists which (e.g. `missing: state case`, `missing: network opt-in (<fn>)`) |
-| FAIL | A status/verdict function with no fixed-line return — a free-form prose verdict ("looks good") |
-| N/A  | File defines no status/verdict function |
+| N/A  | No status/verdict function returns a fixed-line verdict |
+
+There is no FAIL row. A candidate that returns no fixed lines is N/A (#110).
 
 ### Check 10 — Next-action Hint
 
@@ -367,7 +416,7 @@ Prose that merely contains a command (`review 'x', then gh-flow prune 1`, `inspe
 | PASS | Every NEXT value is command-shaped |
 | WARN | A NEXT value is prose (`commit or stash`), blank, an unknown command, or a variable with no literal assignment — command shape cannot be confirmed |
 | FAIL | A status/verdict function returns no NEXT value at all |
-| N/A  | File defines no status/verdict function (same rule as Check 9) |
+| N/A  | No status/verdict function returns a fixed-line verdict (same rule as Check 9) |
 
 Command shape is a prefix heuristic, so anything it cannot confirm is WARN,
 never FAIL: a false FAIL would mark down the reference implementation itself. gwt
