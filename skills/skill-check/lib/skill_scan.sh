@@ -77,13 +77,15 @@ parse_url() {
          # No usable ssh -G (absent, or OpenSSH < 6.8, issue #111): read the
          # config itself. Only a Host line naming the alias literally counts --
          # never a top-level HostName, a wildcard pattern or a Match block.
-         # shortcut: Include and quoted values are not followed; ssh -G covers
-         # them wherever ssh is new enough.
-         cfg=${SKILL_CHECK_SSH_CONFIG:-${HOME:-}/.ssh/config}
-         if [ -z "$a" ] && [ -f "$cfg" ]; then
-           a=$(awk -v h="$h" '
-             BEGIN { lh = tolower(h) }
-             { sub(/^[ \t]+/, ""); k = $0; sub(/[ \t=].*/, "", k); k = tolower(k)
+         # shortcut: Include, quoted values and wildcard Host patterns
+         # (Host gh-*) are not followed, so such an alias stays unresolved;
+         # ssh -G covers them wherever ssh is new enough.
+         cfg=${SKILL_CHECK_SSH_CONFIG:-${HOME:+$HOME/.ssh/config}}
+         if [ -z "$a" ] && [ -n "$cfg" ] && [ -f "$cfg" ]; then
+           # ENVIRON, not -v: -v would expand backslash escapes in the alias.
+           a=$(SKILL_SCAN_ALIAS=$h awk '
+             BEGIN { h = ENVIRON["SKILL_SCAN_ALIAS"]; lh = tolower(h) }
+             { sub(/\r$/, ""); sub(/^[ \t]+/, ""); k = $0; sub(/[ \t=].*/, "", k); k = tolower(k)
                v = $0; sub(/^[^ \t=]+[ \t]*=?[ \t]*/, "", v) }
              k == "match" { on = 0; next }
              k == "host" {
@@ -95,9 +97,20 @@ parse_url() {
                }
                next
              }
-             on && k == "hostname" { sub(/[ \t].*/, "", v); gsub(/%h/, h, v); print v; exit }
+             on && k == "hostname" {
+               sub(/[ \t].*/, "", v); o = ""
+               # %h is the alias and %% a literal %, without gsub reading & in h.
+               while ((i = index(v, "%")) > 0) {
+                 c = substr(v, i + 1, 1)
+                 o = o substr(v, 1, i - 1) (c == "h" ? h : c == "%" ? "%" : "%" c)
+                 v = substr(v, i + 2)
+               }
+               print o v; exit
+             }
            ' "$cfg") || a=
          fi
+         # A resolved HostName must pass the same option/path guard as the URL host.
+         case $a in */*|-*) a= ;; esac
          [ -z "$a" ] || h=$a
        fi ;;
   esac
