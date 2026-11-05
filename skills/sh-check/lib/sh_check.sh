@@ -142,7 +142,7 @@ esac
 
 # Top-level code, outside every function body (issue #110):
 #   out<TAB>reads<TAB>passes
-# out is 1 when a line starts an output command (echo/printf/tput/ux_*) in
+# out is 1 when a command is an output command (echo/printf/tput/cat/ux_*) in
 # command position -- source-time output, Check 2. reads is 1 when the code
 # reads the script's arguments itself ($1..$9, $#, $*, shift, getopts, for x;
 # do, in "$@"); passes lists the functions it hands "$@" to -- Check 6.
@@ -169,14 +169,17 @@ TOP=$(awk "$reads_awk"'
   # A `\` continuation is joined first, so a trailing `>&2` stays with its
   # command. Output to stderr (`>&2`) or inside $(...) is not source-time stdout,
   # which is what the guard protects (scp/rsync break on it).
-  function scan(line,   t) {
+  function scan(line,   t, n, i, seg) {
     t = line; gsub(/\047[^\047"]*\047/, "", t); sub(/(^|[ \t])#.*/, "", t)
     # An inline fallback definition (`|| log_info() { ux_info "$1"; }`) is no
     # top-level code at all.
     gsub(/[A-Za-z_][A-Za-z0-9_]*[ \t]*\(\)[ \t]*\{[^}]*\}/, "", t)
     reads_of(t)
     while (gsub(/\$\([^()]*\)/, "", t)) ;
-    if (t ~ /(^|[;&|{()]|(then|do|else)[ \t])[ \t]*(echo|printf|tput|ux_[a-z_]+)([ \t;]|$)/ && t !~ />&2/) out = 1
+    # Judged per command: `echo err >&2; echo out` still writes stdout.
+    n = split(t, seg, /;|&&|[|][|]/)
+    for (i = 1; i <= n; i++)
+      if (seg[i] ~ /(^|[&|{()]|(then|do|else)[ \t])[ \t]*(echo|printf|tput|cat|ux_[a-z_]+)([ \t]|$)/ && seg[i] !~ />&2/) out = 1
   }
   /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_-]*[ \t]*\(\)/ && !infn { infn = 1; depth = 0; opened = 0 }
   !infn && /\\$/ { buf = buf substr($0, 1, length($0) - 1) " "; next }
@@ -498,8 +501,9 @@ if [ "$sourced" -eq 1 ] && [ "$defs" -le "$nfunc" ] &&
 fi
 # An executed script is asked only when its arguments reach a reader (#110):
 # top-level code reading them, or "$@" handed down -- through functions defined
-# here, one hop at a time -- to one that does. "$@" handed to an undefined
-# *_main delegates the whole command to the file that defines it.
+# here, one hop at a time -- to one that does, or to any command not defined
+# here. "$@" handed to an undefined *_main delegates the whole command to the
+# file that defines it.
 # exec_args: read | deleg <fn> | none, and empty for a sourced file
 exec_args=''
 [ "$sourced" -eq 1 ] || exec_args=$(printf '%s\n' "$FUNCS" | awk -F'\t' -v top="$TOP" '
@@ -516,7 +520,9 @@ exec_args=''
         if (rd[f] == 1) { print "read"; exit }
         m = split(ps[f], r, " ")
         for (j = 1; j <= m; j++) q[++n] = r[j]
-      } else if (f ~ /_main$/ && d == "") d = f
+      } else if (f ~ /_main$/) { if (d == "") d = f }
+      # "$@" to any other outside command (`exec docker "$@"`) uses the arguments.
+      else { print "read"; exit }
     }
     print (d != "" ? "deleg " d : "none")
   }')
