@@ -68,6 +68,7 @@ eq "good: no verdict function, no fn table" "$(fnrows "$g")" ''
 bad=$work/dotfiles/shell-common/functions/bad.sh
 cat > "$bad" <<'EOF'
 #!/usr/bin/env bash
+echo "loaded"
 doThing() {
     local x="$1"
     if [[ -n "$x" ]]; then
@@ -132,8 +133,9 @@ printf '#!/bin/sh\nexit 0\n' > "$plain"
 chmod +x "$plain"   # checks.md Check 2: N/A needs the execute bit, not just #!
 p=$(sh "$here/sh_check.sh" "$plain" 'N/A' 'N/A')
 eq "plain: 4 no functions" "$(row "$p" 4)" 'N/A'
+eq "plain: 6 an executable reading no arguments is N/A (#110)" "$(row "$p" 6)" 'N/A'
 eq "plain: score drops N/A rows" \
-  "$(printf '%s\n' "$p" | awk -F'\t' '$1 == "score" { print $2 }')" 1/2
+  "$(printf '%s\n' "$p" | awk -F'\t' '$1 == "score" { print $2 }')" 1/1
 
 # ---------- the verdict boundaries ----------
 # mid.sh scores 4 mechanical PASS + 4 N/A (9/10 included: no verdict
@@ -257,15 +259,33 @@ EOF
 eq "nocase: fixed lines but no state case is WARN" \
   "$(row "$(sh "$here/sh_check.sh" "$nocase")" 9)" WARN
 
-# A status function that only talks prose fails both.
+# A status function that only talks prose is a display, not a verdict (#110).
 vfree=$work/vfree.sh
 cat > "$vfree" <<'EOF'
 #!/bin/sh
 show_status() { ux_info "looks good"; }
 EOF
 vf=$(sh "$here/sh_check.sh" "$vfree")
-eq "vfree: prose verdict is FAIL" "$(row "$vf" 9)" FAIL
-eq "vfree: no NEXT anywhere is FAIL" "$(row "$vf" 10)" FAIL
+eq "vfree: prose status display is N/A, not FAIL (9)" "$(row "$vf" 9)" 'N/A'
+eq "vfree: prose status display is N/A, not FAIL (10)" "$(row "$vf" 10)" 'N/A'
+# Only a whole status/verdict token names a candidate (#110).
+cat > "$work/vtok.sh" <<'EOF'
+#!/bin/sh
+_mig_statusline_cmd() { printf '%s\n%s\n' "x" "gwt list"; }
+gpustatus() { printf '%s\n%s\n' "x" "gwt list"; }
+EOF
+vk=$(sh "$here/sh_check.sh" "$work/vtok.sh")
+eq "vtok: statusline / gpustatus are not status functions (9)" "$(row "$vk" 9)" 'N/A'
+eq "vtok: statusline / gpustatus are not status functions (10)" "$(row "$vk" 10)" 'N/A'
+# A fixed-line return keeps the current verdict: no NEXT is still FAIL.
+cat > "$work/vnonext.sh" <<'EOF'
+#!/bin/sh
+_nn_status() {
+    printf '%s\n%s\n' "ok" $x
+}
+EOF
+eq "vnonext: a fixed-line status with no quoted NEXT is FAIL (10)" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/vnonext.sh")" 10)" FAIL
 
 # Network is opt-in (issue #42): a gh/curl/wget call inside a fixed-line verdict
 # function is WARN unless an enclosing if/case names the opt-in flag.
@@ -475,8 +495,8 @@ eq "hrow: a *_help_* renderer without fixed lines is not a verdict" \
 cat "$vpass" > "$work/vrows.sh"
 printf '%s\n' '_vt_status_rows() { ux_table_row "a" "b"; }' >> "$work/vrows.sh"
 printf '#!/bin/sh\n_cm_status() {\n    # no ux_table_row here, only this comment\n    echo ok\n}\n' > "$work/vcm.sh"
-eq "vcm: ux_table_row in a comment does not hide a verdict" \
-  "$(row "$(sh "$here/sh_check.sh" "$work/vcm.sh")" 9)" FAIL
+eq "vcm: a *_status with no fixed lines is N/A, comment or not (#110)" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/vcm.sh")" 9)" 'N/A'
 eq "vrows: the real verdict still decides 9 beside a table renderer" \
   "$(row "$(sh "$here/sh_check.sh" "$work/vrows.sh")" 9)" PASS
 
@@ -544,7 +564,7 @@ EOF2
 eq "wenv: VAR=... \"\$_exe\" \"\$@\" is delegation (A-1)" \
   "$(sh "$here/sh_check.sh" "$wenv" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" "PASS delegates --help to $wtool"
 nohelp=$work/dotfiles/shell-common/tools/custom/nohelp.sh
-printf '#!/bin/bash\nread -r t u < <(free -h | awk "NR==2 {print \\$2}")\n' > "$nohelp"; chmod +x "$nohelp"
+printf '#!/bin/bash\nread -r t u < <(free -h | awk "NR==2 {print \\$2}")\necho "$1"\n' > "$nohelp"; chmod +x "$nohelp"
 wbash=$work/dotfiles/shell-common/functions/wbash.sh
 cat > "$wbash" <<'EOF2'
 #!/bin/sh
@@ -582,9 +602,39 @@ eq "hook: an init hook taking an argument stays FAIL (auditor may override)" \
 printf '#!/bin/sh\nshow_help() {\n    case "$1" in -h|--help) ux_info "usage"; return 0 ;; esac\n}\nx() { show_help; }\n' > "$fns/hhelp.sh"
 eq "hhelp: help a file does handle still scores PASS, not N/A" \
   "$(row "$(sh "$here/sh_check.sh" "$fns/hhelp.sh")" 6)" PASS
-printf '#!/bin/sh\n_main() { echo hi; }\n_main\n' > "$work/exe.sh"; chmod +x "$work/exe.sh"
+printf '#!/bin/sh\n_main() { echo "$1"; }\n_main "$@"\n' > "$work/exe.sh"; chmod +x "$work/exe.sh"
 eq "exe: an executable script with only _helpers is still asked for --help" \
   "$(row "$(sh "$here/sh_check.sh" "$work/exe.sh")" 6)" FAIL
+# An executed script is asked only when its arguments reach a reader (#110).
+scr "$work/exe_top.sh" <<'EOF2'
+#!/bin/sh
+case "$1" in
+    run) echo run ;;
+esac
+EOF2
+eq "exe_top: top-level \$1 without -h stays FAIL" "$(row "$(sh "$here/sh_check.sh" "$work/exe_top.sh")" 6)" FAIL
+scr "$work/exe_hop.sh" <<'EOF2'
+#!/bin/sh
+_run() { [ -n "$1" ] && echo "$1"; }
+main() { _run "$@"; }
+main "$@"
+EOF2
+eq "exe_hop: \"\$@\" handed down to a reader stays FAIL" "$(row "$(sh "$here/sh_check.sh" "$work/exe_hop.sh")" 6)" FAIL
+scr "$work/exe_noarg.sh" <<'EOF2'
+#!/bin/sh
+main() { echo "no args here"; }
+main "$@"
+EOF2
+eq "exe_noarg: main \"\$@\" that never reads them is N/A" \
+  "$(sh "$here/sh_check.sh" "$work/exe_noarg.sh" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" 'N/A executable script reads no arguments'
+scr "$work/exe_deleg.sh" <<'EOF2'
+#!/bin/bash
+. "$(dirname "$0")/lib.sh"
+main() { _grs_main "$@"; }
+main "$@"
+EOF2
+eq "exe_deleg: _x_main \"\$@\" defined elsewhere is N/A" \
+  "$(sh "$here/sh_check.sh" "$work/exe_deleg.sh" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" 'N/A arguments go to _grs_main, defined outside this file'
 cat > "$fns/quoted.sh" <<'EOF2'
 #!/bin/sh
 ps_top() {
@@ -608,7 +658,7 @@ for arm in '*--help*)' '--help=*)' '-h*)'; do
   printf '#!/bin/sh\nglob_cmd() {\n    case "$1" in %s ux_info usage; return 0 ;; esac\n}\n' "$arm" > "$fns/glob.sh"
   eq "glob: '$arm' is flag handling" "$(row "$(sh "$here/sh_check.sh" "$fns/glob.sh")" 6)" WARN
 done
-printf '#!/bin/bash\nm=$(free -h | sort)\nn=$(du -h|tail)\n' > "$work/subp.sh"; chmod +x "$work/subp.sh"
+printf '#!/bin/bash\nm=$(free -h | sort)\nn=$(du -h|tail)\necho "$1"\n' > "$work/subp.sh"; chmod +x "$work/subp.sh"
 eq "subp: '-h | word)' closing \$(...) is not flag handling" \
   "$(row "$(sh "$here/sh_check.sh" "$work/subp.sh")" 6)" FAIL
 cat > "$fns/wlate.sh" <<'EOF2'
@@ -1255,6 +1305,98 @@ safety_docs=$(awk '/^## Safety Checks/ { on = 1; print; next } /^## / { on = 0 }
 eq "docs: checks.md has a Safety Checks section" "$(printf '%s\n' "$safety_docs" | grep -c '^### Check 1[1-4] ')" 4
 eq "docs: Safety snippets and Next Actions avoid [[, declare, mapfile" \
   "$({ printf '%s\n' "$safety_docs"; awk '/^### Next Actions/,/^```$/' "$refs/report-template.md"; } | grep -cE '\[\[|declare|mapfile' || true)" 0
+
+# ---------- project exemptions (issue #110) ----------
+d=$work/dotfiles
+mkdir -p "$d/shell-common/env" "$d/shell-common/tools/custom/lib" "$d/git/hooks" "$d/claude" "$d/tests"
+# Check 2: the guard is owed only by a file that prints while sourced.
+frag "$fns/purelib.sh" <<'EOF2'
+#!/bin/sh
+# Source-only, no interactive guard: function definitions only.
+_pl_join() { printf '%s\n' "$1"; }
+EOF2
+eq "purelib: no source-time output -> 2 N/A" \
+  "$(sh "$here/sh_check.sh" "$fns/purelib.sh" | awk -F'\t' '$1 == 2 { print $2 " " $3 }')" 'N/A no source-time output'
+frag "$fns/quiet.sh" <<'EOF2'
+#!/bin/sh
+_q_ti=$(printf 'colors\n' | tput -S 2>/dev/null) || _q_ti=""
+command -v log_info >/dev/null 2>&1 || log_info() { ux_info "$1"; }
+if ! command -v _q_dep >/dev/null 2>&1; then
+    printf '[quiet] %s missing\n' \
+        "_q_dep" >&2
+fi
+EOF2
+eq "quiet: output in \$(...) or to stderr is not source-time output -> 2 N/A" \
+  "$(row "$(sh "$here/sh_check.sh" "$fns/quiet.sh")" 2)" 'N/A'
+frag "$fns/loud.sh" <<'EOF2'
+#!/bin/sh
+ux_info "x"
+_ld_fn() { :; }
+EOF2
+eq "loud: top-level ux_info without a guard stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loud.sh")" 2)" FAIL
+frag "$fns/loudif.sh" <<'EOF2'
+#!/bin/sh
+if [ -z "${X-}" ]; then echo "X unset"; fi
+EOF2
+eq "loudif: output after then at top level stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudif.sh")" 2)" FAIL
+frag "$d/shell-common/tools/custom/noexec.sh" <<'EOF2'
+#!/bin/bash
+echo "run"
+EOF2
+eq "noexec: a tools/custom entrypoint is executed without +x -> 2 N/A" \
+  "$(row "$(sh "$here/sh_check.sh" "$d/shell-common/tools/custom/noexec.sh")" 2)" 'N/A'
+# Check 5: only shell-common outside tools/custom is cross-shell.
+frag "$d/shell-common/tools/custom/lib/loc.sh" <<'EOF2'
+#!/bin/sh
+_lc_fn() { local a="$1"; ux_info "$a"; }
+EOF2
+eq "customlib: tools/custom/lib -> 5 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/shell-common/tools/custom/lib/loc.sh")" 5)" 'N/A'
+scr "$d/shell-common/tools/custom/loc.sh" <<'EOF2'
+#!/bin/bash
+_lc_fn() { local a="$1"; ux_info "$a"; }
+_lc_fn "$@"
+EOF2
+eq "customentry: tools/custom entrypoint -> 5 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/shell-common/tools/custom/loc.sh")" 5)" 'N/A'
+frag "$d/claude/lib.sh" <<'EOF2'
+#!/bin/sh
+_cl_fn() { local a="$1"; ux_info "$a"; }
+EOF2
+eq "claudelib: outside shell-common in the layout -> 5 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/claude/lib.sh")" 5)" 'N/A'
+# Check 6: trees that hold no user command.
+frag "$d/shell-common/env/path.sh" <<'EOF2'
+#!/bin/sh
+add_path() { PATH="$1:$PATH"; }
+EOF2
+eq "env: shell-common/env -> 6 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/shell-common/env/path.sh")" 6)" 'N/A'
+scr "$d/claude/setup.sh" <<'EOF2'
+#!/bin/bash
+main() { [ "$1" = x ] && echo x; }
+main "$@"
+EOF2
+eq "setup: claude/setup.sh -> 6 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/claude/setup.sh")" 6)" 'N/A'
+cp "$d/claude/setup.sh" "$d/setup.sh"
+eq "rootsetup: the root setup.sh is still asked -> 6 FAIL" "$(row "$(sh "$here/sh_check.sh" "$d/setup.sh")" 6)" FAIL
+# Check 7: git hooks and tests print for tools.
+scr "$d/git/hooks/pre-commit.sh" <<'EOF2'
+#!/bin/sh
+echo "hook: ok"
+EOF2
+h=$(sh "$here/sh_check.sh" "$d/git/hooks/pre-commit.sh")
+eq "hook: git/ -> 7 N/A" "$(row "$h" 7)" 'N/A'
+eq "hook: git/ -> 6 N/A" "$(row "$h" 6)" 'N/A'
+scr "$d/tests/t.sh" <<'EOF2'
+#!/bin/sh
+echo "ok 1"
+EOF2
+eq "tests: tests/ -> 7 N/A" "$(row "$(sh "$here/sh_check.sh" "$d/tests/t.sh")" 7)" 'N/A'
+# No shell-common/ anywhere above: no path exemption fires.
+mkdir -p "$work/plainrepo/git"
+scr "$work/plainrepo/git/x.sh" <<'EOF2'
+#!/bin/sh
+echo "x"
+EOF2
+eq "plainrepo: git/ without a shell-common layout -> 7 FAIL" \
+  "$(row "$(sh "$here/sh_check.sh" "$work/plainrepo/git/x.sh")" 7)" FAIL
 
 # ---------- usage errors ----------
 if sh "$here/sh_check.sh" >/dev/null 2>&1; then
