@@ -82,14 +82,16 @@ parse_url() {
          cfg=${SKILL_CHECK_SSH_CONFIG:-${HOME:-}/.ssh/config}
          if [ -z "$a" ] && [ -f "$cfg" ]; then
            a=$(awk -v h="$h" '
+             BEGIN { lh = tolower(h) }
              { sub(/^[ \t]+/, ""); k = $0; sub(/[ \t=].*/, "", k); k = tolower(k)
                v = $0; sub(/^[^ \t=]+[ \t]*=?[ \t]*/, "", v) }
              k == "match" { on = 0; next }
              k == "host" {
                on = 0; n = split(v, pat, /[ \t]+/)
                for (i = 1; i <= n; i++) {
-                 if (tolower(pat[i]) == "!" tolower(h)) { on = 0; break }
-                 if (tolower(pat[i]) == tolower(h)) on = 1
+                 p = tolower(pat[i])
+                 if (p == "!" lh) { on = 0; break }
+                 if (p == lh) on = 1
                }
                next
              }
