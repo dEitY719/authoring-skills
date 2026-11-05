@@ -79,11 +79,11 @@ case $- in *i*) ;; *) [ -n "${DOTFILES_FORCE_INIT-}" ] || return 0 ;; esac
 **Source-time output** (dEitY719/dotfiles#1877). The guard is owed only by a
 file that prints while it is sourced. A pure function library sourced
 non-interactively is exempt: `N/A no source-time output`. The helper reads the
-top-level code, outside every function body. An `echo`, `printf`, `tput` or
-`ux_*` call in command position there is source-time output: at line start, or
-after `;`, `&&`, `||`, `|`, `{`, `then`, `do` or `else`. A `\` continuation is
-joined first. These do not count: a call inside `$(...)`, a statement that
-redirects `>&2` (the guard protects stdout, which scp and rsync break on), and an
+top-level code, outside every function body. An `echo`, `printf`, `tput`, `cat`
+or `ux_*` call in command position there is source-time output: at line start, or
+after `;`, `&&`, `||`, `|`, `{`, `(`, `)`, `then`, `do` or `else`. A `\`
+continuation is joined first, and each command on a line is judged on its own.
+These do not count: a call inside `$(...)`, a command that redirects `>&2` (the guard protects stdout, which scp and rsync break on), and an
 inline fallback definition such as `|| log_info() { ux_info "$1"; }`. The N/A
 only replaces the FAIL. A guard that a file does carry still scores PASS or WARN.
 
@@ -215,7 +215,9 @@ functions are called, but only when its arguments reach a reader (#110,
 dEitY719/dotfiles#1880). The reader is the top-level code reading them directly
 (`$1`..`$9`, `$#`, `$*`, `shift`, `getopts`, `for x; do`, `in "$@"`), or a
 function defined in the file that receives `"$@"` and reads them, followed
-through every `"$@"` hand-off. Passing `"$@"` along is not a read in itself.
+through every `"$@"` hand-off. Passing `"$@"` along to a function defined in
+the file is not a read in itself; passing it to any command not defined there
+(`exec docker "$@"`) is, so that script is still asked.
 With no reader the row is `N/A executable script reads no arguments`. When
 `"$@"` reaches an undefined `*_main` (`main() { _grs_main "$@"; }`, with
 `_grs_main` sourced from another file), the command is delegated: `N/A
@@ -226,7 +228,8 @@ wrapper the file does have still scores PASS, WARN or FAIL as above.
 that takes arguments, so the row is N/A there: `shell-common/env/`,
 `shell-common/aliases/`, `shell-common/util/`, `shell-common/tools/ux_lib/`,
 `git/` (hooks), any `tests/` directory, and every `*/setup.sh` except the
-repo-root `setup.sh`.
+repo-root `setup.sh`. Unlike the N/A rules above, an exempt path overrides
+every result, PASS and WARN included: the rule does not apply there at all.
 
 An init hook that takes an argument (dotfiles' `dotfiles_init_summary
 <file_count>`, called by the loader, not typed by a user) is not caught by
@@ -288,7 +291,8 @@ output behind `[ "${DEBUG:-0}" = "1" ]`.
 | N/A  | File defines no user-facing output (e.g. pure data helper), or sits on an exempt path |
 
 **Exempt paths** (#110, dEitY719/dotfiles#1881). Git hooks and tests print for
-tools, not people: `git/` and any `tests/` directory are N/A.
+tools, not people: `git/` and any `tests/` directory are N/A, whatever the
+result would have been.
 
 **Grep hints**
 ```sh

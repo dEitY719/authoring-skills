@@ -635,6 +635,8 @@ main "$@"
 EOF2
 eq "exe_deleg: _x_main \"\$@\" defined elsewhere is N/A" \
   "$(sh "$here/sh_check.sh" "$work/exe_deleg.sh" | awk -F'\t' '$1 == 6 { print $2 " " $3 }')" 'N/A arguments go to _grs_main, defined outside this file'
+printf '#!/bin/sh\nexec docker "$@"\n' > "$work/exe_ext.sh"; chmod +x "$work/exe_ext.sh"
+eq "exe_ext: \"\$@\" to an outside command uses the arguments -> 6 FAIL" "$(row "$(sh "$here/sh_check.sh" "$work/exe_ext.sh")" 6)" FAIL
 cat > "$fns/quoted.sh" <<'EOF2'
 #!/bin/sh
 ps_top() {
@@ -1346,6 +1348,10 @@ case "${X-}" in
 esac
 EOF2
 eq "loudcase: output in a top-level case arm stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudcase.sh")" 2)" FAIL
+printf '#!/bin/sh\necho err >&2; echo out\n' > "$fns/loudmix.sh"; chmod -x "$fns/loudmix.sh"
+eq "loudmix: stdout after a >&2 command on one line stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudmix.sh")" 2)" FAIL
+printf '#!/bin/sh\ncat <<EOT\nbanner\nEOT\n' > "$fns/loudcat.sh"; chmod -x "$fns/loudcat.sh"
+eq "loudcat: a top-level cat heredoc stays 2 FAIL" "$(row "$(sh "$here/sh_check.sh" "$fns/loudcat.sh")" 2)" FAIL
 frag "$d/shell-common/tools/custom/noexec.sh" <<'EOF2'
 #!/bin/bash
 echo "run"
