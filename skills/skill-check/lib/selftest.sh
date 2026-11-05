@@ -1028,7 +1028,7 @@ eq "scan: alias resolves when gh is missing" "$(SKILL_CHECK_GH="$work/no-gh" sh 
 mkdir "$work/nossh"
 printf '#!/bin/sh\nexit 255\n' > "$work/nossh/ssh"
 chmod +x "$work/nossh/ssh"
-printf 'HostName top.example\nHost *\n  HostName star.example\nHost a1 github.com-work a2\n  HostName github.com\nHost=eq-alias\n  hostname=eq.example\nHost neg-alias !neg-alias\n  HostName neg.example\nMatch host match-alias\n  HostName match.example\nHost pct-alias\n  HostName %%h.example\n' > "$work/ssh_config_fb"
+printf 'HostName top.example\nHost *\n  HostName star.example\nHost star-named\n  User git\nHost first-alias\n  HostName first.example\nHost first-alias\n  HostName second.example\nHOST\tcase-alias\r\n\tHOSTNAME\tcase.example\r\nHost pp-alias\n  HostName a%%%%h\nHost amp&alias\n  HostName %%h.example\nHost dash-alias\n  HostName -oProxyCommand=x\nHost a1 github.com-work a2\n  HostName github.com\nHost=eq-alias\n  hostname=eq.example\nHost neg-alias !neg-alias\n  HostName neg.example\nMatch host match-alias\n  HostName match.example\nHost pct-alias\n  HostName %%h.example\n' > "$work/ssh_config_fb"
 nossh() { PATH="$work/nossh:$PATH" SKILL_CHECK_SSH_CONFIG="$work/ssh_config_fb" sh "$scan" parse-url "$1"; }
 eq "scan: no ssh -G, multi-pattern Host resolves alias" "$(nossh git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
 eq "scan: no ssh -G, top-level HostName and Host * ignored" "$(nossh git@plain-alias:o/r)" "$(printf 'plain-alias\to/r')"
@@ -1036,6 +1036,12 @@ eq "scan: no ssh -G, Host=/hostname= form resolves" "$(nossh git@eq-alias:o/r)" 
 eq "scan: no ssh -G, negated pattern does not resolve" "$(nossh git@neg-alias:o/r)" "$(printf 'neg-alias\to/r')"
 eq "scan: no ssh -G, Match block does not resolve" "$(nossh git@match-alias:o/r)" "$(printf 'match-alias\to/r')"
 eq "scan: no ssh -G, %h expands to the alias" "$(nossh git@pct-alias:o/r)" "$(printf 'pct-alias.example\to/r')"
+eq "scan: no ssh -G, Host * HostName does not leak into a named block" "$(nossh git@star-named:o/r)" "$(printf 'star-named\to/r')"
+eq "scan: no ssh -G, first matching block wins" "$(nossh git@first-alias:o/r)" "$(printf 'first.example\to/r')"
+eq "scan: no ssh -G, uppercase keywords, tabs and CRLF" "$(nossh git@case-alias:o/r)" "$(printf 'case.example\to/r')"
+eq "scan: no ssh -G, %% is a literal percent" "$(nossh git@pp-alias:o/r)" "$(printf 'a%%h\to/r')"
+eq "scan: no ssh -G, & in the alias survives %h" "$(nossh 'git@amp&alias:o/r')" "$(printf 'amp&alias.example\to/r')"
+eq "scan: no ssh -G, option-like HostName is refused" "$(nossh git@dash-alias:o/r)" "$(printf 'dash-alias\to/r')"
 eq "scan: no ssh -G, missing config keeps alias" "$(PATH="$work/nossh:$PATH" SKILL_CHECK_SSH_CONFIG="$work/none" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com-work\to/r')"
 eq "scan: parse rejects a host that reads as an option" "$(rc sh "$scan" parse-url git@-oFoo:o/r)" 2
 eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
