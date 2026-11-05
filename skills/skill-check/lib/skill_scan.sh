@@ -88,8 +88,8 @@ parse_url() {
              k == "host" {
                on = 0; n = split(v, pat, /[ \t]+/)
                for (i = 1; i <= n; i++) {
-                 if (pat[i] == "!" h) { on = 0; break }
-                 if (pat[i] == h) on = 1
+                 if (tolower(pat[i]) == "!" tolower(h)) { on = 0; break }
+                 if (tolower(pat[i]) == tolower(h)) on = 1
                }
                next
              }
