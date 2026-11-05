@@ -155,8 +155,8 @@ reads_awk='
     if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9*]|#([^A-Za-z_{]|$)|\{#[@*}])/) rd = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) rd = 1
     if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) rd = 1
-    if (t ~ /[ \t]in[ \t]+"?\$\{?@/) rd = 1
-    if (t ~ /(=|\()[ \t]*"?\$\{?@/) rd = 1
+    if (t ~ /^[^#]*[ \t]in[ \t]+"?\$\{?@/) rd = 1
+    if (t ~ /^[^#]*(=|\()[ \t]*"?\$\{?@/) rd = 1
     s = t
     while (match(s, /[A-Za-z_][A-Za-z0-9_]*[ \t]+"\$\{?@\}?"/)) {
       f = substr(s, RSTART, RLENGTH); sub(/[ \t].*/, "", f)
@@ -294,10 +294,9 @@ FUNCS=$(awk -v cmds="$next_cmds" -v opt="$opt_in" -v call="$call_pattern" "$read
     # Single-quoted text (an awk/sed program), `\$1` and `${#var}` are not
     # argument reads; getopts, shift and `for x; do` read them implicitly.
     t = line; gsub(/\047[^\047"]*\047/, "", t)
-    if (t ~ /^[^#]*(^|[^\\])\$(\{?[1-9@*]|#([^A-Za-z_{]|$)|\{#[@*}])/) args = 1
-    if (t ~ /^[^#]*(^|[;&|[:space:]])(getopts|shift)([ \t;]|$)/) args = 1
-    if (t ~ /^[^#]*(^|[;&|[:space:]])for[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*(;|do([ \t]|$)|$)/) args = 1
+    # args is a direct read (rd) or any "$@" use, passed along or not.
     reads_of(t)
+    if (rd || t ~ /^[^#]*(^|[^\\])\$\{?@/) args = 1
     if (line ~ /printf[ \t]+.%s\\n%s\\n/) verdict(line)
     network(line)
   }
@@ -501,8 +500,9 @@ fi
 # top-level code reading them, or "$@" handed down -- through functions defined
 # here, one hop at a time -- to one that does. "$@" handed to an undefined
 # *_main delegates the whole command to the file that defines it.
-# exec_args: read | deleg <fn> | none
-exec_args=$(printf '%s\n' "$FUNCS" | awk -F'\t' -v top="$TOP" '
+# exec_args: read | deleg <fn> | none, and empty for a sourced file
+exec_args=''
+[ "$sourced" -eq 1 ] || exec_args=$(printf '%s\n' "$FUNCS" | awk -F'\t' -v top="$TOP" '
   $1 != "" { def[$1] = 1; rd[$1] = $11; ps[$1] = $12 }
   END {
     split(top, t, "\t")
@@ -535,9 +535,9 @@ elif [ "$na_ok" -eq 1 ] && [ "$pub" -eq 0 ]; then
   r6='N/A'; n6='no public command'
 elif [ "$na_ok" -eq 1 ] && [ "$cand" -eq 0 ]; then
   r6='N/A'; n6='no public command takes arguments (help renderers excluded)'
-elif [ "$sourced" -eq 0 ] && [ "$exec_args" = none ]; then
+elif [ "$exec_args" = none ]; then
   r6='N/A'; n6='executable script reads no arguments'
-elif [ "$sourced" -eq 0 ] && [ "${exec_args%% *}" = deleg ]; then
+elif [ "${exec_args%% *}" = deleg ]; then
   r6='N/A'; n6="arguments go to ${exec_args#deleg }, defined outside this file"
 else
   r6=FAIL; n6='no -h/--help handling'
