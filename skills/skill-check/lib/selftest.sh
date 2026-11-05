@@ -1024,6 +1024,19 @@ for v in GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN; do
   eq "scan: $v does not hide an alias" "$(env "$v=x" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
 done
 eq "scan: alias resolves when gh is missing" "$(SKILL_CHECK_GH="$work/no-gh" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+# issue #111: with no usable ssh -G, parse_url reads the config file itself.
+mkdir "$work/nossh"
+printf '#!/bin/sh\nexit 255\n' > "$work/nossh/ssh"
+chmod +x "$work/nossh/ssh"
+printf 'HostName top.example\nHost *\n  HostName star.example\nHost a1 github.com-work a2\n  HostName github.com\nHost=eq-alias\n  hostname=eq.example\nHost neg-alias !neg-alias\n  HostName neg.example\nMatch host match-alias\n  HostName match.example\nHost pct-alias\n  HostName %%h.example\n' > "$work/ssh_config_fb"
+nossh() { PATH="$work/nossh:$PATH" SKILL_CHECK_SSH_CONFIG="$work/ssh_config_fb" sh "$scan" parse-url "$1"; }
+eq "scan: no ssh -G, multi-pattern Host resolves alias" "$(nossh git@github.com-work:o/r)" "$(printf 'github.com\to/r')"
+eq "scan: no ssh -G, top-level HostName and Host * ignored" "$(nossh git@plain-alias:o/r)" "$(printf 'plain-alias\to/r')"
+eq "scan: no ssh -G, Host=/hostname= form resolves" "$(nossh git@eq-alias:o/r)" "$(printf 'eq.example\to/r')"
+eq "scan: no ssh -G, negated pattern does not resolve" "$(nossh git@neg-alias:o/r)" "$(printf 'neg-alias\to/r')"
+eq "scan: no ssh -G, Match block does not resolve" "$(nossh git@match-alias:o/r)" "$(printf 'match-alias\to/r')"
+eq "scan: no ssh -G, %h expands to the alias" "$(nossh git@pct-alias:o/r)" "$(printf 'pct-alias.example\to/r')"
+eq "scan: no ssh -G, missing config keeps alias" "$(PATH="$work/nossh:$PATH" SKILL_CHECK_SSH_CONFIG="$work/none" sh "$scan" parse-url git@github.com-work:o/r)" "$(printf 'github.com-work\to/r')"
 eq "scan: parse rejects a host that reads as an option" "$(rc sh "$scan" parse-url git@-oFoo:o/r)" 2
 eq "scan: parse rejects a local path" "$(rc sh "$scan" parse-url /srv/git/r.git)" 2
 

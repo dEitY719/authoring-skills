@@ -74,6 +74,28 @@ parse_url() {
            "$GH" auth token --hostname "$h" >/dev/null 2>&1; then
          a=$(ssh ${SKILL_CHECK_SSH_CONFIG:+-F "$SKILL_CHECK_SSH_CONFIG"} -G "$h" 2>/dev/null |
            awk '$1 == "hostname" { print $2; exit }') || a=
+         # No usable ssh -G (absent, or OpenSSH < 6.8, issue #111): read the
+         # config itself. Only a Host line naming the alias literally counts --
+         # never a top-level HostName, a wildcard pattern or a Match block.
+         # shortcut: Include and quoted values are not followed; ssh -G covers
+         # them wherever ssh is new enough.
+         cfg=${SKILL_CHECK_SSH_CONFIG:-${HOME:-}/.ssh/config}
+         if [ -z "$a" ] && [ -f "$cfg" ]; then
+           a=$(awk -v h="$h" '
+             { sub(/^[ \t]+/, ""); k = $0; sub(/[ \t=].*/, "", k); k = tolower(k)
+               v = $0; sub(/^[^ \t=]+[ \t]*=?[ \t]*/, "", v) }
+             k == "match" { on = 0; next }
+             k == "host" {
+               on = 0; n = split(v, pat, /[ \t]+/)
+               for (i = 1; i <= n; i++) {
+                 if (pat[i] == "!" h) { on = 0; break }
+                 if (pat[i] == h) on = 1
+               }
+               next
+             }
+             on && k == "hostname" { sub(/[ \t].*/, "", v); gsub(/%h/, h, v); print v; exit }
+           ' "$cfg") || a=
+         fi
          [ -z "$a" ] || h=$a
        fi ;;
   esac
